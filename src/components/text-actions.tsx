@@ -20,9 +20,12 @@ export const HIGHLIGHT_COLORS = [
 ]
 
 const SELECTION_DELAY_MS = 70
+/* a tap within this long of closing the menu only closed it */
+const TAP_DISMISS_MS = 500
 
 type Menu =
-  | { kind: 'selection'; rect: DOMRect; segments: SelectionSegment[]; text: string }
+  /* `sentence` is set when a whole sentence was tapped; it is tinted while the menu is open */
+  | { kind: 'selection'; rect: DOMRect; segments: SelectionSegment[]; text: string; sentence?: HTMLElement }
   | { kind: 'mark'; rect: DOMRect; annotation: Annotation }
 
 interface Options {
@@ -48,6 +51,8 @@ export function useTextActions(options: Options) {
   const [noteFor, setNoteFor] = useState<NoteState | null>(null)
   const [share, setShare] = useState<ShareQuote | null>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
+  /* when a tap last closed the menu, so that same tap does not open another one */
+  const dismissedAt = useRef(0)
   const optionsRef = useRef(options)
   useLayoutEffect(() => {
     optionsRef.current = options
@@ -85,7 +90,9 @@ export function useTextActions(options: Options) {
     const close = () => setMenu(null)
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
     const onPointer = (e: PointerEvent) => {
-      if (!toolbarRef.current?.contains(e.target as Node)) close()
+      if (toolbarRef.current?.contains(e.target as Node)) return
+      dismissedAt.current = e.timeStamp
+      close()
     }
     document.addEventListener('pointerdown', onPointer)
     window.addEventListener('scroll', close, { passive: true, capture: true })
@@ -102,6 +109,25 @@ export function useTextActions(options: Options) {
   const openForMark = useCallback((annotation: Annotation, el: HTMLElement) => {
     setMenu({ kind: 'mark', rect: el.getBoundingClientRect(), annotation })
   }, [])
+
+  /** A tap on a sentence offers the toolbar for the whole sentence, as if it had been selected. */
+  const openForSentence = useCallback((target: TextTarget, el: HTMLElement, tapAt: number) => {
+    if (tapAt - dismissedAt.current < TAP_DISMISS_MS) return
+    const plain = optionsRef.current.plainFor(target) ?? ''
+    const range = trimRange(plain, 0, plain.length)
+    if (!range) return
+    const text = plain.slice(...range)
+    setMenu({ kind: 'selection', rect: el.getBoundingClientRect(), segments: [{ target, start: range[0], end: range[1], text }], text, sentence: el })
+  }, [])
+
+  useEffect(() => {
+    const el = menu?.kind === 'selection' ? menu.sentence : undefined
+    if (!el) return
+    el.dataset.active = 'true'
+    return () => {
+      delete el.dataset.active
+    }
+  }, [menu])
 
   const close = () => {
     setMenu(null)
@@ -249,7 +275,7 @@ export function useTextActions(options: Options) {
     </>
   )
 
-  return { openForMark, element: (
+  return { openForMark, openForSentence, element: (
     <>
       {toolbar}
       {dialogs}

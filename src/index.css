@@ -301,6 +301,11 @@
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
 }
+/* the sentence a tap opened the toolbar for; it goes back to normal when the toolbar closes */
+.sentence[data-active="true"] {
+    background-color: color-mix(in oklch, var(--page-accent, var(--primary)) 14%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--page-accent, var(--primary)) 14%, transparent);
+}
 .sentence[data-flash="true"] {
     animation: sentence-flash 2.4s ease-out;
 }

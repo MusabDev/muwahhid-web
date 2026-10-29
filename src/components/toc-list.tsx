@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronDown, ListTree } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { SectionHeading } from '@/components/brand'
 import { EmptyState } from '@/components/states'
 import { arNum, bnNum } from '@/lib/text'
@@ -40,8 +40,15 @@ function useTocTree(entries: TocEntry[], currentPage?: number) {
 /** The bare tree, for the reader's contents panel. */
 export function TocList({ slug, entries, currentPage, onNavigate }: { slug: string; entries: TocEntry[]; currentPage?: number; onNavigate?: () => void }) {
   const { activeId, open, toggle } = useTocTree(entries, currentPage)
+  const listRef = useRef<HTMLOListElement>(null)
+
+  /* bring the reader's section into view in a long contents list */
+  useEffect(() => {
+    listRef.current?.querySelector('[aria-current="location"]')?.scrollIntoView({ block: 'nearest' })
+  }, [activeId])
+
   return (
-    <ol className="divide-y divide-border/70 overflow-hidden rounded-xl border bg-card">
+    <ol ref={listRef} className="divide-y divide-border/70 overflow-hidden rounded-xl border bg-card">
       {entries.map((entry, index) => (
         <li key={entry.id}>
           <TocRow slug={slug} entry={entry} index={index} lang="bn" open={open} onToggle={toggle} depth={0} activeId={activeId} onNavigate={onNavigate} />

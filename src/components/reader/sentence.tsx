@@ -5,7 +5,7 @@ import { FootnoteRef } from './footnote-ref'
 import { useReader } from './reader-context'
 
 export const Sentence = memo(function Sentence({ sentence, lang }: { sentence: SentenceType; lang: Lang }) {
-  const { settings, flashId, onMarkClick, highlightsFor, annotationById, footnotes } = useReader()
+  const { settings, flashId, onMarkClick, onSentenceClick, highlightsFor, annotationById, footnotes } = useReader()
   const text = lang === 'ar' ? sentence.text_ar_md : sentence.text_bn_md
   if (!text.trim()) return null
 
@@ -20,9 +20,13 @@ export const Sentence = memo(function Sentence({ sentence, lang }: { sentence: S
       onClick={(e) => {
         /* a click that ends a text selection is handled by the selection toolbar */
         if (window.getSelection()?.isCollapsed === false) return
-        const mark = (e.target as HTMLElement).closest('mark[data-id]') as HTMLElement | null
+        const target = e.target as HTMLElement
+        const mark = target.closest('mark[data-id]') as HTMLElement | null
         const annotation = mark && annotationById(mark.dataset.id!)
-        if (annotation) onMarkClick(annotation, mark)
+        if (annotation) return onMarkClick(annotation, mark)
+        /* footnote markers and links keep their own behaviour */
+        if (target.closest('a, button')) return
+        onSentenceClick({ type: 'book_sentence', id: sentence.id, lang }, e.currentTarget, e.timeStamp)
       }}
     >
       <Markdown

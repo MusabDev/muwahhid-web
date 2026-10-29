@@ -26,7 +26,7 @@ import type { TextTarget } from '@/lib/selection'
 import { bnNum } from '@/lib/text'
 import { pageTitle } from '@/lib/head'
 import type { Annotation } from '@/lib/types'
-import { groupAnnotations, useAnnotations, useBookmarks, useLibraryEntry, useReaderSettings } from '@/lib/user-data'
+import { annotationGroup, groupAnnotations, useAnnotations, useBookmarks, useLibraryEntry, useReaderSettings } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/books/$slug/read/$page')({
@@ -50,8 +50,17 @@ function Reader() {
   const { data: book } = useQuery(bookQuery(slug))
   const { data: page, isLoading, isError } = useQuery(pageQuery(slug, pageNumber))
   const { settings, update } = useReaderSettings()
-  const { annotations, create, update: updateAnnotation, remove } = useAnnotations({ bookId: book?.id })
+  const { annotations, create, update: updateAnnotation, remove: removeAnnotation } = useAnnotations({ bookId: book?.id })
   const bookmarks = useBookmarks(book?.id)
+
+  /* a bookmarked sentence and its highlight are one thing: removing the highlight drops its bookmark too */
+  const remove = async (id: Annotation['id']) => {
+    const annotation = annotations.find((a) => a.id === id)
+    const parts = annotation ? annotationGroup(annotations, annotation) : []
+    const sentenceIds = new Set(parts.filter((a) => a.target_type === 'book_sentence').map((a) => a.target_id))
+    await removeAnnotation(id)
+    await Promise.all(bookmarks.bookmarks.filter((b) => b.sentence_id && sentenceIds.has(b.sentence_id)).map((b) => bookmarks.remove(b.id)))
+  }
   const { saveProgress } = useLibraryEntry(book)
 
   const [panel, setPanel] = useState<CompanionTab | null>(null)
@@ -204,6 +213,7 @@ function Reader() {
     settings: readerSettings,
     flashId,
     onMarkClick: (annotation: Annotation, el: HTMLElement) => actions.openForMark(annotation, el),
+    onSentenceClick: actions.openForSentence,
     highlightsFor: (id, lang) => highlightMap.get(`${id}:${lang}`) ?? EMPTY,
     annotationById: (id) => annotationIndex.get(id),
     footnotes: page?.footnotes ?? { ar: [], bn: [] },
@@ -382,11 +392,18 @@ function Reader() {
         </SheetContent>
       </Sheet>
 
-      <Companion tab={panel} onTab={setPanel} onClose={closePanel} counts={{ notes: groupAnnotations(annotations).length }}>
-        {panel === 'toc' && book && (book.toc?.length ? <TocList slug={slug} entries={book.toc} currentPage={pageNumber} onNavigate={afterNavigate} /> : <EmptyState icon={ListTree} title="সূচিপত্র নেই" />)}
-        {panel === 'search' && <SearchPanel slug={slug} onNavigate={afterNavigate} />}
-        {panel === 'notes' && book && <HighlightsPanel book={book} annotations={annotations} onRemoveAnnotation={remove} onNavigate={afterNavigate} />}
-      </Companion>
+      <Companion
+        tab={panel}
+        onTab={setPanel}
+        onClose={closePanel}
+        counts={{ notes: groupAnnotations(annotations).length }}
+        book={book && { title: book.title_bn, page: pageNumber, lastPage: book.last_page }}
+        panels={{
+          toc: book && (book.toc?.length ? <TocList slug={slug} entries={book.toc} currentPage={pageNumber} onNavigate={afterNavigate} /> : <EmptyState icon={ListTree} title="সূচিপত্র নেই" />),
+          search: <SearchPanel slug={slug} active={panel === 'search'} onNavigate={afterNavigate} />,
+          notes: book && <HighlightsPanel book={book} annotations={annotations} onRemoveAnnotation={remove} onNavigate={afterNavigate} />,
+        }}
+      />
     </div>
   )
 }
