@@ -23,20 +23,21 @@ export function groupBlocks(sentences: SentenceType[]): Block[] {
 export function BlockShell({ type, lang, children }: { type: BlockType; lang: Lang; children: ReactNode }) {
   switch (type) {
     case 'heading':
-      return <h3 className={cn('my-4 text-center text-[1.2em] leading-snug font-bold text-[var(--page-accent)]', lang === 'ar' && 'text-[1.25em]')}>{children}</h3>
+      return <h3 className={cn('my-4 text-center text-[1.2em] leading-snug font-bold text-[var(--page-ink)]', lang === 'ar' && 'text-[1.25em]')}>{children}</h3>
     case 'quote':
-      return <blockquote className="my-3 border-s-[3px] border-[var(--page-accent)]/50 ps-4 opacity-95">{children}</blockquote>
+      return <blockquote className="my-3 border-s-[3px] border-[var(--page-accent)]/50 ps-4 text-[var(--page-ink)]">{children}</blockquote>
     case 'list_item':
       return (
         <div className="relative my-1.5 ps-6">
-          <span className="absolute start-1 top-0 text-[var(--page-accent)]">◆</span>
+          <span className="absolute start-1 top-0 text-[var(--page-ink)]">◆</span>
           {children}
         </div>
       )
     case 'poetry':
       return <div className="my-1 text-center! italic">{children}</div>
     default:
-      return <p className="mb-3 indent-6">{children}</p>
+      /* a paragraph gap a little wider than the gap between lines, so each one stands apart */
+      return <p className="mb-[0.5em] last:mb-0">{children}</p>
   }
 }
 

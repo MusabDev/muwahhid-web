@@ -5,11 +5,7 @@ import type { ReaderSettings } from '@/lib/user-data'
 
 export interface ReaderContextValue {
   settings: ReaderSettings
-  hoverId: number | null
-  activeId: number | null
   flashId: number | null
-  setHoverId: (id: number | null) => void
-  onSentenceClick: (id: number, lang: Lang, el: HTMLElement) => void
   onMarkClick: (annotation: Annotation, el: HTMLElement) => void
   highlightsFor: (sentenceId: number, lang: Lang) => HighlightRange[]
   annotationById: (id: string) => Annotation | undefined

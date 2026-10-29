@@ -286,26 +286,20 @@
     font-family: var(--font-ar, 'Amiri'), 'Amiri', serif;
     direction: rtl;
     text-align: justify;
-    line-height: 2;
+    /* room for harakat above and below without lines touching */
+    line-height: calc(2 * var(--reader-leading, 1));
 }
 .reader-bn {
     font-family: var(--font-bn, 'Noto Serif Bengali'), 'Noto Serif Bengali', serif;
     text-align: justify;
-    line-height: 1.85;
+    line-height: calc(1.8 * var(--reader-leading, 1));
 }
 
 .sentence {
     border-radius: 3px;
     transition: background-color 120ms ease;
-    cursor: pointer;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
-}
-.sentence[data-hover="true"] {
-    background-color: var(--page-hover);
-}
-.sentence[data-active="true"] {
-    background-color: var(--page-active);
 }
 .sentence[data-flash="true"] {
     animation: sentence-flash 2.4s ease-out;
@@ -320,14 +314,18 @@ mark.hl {
     border-radius: 0;
     padding: 0.05em 0;
     background: var(--hl-bg);
+    cursor: pointer;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
 }
-mark.hl[data-color="yellow"] { --hl-bg: oklch(0.9 0.14 95 / 0.65); --hl-bg-dark: oklch(0.78 0.15 92 / 0.3); --hl-line: oklch(0.8 0.15 92 / 0.85); }
-mark.hl[data-color="green"] { --hl-bg: oklch(0.87 0.12 150 / 0.55); --hl-bg-dark: oklch(0.72 0.14 152 / 0.28); --hl-line: oklch(0.74 0.14 152 / 0.85); }
-mark.hl[data-color="blue"] { --hl-bg: oklch(0.85 0.08 240 / 0.6); --hl-bg-dark: oklch(0.68 0.12 245 / 0.32); --hl-line: oklch(0.72 0.12 245 / 0.85); }
-mark.hl[data-color="pink"] { --hl-bg: oklch(0.85 0.1 0 / 0.55); --hl-bg-dark: oklch(0.68 0.15 2 / 0.3); --hl-line: oklch(0.72 0.15 2 / 0.85); }
-mark.hl[data-color="orange"] { --hl-bg: oklch(0.85 0.12 60 / 0.6); --hl-bg-dark: oklch(0.72 0.15 58 / 0.3); --hl-line: oklch(0.75 0.15 58 / 0.85); }
+:is(mark.hl, .hl-card)[data-color="yellow"] { --hl-bg: oklch(0.9 0.14 95 / 0.65); --hl-bg-dark: oklch(0.78 0.15 92 / 0.3); --hl-line: oklch(0.8 0.15 92 / 0.85); }
+:is(mark.hl, .hl-card)[data-color="green"] { --hl-bg: oklch(0.87 0.12 150 / 0.55); --hl-bg-dark: oklch(0.72 0.14 152 / 0.28); --hl-line: oklch(0.74 0.14 152 / 0.85); }
+:is(mark.hl, .hl-card)[data-color="blue"] { --hl-bg: oklch(0.85 0.08 240 / 0.6); --hl-bg-dark: oklch(0.68 0.12 245 / 0.32); --hl-line: oklch(0.72 0.12 245 / 0.85); }
+:is(mark.hl, .hl-card)[data-color="pink"] { --hl-bg: oklch(0.85 0.1 0 / 0.55); --hl-bg-dark: oklch(0.68 0.15 2 / 0.3); --hl-line: oklch(0.72 0.15 2 / 0.85); }
+:is(mark.hl, .hl-card)[data-color="orange"] { --hl-bg: oklch(0.85 0.12 60 / 0.6); --hl-bg-dark: oklch(0.72 0.15 58 / 0.3); --hl-line: oklch(0.75 0.15 58 / 0.85); }
+/* a highlight's card in the notes panel wears the same colour as the mark on the page */
+.hl-card { background: var(--hl-bg); }
+.dark .hl-card { background: var(--hl-bg-dark); }
 /* On dark pages: a translucent wash of the colour with a solid underline for definition,
    so the ink keeps its full brightness instead of being dimmed with the background. */
 [data-reader-theme="dark"] mark.hl,

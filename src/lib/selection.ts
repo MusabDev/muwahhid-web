@@ -7,10 +7,17 @@ export interface TextTarget {
   lang: Lang
 }
 
-export interface SelectionInfo {
-  target: TextTarget | null
+/** The part of a selection that falls inside one annotatable element. */
+export interface SelectionSegment {
+  target: TextTarget
   start: number
   end: number
+  text: string
+}
+
+export interface SelectionInfo {
+  /** One entry per annotatable element the selection touches, in document order. */
+  segments: SelectionSegment[]
   text: string
   rect: DOMRect
 }
@@ -45,9 +52,10 @@ function offsetOf(root: Element, container: Node, offset: number) {
 }
 
 /**
- * Describe the current selection inside `container`. When it lies within one
- * annotatable element, offsets are returned against that element's plain text
- * (mapped back through hidden diacritics when needed).
+ * Describe the current selection inside `container`. The selection may span
+ * several annotatable elements; each one it touches becomes a segment whose
+ * offsets are against that element's plain text (mapped back through hidden
+ * diacritics when needed).
  */
 export function readSelection(container: HTMLElement, plainFor: (t: TextTarget) => string | undefined, diacriticsHidden: boolean): SelectionInfo | null {
   const selection = window.getSelection()
@@ -58,26 +66,21 @@ export function readSelection(container: HTMLElement, plainFor: (t: TextTarget) 
   if (!text) return null
   const rect = range.getBoundingClientRect()
 
-  const startEl = (range.startContainer.nodeType === 1 ? (range.startContainer as Element) : range.startContainer.parentElement)?.closest(TARGET_SELECTOR)
-  const endEl = (range.endContainer.nodeType === 1 ? (range.endContainer as Element) : range.endContainer.parentElement)?.closest(TARGET_SELECTOR)
+  const segments: SelectionSegment[] = []
+  for (const el of container.querySelectorAll(TARGET_SELECTOR)) {
+    if (!range.intersectsNode(el)) continue
+    const target = readTarget(el)
+    const plain = plainFor(target)
+    if (!plain) continue
 
-  if (!startEl || startEl !== endEl) return { target: null, start: 0, end: 0, text, rect }
-
-  const target = readTarget(startEl)
-  let start = offsetOf(startEl, range.startContainer, range.startOffset)
-  let end = offsetOf(startEl, range.endContainer, range.endOffset)
-  const plain = plainFor(target)
-
-  if (diacriticsHidden && plain && target.lang === 'ar') {
-    start = originalOffset(plain, start)
-    end = originalOffset(plain, end)
-  }
-  // Trim surrounding whitespace from the range
-  if (plain) {
+    const mapped = (n: number) => (diacriticsHidden && target.lang === 'ar' ? originalOffset(plain, n) : n)
+    let start = el.contains(range.startContainer) ? mapped(offsetOf(el, range.startContainer, range.startOffset)) : 0
+    let end = el.contains(range.endContainer) ? mapped(offsetOf(el, range.endContainer, range.endOffset)) : plain.length
+    // Trim surrounding whitespace from the range
     while (start < end && /\s/.test(plain[start])) start++
     while (end > start && /\s/.test(plain[end - 1])) end--
+    if (end > start) segments.push({ target, start, end, text: plain.slice(start, end) })
   }
-  if (end <= start) return null
 
-  return { target, start, end, text: plain ? plain.slice(start, end) : text, rect }
+  return { segments, text, rect }
 }

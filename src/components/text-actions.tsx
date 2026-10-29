@@ -6,9 +6,9 @@ import { ShareDialog, type ShareQuote } from '@/components/share-dialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { readSelection, type TextTarget } from '@/lib/selection'
+import { readSelection, type SelectionSegment, type TextTarget } from '@/lib/selection'
 import type { Annotation } from '@/lib/types'
-import type { NewAnnotation } from '@/lib/user-data'
+import { annotationGroup, quoteByLang, type NewAnnotation } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
 export const HIGHLIGHT_COLORS = [
@@ -19,9 +19,10 @@ export const HIGHLIGHT_COLORS = [
   { key: 'orange', swatch: 'oklch(0.82 0.13 60)' },
 ]
 
+const SELECTION_DELAY_MS = 70
+
 type Menu =
-  | { kind: 'selection'; rect: DOMRect; target: TextTarget | null; start: number; end: number; text: string }
-  | { kind: 'sentence'; rect: DOMRect; target: TextTarget }
+  | { kind: 'selection'; rect: DOMRect; segments: SelectionSegment[]; text: string }
   | { kind: 'mark'; rect: DOMRect; annotation: Annotation }
 
 interface Options {
@@ -31,7 +32,9 @@ interface Options {
   quoteFor: (target: TextTarget | null, selected?: string) => ShareQuote
   linkFor: (target: TextTarget) => string
   annotations: {
-    create: (data: NewAnnotation) => Promise<unknown>
+    list: Annotation[]
+    /** Saves parts as given, in place of the exact existing parts in `replaces`. */
+    create: (parts: NewAnnotation[], replaces?: Annotation['id'][]) => Promise<unknown>
     update: (id: Annotation['id'], patch: { color?: string | null; note?: string | null }) => Promise<void>
     remove: (id: Annotation['id']) => Promise<void>
   }
@@ -42,7 +45,7 @@ interface Options {
 
 export function useTextActions(options: Options) {
   const [menu, setMenu] = useState<Menu | null>(null)
-  const [noteFor, setNoteFor] = useState<{ annotation?: Annotation; draft?: NewAnnotation } | null>(null)
+  const [noteFor, setNoteFor] = useState<NoteState | null>(null)
   const [share, setShare] = useState<ShareQuote | null>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
   const optionsRef = useRef(options)
@@ -50,21 +53,27 @@ export function useTextActions(options: Options) {
     optionsRef.current = options
   })
 
-  // Open the toolbar after the user finishes selecting text
+  // Open the toolbar a moment after the user finishes selecting text; selecting again restarts the wait
   useEffect(() => {
     const container = options.containerRef.current
     if (!container) return
+    let timer: number | undefined
+    const cancel = () => window.clearTimeout(timer)
     const onUp = () => {
-      window.setTimeout(() => {
+      cancel()
+      timer = window.setTimeout(() => {
         const { plainFor, diacriticsHidden } = optionsRef.current
         const info = readSelection(container, plainFor, diacriticsHidden)
         if (info) setMenu({ kind: 'selection', ...info })
-      }, 10)
+      }, SELECTION_DELAY_MS)
     }
+    container.addEventListener('pointerdown', cancel)
     container.addEventListener('mouseup', onUp)
     container.addEventListener('touchend', onUp)
     container.addEventListener('keyup', onUp)
     return () => {
+      cancel()
+      container.removeEventListener('pointerdown', cancel)
       container.removeEventListener('mouseup', onUp)
       container.removeEventListener('touchend', onUp)
       container.removeEventListener('keyup', onUp)
@@ -90,10 +99,6 @@ export function useTextActions(options: Options) {
     }
   }, [menu])
 
-  const openForSentence = useCallback((target: TextTarget, el: HTMLElement) => {
-    setMenu((prev) => (prev?.kind === 'sentence' && prev.target.id === target.id && prev.target.lang === target.lang ? null : { kind: 'sentence', rect: el.getBoundingClientRect(), target }))
-  }, [])
-
   const openForMark = useCallback((annotation: Annotation, el: HTMLElement) => {
     setMenu({ kind: 'mark', rect: el.getBoundingClientRect(), annotation })
   }, [])
@@ -103,41 +108,38 @@ export function useTextActions(options: Options) {
     window.getSelection()?.removeAllRanges()
   }
 
-  const draftFrom = (m: Menu, color: string | null): NewAnnotation | null => {
-    if (m.kind === 'mark') return null
-    const target = m.target
-    if (!target) return null
-    const plain = options.plainFor(target) ?? ''
-    const start = m.kind === 'selection' ? m.start : 0
-    const end = m.kind === 'selection' ? m.end : plain.length
-    if (end <= start) return null
-    return { target_type: target.type, target_id: target.id, lang: target.lang, start_offset: start, end_offset: end, quote: plain.slice(start, end), color, note: null }
-  }
+  /* a clicked highlight stands for every sentence it spans */
+  const parts = menu?.kind === 'mark' ? annotationGroup(options.annotations.list, menu.annotation) : []
+  const partTargets: TextTarget[] = menu?.kind === 'mark' ? parts.map((a) => ({ type: a.target_type, id: a.target_id, lang: a.lang })) : (menu?.segments.map((seg) => seg.target) ?? [])
+  const quote = menu?.kind === 'mark' ? parts.map((a) => a.quote).join(' ') : menu?.segments.length === 1 ? menu.segments[0].text : (menu?.text ?? '')
+  /* share and copy quote a single sentence against its translation; a wider span is quoted as is */
+  const target: TextTarget | null = partTargets.length === 1 ? partTargets[0] : null
+  /* link and bookmark point at the sentence the text starts in */
+  const anchor: TextTarget | null = partTargets[0] ?? null
 
   const highlight = async (color: string) => {
     if (!menu) return
-    if (menu.kind === 'mark') {
-      await options.annotations.update(menu.annotation.id, { color })
-    } else {
-      const draft = draftFrom(menu, color)
-      if (!draft) {
-        toast.info('একটি বাক্যের ভেতরের অংশ নির্বাচন করুন')
+    if (menu.kind === 'mark') await options.annotations.update(menu.annotation.id, { color })
+    else {
+      const plan = planHighlight(menu.segments, options.annotations.list, options.plainFor)
+      if (!plan.parts.length) {
+        toast.info('কিতাবের লেখা থেকে অংশ নির্বাচন করুন')
         return
       }
-      await options.annotations.create(draft)
+      await saveHighlight(plan, color, null)
     }
     close()
   }
 
+  const saveHighlight = (plan: HighlightPlan, color: string, note: string | null) => {
+    const group_id = plan.parts.length > 1 ? newGroupId() : null
+    return options.annotations.create([...plan.leftovers, ...plan.parts.map((part) => ({ ...part, color, note, group_id }))], plan.replaces)
+  }
+
   const copyText = async () => {
     if (!menu) return
-    let text = ''
-    if (menu.kind === 'selection') text = menu.text
-    else if (menu.kind === 'sentence') text = options.plainFor(menu.target) ?? ''
-    else text = menu.annotation.quote
-    const target = menu.kind === 'mark' ? null : menu.target
     const source = options.quoteFor(target).source
-    await navigator.clipboard.writeText(`${text}\n— ${source}`)
+    await navigator.clipboard.writeText(`${quote}\n— ${source}`)
     toast.success('কপি হয়েছে')
     close()
   }
@@ -150,32 +152,23 @@ export function useTextActions(options: Options) {
 
   const openShare = () => {
     if (!menu) return
-    if (menu.kind === 'mark') {
-      const t = { type: menu.annotation.target_type, id: menu.annotation.target_id, lang: menu.annotation.lang }
-      setShare(options.quoteFor(t, menu.annotation.quote))
-    } else if (menu.kind === 'selection') {
-      setShare(options.quoteFor(menu.target, menu.text))
-    } else {
-      setShare(options.quoteFor(menu.target))
-    }
+    setShare(options.quoteFor(target, quote))
     close()
   }
 
   const openNote = () => {
     if (!menu) return
-    if (menu.kind === 'mark') setNoteFor({ annotation: menu.annotation })
+    if (menu.kind === 'mark') setNoteFor({ annotation: menu.annotation, quote: quoteByLang(parts), note: menu.annotation.note ?? '' })
     else {
-      const draft = draftFrom(menu, 'yellow')
-      if (!draft) {
-        toast.info('একটি বাক্যের ভেতরের অংশ নির্বাচন করুন')
+      const plan = planHighlight(menu.segments, options.annotations.list, options.plainFor)
+      if (!plan.parts.length) {
+        toast.info('কিতাবের লেখা থেকে অংশ নির্বাচন করুন')
         return
       }
-      setNoteFor({ draft })
+      setNoteFor({ plan, quote: quoteByLang(plan.parts), note: '' })
     }
     close()
   }
-
-  const target = menu && menu.kind !== 'mark' ? menu.target : menu ? { type: menu.annotation.target_type, id: menu.annotation.target_id, lang: menu.annotation.lang } : null
 
   const toolbar =
     menu &&
@@ -188,7 +181,9 @@ export function useTextActions(options: Options) {
           style={{
             left: Math.min(Math.max(menu.rect.left + menu.rect.width / 2, 170), window.innerWidth - 170),
             top: menu.rect.top > 90 ? menu.rect.top - 10 : menu.rect.bottom + 10,
-            transform: menu.rect.top > 90 ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+            /* `translate`, not `transform`: the zoom-in animation owns `transform` and would slide the toolbar in from off-centre */
+            translate: menu.rect.top > 90 ? '-50% -100%' : '-50% 0',
+            transformOrigin: menu.rect.top > 90 ? 'bottom center' : 'top center',
           }}
           onMouseDown={(e) => e.preventDefault()}
         >
@@ -208,13 +203,16 @@ export function useTextActions(options: Options) {
           <ToolButton label="নোট" onClick={openNote} icon={StickyNote} />
           <ToolButton label="কপি" onClick={copyText} icon={Copy} />
           <ToolButton label="শেয়ার" onClick={openShare} icon={Share2} />
-          {target && <ToolButton label="লিংক" onClick={() => copyLink(target)} icon={Link2} />}
-          {menu.kind === 'sentence' && options.onBookmark && (
+          {anchor && <ToolButton label="লিংক" onClick={() => copyLink(anchor)} icon={Link2} />}
+          {menu.kind === 'selection' && anchor && options.onBookmark && (
             <ToolButton
               label="বুকমার্ক"
               icon={Bookmark}
-              onClick={() => {
-                options.onBookmark!(menu.target)
+              onClick={async () => {
+                options.onBookmark!(anchor)
+                /* a bookmarked passage is highlighted too, unless it already is */
+                const plan = planHighlight(menu.segments, options.annotations.list, options.plainFor)
+                if (plan.parts.length && !plan.replaces.length) await saveHighlight(plan, 'yellow', null)
                 close()
               }}
             />
@@ -242,7 +240,7 @@ export function useTextActions(options: Options) {
         onClose={() => setNoteFor(null)}
         onSave={async (note) => {
           if (noteFor?.annotation) await options.annotations.update(noteFor.annotation.id, { note })
-          else if (noteFor?.draft) await options.annotations.create({ ...noteFor.draft, note })
+          else if (noteFor?.plan) await saveHighlight(noteFor.plan, noteFor.plan.color ?? 'yellow', note)
           setNoteFor(null)
           toast.success('নোট সংরক্ষিত হয়েছে')
         }}
@@ -251,9 +249,7 @@ export function useTextActions(options: Options) {
     </>
   )
 
-  const activeId = menu?.kind === 'sentence' ? menu.target.id : null
-
-  return { openForSentence, openForMark, activeId, element: (
+  return { openForMark, element: (
     <>
       {toolbar}
       {dialogs}
@@ -270,13 +266,13 @@ function ToolButton({ label, icon: Icon, onClick, className }: { label: string; 
   )
 }
 
-function NoteDialog({ state, onClose, onSave }: { state: { annotation?: Annotation; draft?: NewAnnotation } | null; onClose: () => void; onSave: (note: string | null) => Promise<void> }) {
+type NoteState = { annotation?: Annotation; plan?: HighlightPlan; quote: ReturnType<typeof quoteByLang>; note: string }
+
+function NoteDialog({ state, onClose, onSave }: { state: NoteState | null; onClose: () => void; onSave: (note: string | null) => Promise<void> }) {
   const [note, setNote] = useState('')
-  const quote = state?.annotation?.quote ?? state?.draft?.quote ?? ''
-  const lang = state?.annotation?.lang ?? state?.draft?.lang
 
   useEffect(() => {
-    setNote(state?.annotation?.note ?? '')
+    setNote(state?.note ?? '')
   }, [state])
 
   return (
@@ -285,8 +281,12 @@ function NoteDialog({ state, onClose, onSave }: { state: { annotation?: Annotati
         <DialogHeader>
           <DialogTitle>নোট</DialogTitle>
         </DialogHeader>
-        <blockquote lang={lang} dir={lang === 'ar' ? 'rtl' : 'ltr'} className={cn('rounded-lg border-s-4 border-gold bg-muted/60 px-4 py-3', lang === 'ar' ? 'font-arabic text-lg' : 'text-sm')}>
-          {quote}
+        <blockquote className="space-y-2 rounded-lg border-s-4 border-gold bg-muted/60 px-4 py-3">
+          {state?.quote.map((passage, i) => (
+            <p key={i} lang={passage.lang} dir={passage.lang === 'ar' ? 'rtl' : 'ltr'} className={passage.lang === 'ar' ? 'font-arabic text-lg' : 'text-sm'}>
+              {passage.text}
+            </p>
+          ))}
         </blockquote>
         <Textarea autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="আপনার চিন্তা বা ফায়দা লিখুন…" className="min-h-32" />
         <DialogFooter>
@@ -298,4 +298,54 @@ function NoteDialog({ state, onClose, onSave }: { state: { annotation?: Annotati
       </DialogContent>
     </Dialog>
   )
+}
+
+const newGroupId = () => crypto.randomUUID()
+
+interface HighlightPlan {
+  /** The new highlight, one part per selected sentence; colour, note and group are filled in on save. */
+  parts: Omit<NewAnnotation, 'color' | 'note' | 'group_id'>[]
+  /** Existing parts the selection cuts into… */
+  replaces: Annotation['id'][]
+  /** …and what is left of them outside it. */
+  leftovers: NewAnnotation[]
+  /** Colour of what the selection covers, for a note added without picking one. */
+  color: string | null
+}
+
+/**
+ * Turn a selection into a new highlight of exactly the selected text. Older
+ * highlights it overlaps are trimmed — or split in two — around it, keeping their
+ * own colour, note and group, so highlights never stack.
+ */
+function planHighlight(segments: SelectionSegment[], list: Annotation[], plainFor: (target: TextTarget) => string | undefined): HighlightPlan {
+  const replaces: Annotation['id'][] = []
+  const leftovers: NewAnnotation[] = []
+  let color: string | null = null
+
+  for (const seg of segments) {
+    const plain = plainFor(seg.target) ?? ''
+    for (const a of list) {
+      if (a.target_type !== seg.target.type || a.target_id !== seg.target.id || a.lang !== seg.target.lang) continue
+      if (a.start_offset >= seg.end || a.end_offset <= seg.start) continue
+      replaces.push(a.id)
+      color ??= a.color
+      const pieces = [trimRange(plain, a.start_offset, seg.start), trimRange(plain, seg.end, a.end_offset)].filter((r) => r !== null)
+      /* a highlight cut in two stays one highlight */
+      const group_id = a.group_id ?? (pieces.length > 1 ? newGroupId() : null)
+      for (const [start, end] of pieces) {
+        leftovers.push({ target_type: a.target_type, target_id: a.target_id, lang: a.lang, start_offset: start, end_offset: end, quote: plain.slice(start, end), color: a.color, note: a.note, group_id })
+      }
+    }
+  }
+
+  const parts = segments.map(({ target, start, end, text }) => ({ target_type: target.type, target_id: target.id, lang: target.lang, start_offset: start, end_offset: end, quote: text }))
+  return { parts, replaces, leftovers, color }
+}
+
+/** The range without surrounding whitespace, or null when nothing is left. */
+function trimRange(plain: string, start: number, end: number): [number, number] | null {
+  while (start < end && /\s/.test(plain[start])) start++
+  while (end > start && /\s/.test(plain[end - 1])) end--
+  return end > start ? [start, end] : null
 }

@@ -178,6 +178,10 @@ export interface Annotation {
   quote: string
   color: string | null
   note: string | null
+  /** Shared by the per-sentence parts of one highlight that spans several sentences. */
+  group_id?: string | null
+  /** The book page the highlighted sentence is on. */
+  page_number?: number | null
   created_at?: string
 }
 

@@ -1,6 +1,6 @@
 import type { Element, ElementContent, Root, RootContent } from 'hast'
-import { memo, type ReactNode } from 'react'
-import ReactMarkdown, { type Components } from 'react-markdown'
+import { createContext, memo, useContext, type ComponentProps, type ReactNode } from 'react'
+import ReactMarkdown, { type Components, type ExtraProps } from 'react-markdown'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { stripDiacritics } from '@/lib/text'
 import { cn } from '@/lib/utils'
@@ -97,32 +97,37 @@ interface MarkdownProps {
   renderFootnote?: (marker: string, children: ReactNode) => ReactNode
 }
 
+const FootnoteContext = createContext<MarkdownProps['renderFootnote']>(undefined)
+
+function MarkdownLink({ href, children, node: _node, ...rest }: ComponentProps<'a'> & ExtraProps) {
+  const renderFootnote = useContext(FootnoteContext)
+  if (href?.startsWith('#fn-')) {
+    const marker = decodeURIComponent(href.slice(4))
+    const sup = (
+      <sup className="fn-ref" data-fn="true">
+        {children}
+      </sup>
+    )
+    return renderFootnote ? renderFootnote(marker, sup) : sup
+  }
+  return (
+    <a href={href} target="_blank" rel="noreferrer noopener" {...rest}>
+      {children}
+    </a>
+  )
+}
+
+/* Component types must stay the same between renders: a new one remounts the
+   text underneath, which throws away the reader's text selection. */
+const BLOCK_COMPONENTS: Components = { a: MarkdownLink }
+const INLINE_COMPONENTS: Components = { a: MarkdownLink, p: ({ children }) => <>{children}</> }
+
 export const Markdown = memo(function Markdown({ text, inline, highlights = [], stripMarks = false, className, renderFootnote }: MarkdownProps) {
   const source = text.replace(FOOTNOTE, (_, marker: string) => `[${marker}](#fn-${encodeURIComponent(marker)})`)
 
-  const components: Components = {
-    a: ({ href, children, node: _node, ...rest }) => {
-      if (href?.startsWith('#fn-')) {
-        const marker = decodeURIComponent(href.slice(4))
-        const sup = (
-          <sup className="fn-ref" data-fn="true">
-            {children}
-          </sup>
-        )
-        return renderFootnote ? renderFootnote(marker, sup) : sup
-      }
-      return (
-        <a href={href} target="_blank" rel="noreferrer noopener" {...rest}>
-          {children}
-        </a>
-      )
-    },
-    ...(inline ? { p: ({ children }) => <>{children}</> } : {}),
-  }
-
   const content = (
     <ReactMarkdown
-      components={components}
+      components={inline ? INLINE_COMPONENTS : BLOCK_COMPONENTS}
       rehypePlugins={[
         [rehypeSanitize, { ...defaultSchema, clobberPrefix: '' }],
         [rehypeMarks, { ranges: highlights, strip: stripMarks }],
@@ -134,5 +139,9 @@ export const Markdown = memo(function Markdown({ text, inline, highlights = [], 
     </ReactMarkdown>
   )
 
-  return inline ? <span className={cn('md', className)}>{content}</span> : <div className={cn('md space-y-3', className)}>{content}</div>
+  return (
+    <FootnoteContext.Provider value={renderFootnote}>
+      {inline ? <span className={cn('md', className)}>{content}</span> : <div className={cn('md space-y-3', className)}>{content}</div>}
+    </FootnoteContext.Provider>
+  )
 })

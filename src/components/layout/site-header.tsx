@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 
 const NAV = [
   { to: '/library', label: 'লাইব্রেরি', icon: BookOpen },
-  { to: '/authors', label: 'লেখক', icon: Users },
+  { to: '/authors', label: 'আহলুল ইলম', icon: Users },
   { to: '/my-library', label: 'আমার লাইব্রেরি', icon: Library },
 ] as const
 

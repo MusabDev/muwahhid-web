@@ -12,7 +12,7 @@ export function SentenceView({ book, page }: { book: Book; page: BookPage }) {
   const both = settings.showArabic && settings.showBangla
 
   return (
-    <article className="mx-auto w-full max-w-[1100px] rounded-[6px] bg-[var(--page-bg)] px-4 py-6 text-[var(--page-ink)] [box-shadow:var(--page-shadow)] sm:px-10 sm:py-8">
+    <article className="mx-auto min-h-[calc(100svh-3.75rem)] w-full max-w-[1100px] bg-[var(--page-bg)] px-5 py-6 text-[var(--page-ink)] sm:min-h-0 sm:rounded-[6px] sm:px-10 sm:py-8 sm:[box-shadow:var(--page-shadow)]">
       <header className="mb-6 flex items-center justify-between gap-3 border-b-[3px] border-double border-[var(--page-edge)] pb-2 text-[12px] text-[var(--page-muted)]">
         <span className="truncate font-heading">{book.title_bn}</span>
         <span className="font-arabic text-[15px]">{book.title_ar}</span>

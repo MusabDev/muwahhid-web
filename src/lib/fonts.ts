@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 export type ArabicFont = 'amiri' | 'noto-naskh-arabic' | 'kfgqpc-uthmanic' | 'scheherazade-new'
 export type BanglaFont = 'noto-serif-bengali' | 'hind-siliguri' | 'kalpurush' | 'solaimanlipi'
 
@@ -47,4 +49,12 @@ export function arabicFamily(key: string) {
 
 export function banglaFamily(key: string) {
   return BANGLA_FONTS.find((f) => f.key === key)?.family ?? 'Noto Serif Bengali'
+}
+
+/** CSS variables the reader text reads its font families from. */
+export function readerFontVars(fontAr: string, fontBn: string) {
+  return {
+    '--font-ar': `'${arabicFamily(fontAr)}'`,
+    '--font-bn': fontBn === 'hind-siliguri' ? "'Bangla Digits', 'Hind Siliguri'" : `'${banglaFamily(fontBn)}'`,
+  } as CSSProperties
 }

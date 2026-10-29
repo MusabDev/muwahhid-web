@@ -1,20 +1,19 @@
-import { Bookmark, Highlighter, ListTree, Search, X, type LucideIcon } from 'lucide-react'
+import { Highlighter, ListTree, Search, X, type LucideIcon } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { bnNum } from '@/lib/text'
 import { cn } from '@/lib/utils'
 
-export type CompanionTab = 'toc' | 'search' | 'bookmarks' | 'notes'
+export type CompanionTab = 'toc' | 'search' | 'notes'
 
 export const COMPANION_TABS: { key: CompanionTab; label: string; title: string; icon: LucideIcon }[] = [
   { key: 'toc', label: 'সূচি', title: 'সূচিপত্র', icon: ListTree },
-  { key: 'search', label: 'খুঁজুন', title: 'কিতাবে খুঁজুন', icon: Search },
-  { key: 'bookmarks', label: 'বুকমার্ক', title: 'বুকমার্ক', icon: Bookmark },
+  { key: 'search', label: 'সার্চ', title: 'কিতাবে সার্চ করুন', icon: Search },
   { key: 'notes', label: 'নোট', title: 'হাইলাইট ও নোট', icon: Highlighter },
 ]
 
 /**
- * The reader's single side companion for contents, search, bookmarks and notes.
+ * The reader's single side companion for contents, search and notes.
  * A drawer from the bottom on phones, a floating card on tablets, and docked beside
  * the page on wide screens (the page makes room for it instead of being covered).
  */
@@ -49,7 +48,7 @@ export function Companion({
         className={cn('fixed inset-0 z-40 bg-black/35 backdrop-blur-[2px] transition-opacity duration-300 xl:hidden', open ? 'opacity-100' : 'pointer-events-none opacity-0')}
       />
       <aside
-        aria-label="সূচিপত্র, খোঁজ ও নোট"
+        aria-label="সূচিপত্র, সার্চ ও নোট"
         inert={!open}
         className={cn(
           'fixed z-50 flex flex-col overflow-hidden border border-gold/25 bg-card text-card-foreground shadow-2xl transition-[translate,opacity] duration-300 ease-out',
@@ -70,7 +69,7 @@ export function Companion({
               <X />
             </Button>
           </div>
-          <div role="tablist" className="relative grid grid-cols-4 gap-1 rounded-xl border bg-background/70 p-1 shadow-xs">
+          <div role="tablist" className="relative grid grid-cols-3 gap-1 rounded-xl border bg-background/70 p-1 shadow-xs">
             {COMPANION_TABS.map((t) => {
               const active = t.key === tab
               const count = counts?.[t.key]

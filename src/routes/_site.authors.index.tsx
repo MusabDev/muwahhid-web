@@ -14,7 +14,7 @@ import { pageTitle } from '@/lib/head'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/_site/authors/')({
-  head: () => pageTitle('লেখকগণ'),
+  head: () => pageTitle('আহলুল ইলম'),
   component: AuthorsPage,
 })
 
@@ -43,7 +43,7 @@ function AuthorsPage() {
           <p lang="ar" dir="rtl" className="font-arabic text-xl text-gold md:text-2xl">
             الْعُلَمَاء
           </p>
-          <h1 className="mt-1 text-4xl font-bold md:text-6xl">লেখকগণ</h1>
+          <h1 className="mt-1 text-4xl font-bold md:text-6xl">আহলুল ইলম</h1>
           <Ornament className="mt-5" />
           <p className="mt-4 text-muted-foreground">
             যুগ অনুযায়ী কিংবা নাম ধরে আলিমদের খুঁজুন

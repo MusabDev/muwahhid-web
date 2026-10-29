@@ -32,7 +32,7 @@ export function SearchPanel({ slug, onNavigate }: { slug: string; onNavigate: ()
             autoFocus
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="এই কিতাবে খুঁজুন…"
+            placeholder="এই কিতাবে সার্চ করুন…"
             className="h-10 w-full rounded-lg border bg-background ps-9 pe-3 text-sm outline-none focus:border-gold"
           />
         </div>

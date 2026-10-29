@@ -123,6 +123,44 @@ export interface NewAnnotation {
   quote: string
   color: string | null
   note: string | null
+  group_id?: string | null
+  /** Kept with a guest's highlight; the server looks it up itself. */
+  page_number?: number | null
+}
+
+/** The parts of the highlight `annotation` belongs to, in reading order. */
+export function annotationGroup(annotations: Annotation[], annotation: Annotation) {
+  if (!annotation.group_id) return [annotation]
+  return annotations.filter((a) => a.group_id === annotation.group_id).sort(byPosition)
+}
+
+/** Annotations gathered into whole highlights, each one's parts in reading order. */
+export function groupAnnotations(annotations: Annotation[]) {
+  const groups = new Map<string, Annotation[]>()
+  for (const a of annotations) {
+    const key = a.group_id ?? `id:${a.id}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(a)
+  }
+  return [...groups.values()].map((parts) => parts.sort(byPosition))
+}
+
+/* the Bangla text comes before the Arabic on the page */
+const LANG_ORDER: Record<Lang, number> = { bn: 0, ar: 1 }
+
+function byPosition(a: Annotation, b: Annotation) {
+  return LANG_ORDER[a.lang] - LANG_ORDER[b.lang] || a.target_id - b.target_id || a.start_offset - b.start_offset
+}
+
+/** A highlight's text as one passage per language, in reading order. */
+export function quoteByLang(parts: Pick<Annotation, 'lang' | 'quote'>[]) {
+  const passages: { lang: Lang; text: string }[] = []
+  for (const part of parts) {
+    const last = passages.at(-1)
+    if (last?.lang === part.lang) last.text += ` ${part.quote}`
+    else passages.push({ lang: part.lang, text: part.quote })
+  }
+  return passages
 }
 
 export function useAnnotations(scope: AnnotationScope) {
@@ -143,38 +181,54 @@ export function useAnnotations(scope: AnnotationScope) {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['me', 'annotations'] })
 
-  const create = async (data: NewAnnotation) => {
+  /* a highlight's parts are changed and removed together */
+  const partsOf = (id: Annotation['id']) => {
+    const annotation = annotations.find((a) => a.id === id)
+    return annotation ? annotationGroup(annotations, annotation).map((a) => a.id) : [id]
+  }
+
+  /**
+   * Save annotation parts as given (each names its own group), in place of the
+   * exact parts in `replaces` — used when a new highlight cuts into older ones.
+   */
+  const create = async (parts: NewAnnotation[], replaces: Annotation['id'][] = []) => {
     if (user) {
-      const created = await api<Annotation>('/me/annotations', { method: 'POST', body: { ...data } })
+      const [created] = await Promise.all([
+        Promise.all(parts.map((data) => api<Annotation>('/me/annotations', { method: 'POST', body: { ...data } }))),
+        Promise.all(replaces.map((id) => api(`/me/annotations/${id}`, { method: 'DELETE' }))),
+      ])
       invalidate()
       return created
     }
-    const created: Annotation = {
+    const created: Annotation[] = parts.map((data) => ({
       ...data,
+      group_id: data.group_id ?? null,
       id: guestId(),
       book_id: scope.bookId ?? null,
       dars_id: scope.darsId ?? null,
       created_at: new Date().toISOString(),
-    }
-    setGuest((prev) => [created, ...prev])
+    }))
+    setGuest((prev) => [...created, ...prev.filter((a) => !replaces.includes(a.id))])
     return created
   }
 
   const update = async (id: Annotation['id'], patch: { color?: string | null; note?: string | null }) => {
+    const ids = partsOf(id)
     if (user) {
-      await api(`/me/annotations/${id}`, { method: 'PUT', body: patch })
+      await Promise.all(ids.map((part) => api(`/me/annotations/${part}`, { method: 'PUT', body: patch })))
       invalidate()
     } else {
-      setGuest((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)))
+      setGuest((prev) => prev.map((a) => (ids.includes(a.id) ? { ...a, ...patch } : a)))
     }
   }
 
   const remove = async (id: Annotation['id']) => {
+    const ids = partsOf(id)
     if (user) {
-      await api(`/me/annotations/${id}`, { method: 'DELETE' })
+      await Promise.all(ids.map((part) => api(`/me/annotations/${part}`, { method: 'DELETE' })))
       invalidate()
     } else {
-      setGuest((prev) => prev.filter((a) => a.id !== id))
+      setGuest((prev) => prev.filter((a) => !ids.includes(a.id)))
     }
   }
 
@@ -233,11 +287,13 @@ export function useBookmarks(bookId?: number) {
 
 export type ReaderTheme = 'paper' | 'sepia' | 'dark' | 'night'
 export type ReaderMode = 'book' | 'sentence'
+export type ReaderLeading = 'compact' | 'normal' | 'relaxed'
 
 export interface ReaderSettings {
   mode: ReaderMode
   theme: ReaderTheme
   fontSize: number
+  leading: ReaderLeading
   fontAr: string
   fontBn: string
   showArabic: boolean
@@ -250,6 +306,7 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   mode: 'book',
   theme: 'paper',
   fontSize: 19,
+  leading: 'normal',
   fontAr: 'amiri',
   fontBn: 'noto-serif-bengali',
   showArabic: true,

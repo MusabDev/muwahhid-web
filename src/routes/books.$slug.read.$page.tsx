@@ -1,31 +1,32 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { ArrowRight, Bookmark, BookOpen, ChevronLeft, ChevronRight, ListTree, NotebookPen, Rows3, Search, Settings2 } from 'lucide-react'
+import { ArrowRight, Bookmark, BookOpen, ChevronLeft, ChevronRight, ListTree, NotebookPen, Rows3, Search, Settings2, Type } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { StarMark } from '@/components/brand'
 import type { HighlightRange } from '@/components/markdown'
 import { BookView } from '@/components/reader/book-view'
 import { Companion, type CompanionTab } from '@/components/reader/companion'
-import { BookmarksPanel, HighlightsPanel } from '@/components/reader/notes-panel'
+import { HighlightsPanel } from '@/components/reader/notes-panel'
 import { ReaderContext, type ReaderContextValue } from '@/components/reader/reader-context'
 import { SearchPanel } from '@/components/reader/search-panel'
 import { SentenceView } from '@/components/reader/sentence-view'
-import { SettingsPanel } from '@/components/reader/settings-panel'
+import { clampFontSize, Kbd, LEADING, SettingsPanel } from '@/components/reader/settings-panel'
 import { PatternTint } from '@/components/pattern'
 import { EmptyState, Spinner } from '@/components/states'
 import { useTextActions } from '@/components/text-actions'
 import { TocList } from '@/components/toc-list'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { arabicFamily, banglaFamily, loadFont } from '@/lib/fonts'
+import { loadFont, readerFontVars } from '@/lib/fonts'
 import { bookQuery, pageQuery } from '@/lib/queries'
 import type { TextTarget } from '@/lib/selection'
 import { bnNum } from '@/lib/text'
 import { pageTitle } from '@/lib/head'
-import type { Annotation, Lang } from '@/lib/types'
-import { useAnnotations, useBookmarks, useLibraryEntry, useReaderSettings } from '@/lib/user-data'
+import type { Annotation } from '@/lib/types'
+import { groupAnnotations, useAnnotations, useBookmarks, useLibraryEntry, useReaderSettings } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/books/$slug/read/$page')({
@@ -35,6 +36,8 @@ export const Route = createFileRoute('/books/$slug/read/$page')({
 })
 
 const WIDE = '(min-width: 1280px)'
+/* below this the top bar slims down and the bottom dock carries the controls */
+const ROOMY = '(min-width: 640px)'
 
 function Reader() {
   const { slug, page: pageParam } = Route.useParams()
@@ -52,12 +55,14 @@ function Reader() {
   const { saveProgress } = useLibraryEntry(book)
 
   const [panel, setPanel] = useState<CompanionTab | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const docked = useMediaQuery(WIDE)
+  const roomy = useMediaQuery(ROOMY)
+  const chromeHidden = useAutoHide(!panel && !settingsOpen)
   const togglePanel = (tab: CompanionTab) => setPanel((current) => (current === tab ? null : tab))
   const closePanel = useCallback(() => setPanel(null), [])
   /* when docked beside the page the companion stays open while the reader moves around */
   const afterNavigate = () => !docked && setPanel(null)
-  const [hoverId, setHoverId] = useState<number | null>(null)
   const [flashId, setFlashId] = useState<number | null>(null)
 
   /* Fonts load lazily when chosen */
@@ -108,16 +113,39 @@ function Reader() {
 
   const goTo = useCallback((n: number | null | undefined) => n != null && navigate({ to: '/books/$slug/read/$page', params: { slug, page: String(n) } }), [navigate, slug])
 
-  /* Arrow keys turn pages */
+  /* Keyboard: arrows turn pages, single letters open the reader's tools */
+  const keyActions = useRef<Record<string, () => void>>({})
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.key === 'ArrowRight') goTo(page?.next_page)
-      if (e.key === 'ArrowLeft') goTo(page?.prev_page)
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return
+      const target = e.target as HTMLElement | null
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target?.isContentEditable) return
+      /* sliders, menus and dialogs use arrows and letters themselves */
+      if (target?.closest('[role=slider], [role=listbox], [role=menu], [role=dialog], [data-radix-popper-content-wrapper]')) return
+      const action = keyActions.current[e.key.length === 1 ? e.key.toLowerCase() : e.key]
+      if (!action) return
+      e.preventDefault()
+      action()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [page, goTo])
+  }, [])
+
+  /* Swipe sideways on touch screens to turn pages */
+  const touch = useRef<{ x: number; y: number; t: number } | null>(null)
+  const onTouchStart = (e: React.TouchEvent) => {
+    touch.current = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null
+  }
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touch.current
+    touch.current = null
+    if (!start || !page) return
+    const dx = e.changedTouches[0].clientX - start.x
+    const dy = e.changedTouches[0].clientY - start.y
+    if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.5 || Date.now() - start.t > 600) return
+    if (window.getSelection()?.toString()) return
+    goTo(dx < 0 ? page.next_page : page.prev_page)
+  }
 
   const sentenceMap = useMemo(() => new Map(page?.sentences.map((s) => [s.id, s]) ?? []), [page])
 
@@ -145,7 +173,8 @@ function Reader() {
     diacriticsHidden: !settings.diacritics,
     fontAr: settings.fontAr,
     fontBn: settings.fontBn,
-    annotations: { create, update: updateAnnotation, remove },
+    /* everything selected here is on this page */
+    annotations: { list: annotations, create: (parts, replaces) => create(parts.map((part) => ({ ...part, page_number: pageNumber })), replaces), update: updateAnnotation, remove },
     linkFor: (t) => `${window.location.origin}/books/${slug}/read/${pageNumber}#s-${t.id}`,
     quoteFor: (t, selected) => {
       const s = t ? sentenceMap.get(t.id) : undefined
@@ -168,13 +197,12 @@ function Reader() {
 
   const annotationIndex = useMemo(() => new Map(annotations.map((a) => [String(a.id), a])), [annotations])
 
+  /* phones have room for one language only: "both" shows the Bangla */
+  const readerSettings = !roomy && settings.showArabic && settings.showBangla ? { ...settings, showArabic: false } : settings
+
   const ctx: ReaderContextValue = {
-    settings,
-    hoverId,
-    activeId: actions.activeId,
+    settings: readerSettings,
     flashId,
-    setHoverId,
-    onSentenceClick: (id: number, lang: Lang, el: HTMLElement) => actions.openForSentence({ type: 'book_sentence', id, lang }, el),
     onMarkClick: (annotation: Annotation, el: HTMLElement) => actions.openForMark(annotation, el),
     highlightsFor: (id, lang) => highlightMap.get(`${id}:${lang}`) ?? EMPTY,
     annotationById: (id) => annotationIndex.get(id),
@@ -194,6 +222,25 @@ function Reader() {
     }
   }
 
+  const languages = settings.showArabic && settings.showBangla ? 'both' : settings.showArabic ? 'ar' : 'bn'
+  useEffect(() => {
+    keyActions.current = {
+      ArrowRight: () => goTo(page?.next_page),
+      ArrowLeft: () => goTo(page?.prev_page),
+      t: () => togglePanel('toc'),
+      '/': () => setPanel('search'),
+      n: () => togglePanel('notes'),
+      b: () => void togglePageBookmark(),
+      m: () => update({ mode: settings.mode === 'book' ? 'sentence' : 'book' }),
+      /* both → Arabic only → Bangla only → both */
+      l: () => update(languages === 'both' ? { showArabic: true, showBangla: false } : languages === 'ar' ? { showArabic: false, showBangla: true } : { showArabic: true, showBangla: true }),
+      s: () => setSettingsOpen((o) => !o),
+      '+': () => update({ fontSize: clampFontSize(settings.fontSize + 1) }),
+      '=': () => update({ fontSize: clampFontSize(settings.fontSize + 1) }),
+      '-': () => update({ fontSize: clampFontSize(settings.fontSize - 1) }),
+    }
+  })
+
   const first = book?.first_page ?? 1
   const last = book?.last_page ?? first
   const progress = page && last > first ? Math.min(100, Math.max(0, ((page.number - first) / (last - first)) * 100)) : page ? 100 : 0
@@ -202,12 +249,12 @@ function Reader() {
     <div
       data-reader-theme={settings.theme}
       className="relative isolate min-h-svh bg-[var(--desk)]"
-      style={{ ['--font-ar' as string]: `'${arabicFamily(settings.fontAr)}'`, ['--font-bn' as string]: settings.fontBn === 'hind-siliguri' ? "'Bangla Digits', 'Hind Siliguri'" : `'${banglaFamily(settings.fontBn)}'` }}
+      style={{ ...readerFontVars(settings.fontAr, settings.fontBn), ['--reader-leading' as string]: LEADING[settings.leading] }}
     >
       <Desk />
 
       {/* Top bar */}
-      <header className="sticky top-0 z-30">
+      <header className={cn('sticky top-0 z-30 transition-transform duration-300 ease-out', chromeHidden && '-translate-y-full')}>
         <div className="wood-panel relative overflow-hidden shadow-[0_2px_12px_oklch(0.15_0.03_50/0.4)]">
           <PatternTint className="opacity-[0.06]" />
           <div className="relative mx-auto flex h-14 max-w-[1400px] items-center gap-1 px-2 sm:gap-2 sm:px-4">
@@ -216,38 +263,48 @@ function Reader() {
                 <ArrowRight className="rotate-180" />
               </Link>
             </BarButton>
-            <BarButton label="সূচিপত্র" active={panel === 'toc'} onClick={() => togglePanel('toc')}>
+            <BarButton label="সূচিপত্র" shortcut="T" active={panel === 'toc'} onClick={() => togglePanel('toc')} className="max-sm:hidden">
               <ListTree />
             </BarButton>
-            <BarButton label="কিতাবে খুঁজুন" active={panel === 'search'} onClick={() => togglePanel('search')} className="max-sm:hidden">
+            <BarButton label="কিতাবে সার্চ করুন" shortcut="/" active={panel === 'search'} onClick={() => togglePanel('search')} className="max-sm:hidden">
               <Search />
             </BarButton>
 
             <div className="mx-1 flex min-w-0 flex-1 flex-col items-center text-center">
-              <div className="flex max-w-full items-center gap-2">
-                <StarMark className="size-3.5 shrink-0 text-gold max-sm:hidden" />
-                <span className="truncate font-heading text-sm font-semibold text-wood-foreground sm:text-base">{book?.title_bn}</span>
-                <StarMark className="size-3.5 shrink-0 text-gold max-sm:hidden" />
-              </div>
-              <div className="max-w-full truncate font-arabic text-xs text-gold/90">{book?.title_ar}</div>
+              <span className="max-w-full truncate font-heading text-sm font-semibold text-wood-foreground sm:text-base">
+                {book?.title_bn}
+                {book?.title_ar && (
+                  <span className="font-arabic font-normal text-wood-foreground/75">
+                    {' '}(<bdi>{book.title_ar}</bdi>)
+                  </span>
+                )}
+              </span>
+              {book?.author?.name_bn && <span className="max-w-full truncate text-xs text-gold/90">{book.author.name_bn}</span>}
             </div>
 
-            <BarButton label={pageBookmark ? 'বুকমার্ক সরান' : 'এই পাতা বুকমার্ক করুন'} onClick={togglePageBookmark}>
+            <BarButton label={pageBookmark ? 'বুকমার্ক সরান' : 'এই পাতা বুকমার্ক করুন'} shortcut="B" active={!!pageBookmark} onClick={togglePageBookmark}>
               <Bookmark className={cn(pageBookmark && 'fill-gold text-gold')} />
             </BarButton>
-            <BarButton label="বুকমার্ক ও নোট" active={panel === 'bookmarks' || panel === 'notes'} onClick={() => setPanel((p) => (p === 'bookmarks' || p === 'notes' ? null : 'bookmarks'))} className="max-sm:hidden">
+            <BarButton label="হাইলাইট ও নোট" shortcut="N" active={panel === 'notes'} onClick={() => togglePanel('notes')} className="max-sm:hidden">
               <NotebookPen />
             </BarButton>
-            <BarButton label={settings.mode === 'book' ? 'বাক্য মোড' : 'কিতাব মোড'} onClick={() => update({ mode: settings.mode === 'book' ? 'sentence' : 'book' })} className="max-md:hidden">
+            <BarButton label={settings.mode === 'book' ? 'বাক্য মোড' : 'কিতাব মোড'} shortcut="M" onClick={() => update({ mode: settings.mode === 'book' ? 'sentence' : 'book' })} className="max-md:hidden">
               {settings.mode === 'book' ? <Rows3 /> : <BookOpen />}
             </BarButton>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="সেটিংস" className="text-wood-foreground hover:bg-white/10 hover:text-wood-foreground data-[state=open]:bg-white/15 data-[state=open]:text-gold">
-                  <Settings2 />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-80">
+            <Popover open={settingsOpen && roomy} onOpenChange={setSettingsOpen}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="পড়ার সেটিংস" className="text-wood-foreground hover:bg-white/10 hover:text-wood-foreground data-[state=open]:bg-white/15 data-[state=open]:text-gold max-sm:hidden">
+                      <Settings2 />
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  পড়ার সেটিংস <Kbd>S</Kbd>
+                </TooltipContent>
+              </Tooltip>
+              <PopoverContent align="end" className="max-h-[calc(100svh-5rem)] w-80 overflow-y-auto scrollbar-thin">
                 <SettingsPanel settings={settings} update={update} />
               </PopoverContent>
             </Popover>
@@ -262,7 +319,7 @@ function Reader() {
 
       {/* Page — on wide screens it makes room for the docked companion */}
       <div className={cn('transition-[padding] duration-300 ease-out', panel && 'xl:ps-[404px]')}>
-        <main ref={containerRef} className="@container relative px-2 py-6 sm:px-6 sm:py-10">
+        <main ref={containerRef} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} className="@container relative sm:px-6 sm:py-10">
           <ReaderContext.Provider value={ctx}>
             {isLoading || !book ? (
               <div className="flex min-h-[70vh] items-center justify-center">
@@ -284,15 +341,27 @@ function Reader() {
 
         {/* Page navigation */}
         {page && book && (
-          <nav className="sticky bottom-0 z-20 pb-[env(safe-area-inset-bottom)]">
-            <div className="wood-panel mx-auto mb-3 flex w-fit items-center gap-1 rounded-full border border-gold/30 p-1 shadow-[0_12px_30px_-10px_oklch(0.15_0.03_50/0.6)]">
-              <Button variant="ghost" size="icon-lg" className="rounded-full text-wood-foreground hover:bg-white/10 hover:text-gold" disabled={!page.prev_page} onClick={() => goTo(page.prev_page)} aria-label="আগের পৃষ্ঠা">
+          <nav
+            aria-label="পৃষ্ঠা ও নিয়ন্ত্রণ"
+            className={cn('sticky bottom-0 z-20 flex items-center justify-center gap-2 px-2 pt-2 pb-[calc(1.25rem+env(safe-area-inset-bottom))] transition-transform duration-300 ease-out sm:pb-6', chromeHidden && 'translate-y-[150%]')}
+          >
+            <div className={DOCK}>
+              {/* on phones the dock carries the tools the slim top bar leaves out, within thumb reach */}
+              <DockButton label="সূচি, সার্চ ও নোট" active={!!panel} onClick={() => setPanel((p) => (p ? null : 'toc'))} className="sm:hidden">
+                <ListTree />
+              </DockButton>
+              <span aria-hidden className="h-6 w-px bg-white/15 sm:hidden" />
+              <DockButton label="আগের পৃষ্ঠা" disabled={!page.prev_page} onClick={() => goTo(page.prev_page)}>
                 <ChevronLeft />
-              </Button>
+              </DockButton>
               <PageJump current={page.number} last={last} onGo={goTo} />
-              <Button variant="ghost" size="icon-lg" className="rounded-full text-wood-foreground hover:bg-white/10 hover:text-gold" disabled={!page.next_page} onClick={() => goTo(page.next_page)} aria-label="পরের পৃষ্ঠা">
+              <DockButton label="পরের পৃষ্ঠা" disabled={!page.next_page} onClick={() => goTo(page.next_page)}>
                 <ChevronRight />
-              </Button>
+              </DockButton>
+              <span aria-hidden className="h-6 w-px bg-white/15 sm:hidden" />
+              <DockButton label="পড়ার সেটিংস" active={settingsOpen} onClick={() => setSettingsOpen(true)} className="sm:hidden">
+                <Type />
+              </DockButton>
             </div>
           </nav>
         )}
@@ -300,20 +369,22 @@ function Reader() {
 
       {actions.element}
 
-      <Companion tab={panel} onTab={setPanel} onClose={closePanel} counts={{ bookmarks: bookmarks.bookmarks.length, notes: annotations.length }}>
+      {/* phones get settings as a bottom sheet instead of the top bar popover */}
+      <Sheet open={settingsOpen && !roomy} onOpenChange={setSettingsOpen}>
+        <SheetContent side="bottom" className="max-h-[85svh] gap-0 overflow-y-auto rounded-t-2xl pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <div aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-border" />
+          <SheetHeader className="pb-2">
+            <SheetTitle>পড়ার সেটিংস</SheetTitle>
+          </SheetHeader>
+          <div className="px-4">
+            <SettingsPanel settings={settings} update={update} allowBoth={false} />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Companion tab={panel} onTab={setPanel} onClose={closePanel} counts={{ notes: groupAnnotations(annotations).length }}>
         {panel === 'toc' && book && (book.toc?.length ? <TocList slug={slug} entries={book.toc} currentPage={pageNumber} onNavigate={afterNavigate} /> : <EmptyState icon={ListTree} title="সূচিপত্র নেই" />)}
         {panel === 'search' && <SearchPanel slug={slug} onNavigate={afterNavigate} />}
-        {panel === 'bookmarks' && book && (
-          <BookmarksPanel
-            book={book}
-            pageNumber={pageNumber}
-            bookmarks={bookmarks.bookmarks}
-            onAddBookmark={(label) => bookmarks.create({ book_id: book.id, page_number: pageNumber, sentence_id: null, label }, book)}
-            onRenameBookmark={bookmarks.update}
-            onRemoveBookmark={bookmarks.remove}
-            onNavigate={afterNavigate}
-          />
-        )}
         {panel === 'notes' && book && <HighlightsPanel book={book} annotations={annotations} onRemoveAnnotation={remove} onNavigate={afterNavigate} />}
       </Companion>
     </div>
@@ -344,9 +415,57 @@ function useMediaQuery(query: string) {
   return matches
 }
 
+/** Slides the reader's bars away while reading down the page; scrolling up, or reaching the top or end, brings them back. */
+function useAutoHide(enabled: boolean) {
+  const [hidden, setHidden] = useState(false)
+  useEffect(() => {
+    if (!enabled) return
+    let last = window.scrollY
+    const onScroll = () => {
+      const y = window.scrollY
+      const nearEnd = window.innerHeight + y >= document.documentElement.scrollHeight - 48
+      if (y < 80 || nearEnd) setHidden(false)
+      else if (y > last + 10) setHidden(true)
+      else if (y < last - 10) setHidden(false)
+      if (Math.abs(y - last) > 10) last = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      setHidden(false)
+    }
+  }, [enabled])
+  return enabled && hidden
+}
+
 const EMPTY: HighlightRange[] = []
 
-function BarButton({ label, children, className, active, ...props }: { label: string; children: React.ReactNode; className?: string; active?: boolean; onClick?: () => void; asChild?: boolean }) {
+const DOCK = 'wood-panel flex w-fit items-center gap-1 rounded-full border border-gold/30 p-1 shadow-[0_12px_30px_-10px_oklch(0.15_0.03_50/0.6)]'
+
+function DockButton({ label, shortcut, children, className, active, ...props }: React.ComponentProps<typeof Button> & { label: string; shortcut?: string; active?: boolean }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          aria-label={label}
+          aria-pressed={active}
+          className={cn('rounded-full text-wood-foreground hover:bg-white/10 hover:text-gold', active && 'bg-white/15 text-gold', className)}
+          {...props}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        {label}
+        {shortcut && <Kbd>{shortcut}</Kbd>}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function BarButton({ label, shortcut, children, className, active, ...props }: { label: string; shortcut?: string; children: React.ReactNode; className?: string; active?: boolean; onClick?: () => void; asChild?: boolean }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -361,7 +480,10 @@ function BarButton({ label, children, className, active, ...props }: { label: st
           {children}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>
+        {label}
+        {shortcut && <Kbd>{shortcut}</Kbd>}
+      </TooltipContent>
     </Tooltip>
   )
 }

@@ -20,7 +20,7 @@ export function SiteFooter() {
             title="পড়ুন"
             links={[
               { to: '/library', label: 'লাইব্রেরি' },
-              { to: '/authors', label: 'লেখকগণ' },
+              { to: '/authors', label: 'আহলুল ইলম' },
             ]}
           />
           <FooterColumn

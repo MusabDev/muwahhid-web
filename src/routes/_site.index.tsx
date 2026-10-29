@@ -47,7 +47,7 @@ function Hero() {
         </p>
         <Ornament className="my-6" />
         <h1 className="text-3xl leading-tight font-bold text-foreground md:text-5xl md:leading-tight">
-          আলিমদের কিতাব ও দারস,
+          আহলুল ইলমের কিতাব ও দারস,
           <br />
           <span className="text-primary">আরবি ও বাংলায়</span> পাশাপাশি
         </h1>
@@ -190,7 +190,7 @@ function AuthorsSection() {
   return (
     <section>
       <SectionHeading
-        title="লেখকগণ"
+        title="আহলুল ইলম"
         action={
           <Button variant="ghost" asChild>
             <Link to="/authors">

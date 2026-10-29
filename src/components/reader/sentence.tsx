@@ -5,7 +5,7 @@ import { FootnoteRef } from './footnote-ref'
 import { useReader } from './reader-context'
 
 export const Sentence = memo(function Sentence({ sentence, lang }: { sentence: SentenceType; lang: Lang }) {
-  const { settings, hoverId, activeId, flashId, setHoverId, onSentenceClick, onMarkClick, highlightsFor, annotationById, footnotes } = useReader()
+  const { settings, flashId, onMarkClick, highlightsFor, annotationById, footnotes } = useReader()
   const text = lang === 'ar' ? sentence.text_ar_md : sentence.text_bn_md
   if (!text.trim()) return null
 
@@ -16,21 +16,13 @@ export const Sentence = memo(function Sentence({ sentence, lang }: { sentence: S
       data-tt="book_sentence"
       data-tid={sentence.id}
       data-lang={lang}
-      data-hover={hoverId === sentence.id}
-      data-active={activeId === sentence.id}
       data-flash={flashId === sentence.id}
-      onMouseEnter={() => setHoverId(sentence.id)}
-      onMouseLeave={() => setHoverId(null)}
       onClick={(e) => {
+        /* a click that ends a text selection is handled by the selection toolbar */
+        if (window.getSelection()?.isCollapsed === false) return
         const mark = (e.target as HTMLElement).closest('mark[data-id]') as HTMLElement | null
-        if (mark) {
-          const annotation = annotationById(mark.dataset.id!)
-          if (annotation) {
-            onMarkClick(annotation, mark)
-            return
-          }
-        }
-        if (window.getSelection()?.isCollapsed !== false) onSentenceClick(sentence.id, lang, e.currentTarget)
+        const annotation = mark && annotationById(mark.dataset.id!)
+        if (annotation) onMarkClick(annotation, mark)
       }}
     >
       <Markdown

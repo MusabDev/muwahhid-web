@@ -123,7 +123,7 @@ function DarsPlayer({ dars }: { dars: Dars }) {
     diacriticsHidden: false,
     fontAr: settings.fontAr,
     fontBn: settings.fontBn,
-    annotations: { create, update: updateAnnotation, remove },
+    annotations: { list: annotations, create, update: updateAnnotation, remove },
     linkFor: (target) => linkAt(segmentMap.get(target.id)?.start_time ?? 0),
     quoteFor: (target, selected) => {
       const s = target ? segmentMap.get(target.id) : undefined
