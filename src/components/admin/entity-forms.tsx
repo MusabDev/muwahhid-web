@@ -7,10 +7,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
-import type { Author, Book, Dars, DarsSeries, Paginated } from '@/lib/types'
+import type { Author, Book, Category, Dars, DarsSeries, Paginated } from '@/lib/types'
 
 export function useAuthorOptions() {
   return useQuery({ queryKey: ['admin', 'authors', 'options'], queryFn: () => api<Paginated<Author>>('/admin/authors', { query: { per_page: 500 } }) }).data?.data ?? []
+}
+
+function useCategoryOptions() {
+  return useQuery({ queryKey: ['admin', 'categories'], queryFn: () => api<Category[]>('/admin/categories') }).data ?? []
+}
+
+/** Category select; "none" maps to no category. */
+function CategorySelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const categories = useCategoryOptions()
+  return (
+    <Field label="বিষয় (ক্যাটাগরি)">
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">— বিষয় নেই —</SelectItem>
+          {categories.map((c) => (
+            <SelectItem key={c.id} value={String(c.id)}>
+              {c.name_bn}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  )
 }
 
 function useBookOptions() {
@@ -43,16 +69,22 @@ export function AuthorForm({ initial, submitting, onSubmit, submitLabel = 'স�
     name_bn: initial?.name_bn ?? '',
     name_translit: initial?.name_translit ?? '',
     slug: initial?.slug ?? '',
+    death_year_ah: initial?.death_year_ah ? String(initial.death_year_ah) : '',
     about_md: initial?.about_md ?? '',
   })
   const set = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }))
 
   return (
-    <form className="space-y-4" onSubmit={(e) => (e.preventDefault(), onSubmit({ ...values, slug: values.slug || undefined }))}>
+    <form className="space-y-4" onSubmit={(e) => (e.preventDefault(), onSubmit({ ...values, slug: values.slug || undefined, death_year_ah: values.death_year_ah ? Number(values.death_year_ah) : null }))}>
       <NameFields prefix="name" values={values} set={set} kind="নাম" />
-      <Field label="স্লাগ (URL)" hint="খালি রাখলে নিজে থেকে তৈরি হবে">
-        <Input value={values.slug} onChange={(e) => set('slug', e.target.value)} placeholder="ibn-taymiyyah" />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="স্লাগ (URL)" hint="খালি রাখলে নিজে থেকে তৈরি হবে">
+          <Input value={values.slug} onChange={(e) => set('slug', e.target.value)} placeholder="ibn-taymiyyah" />
+        </Field>
+        <Field label="মৃত্যু সাল (হিজরি)" hint="জীবিত হলে খালি রাখুন">
+          <Input type="number" min={1} max={1500} value={values.death_year_ah} onChange={(e) => set('death_year_ah', e.target.value)} placeholder="৭২৮" />
+        </Field>
+      </div>
       <Field label="পরিচিতি (Markdown)">
         <Textarea value={values.about_md} onChange={(e) => set('about_md', e.target.value)} className="min-h-28" />
       </Field>
@@ -72,15 +104,32 @@ export function BookForm({ initial, submitting, onSubmit, submitLabel = 'সং�
     slug: initial?.slug ?? '',
     about_md: initial?.about_md ?? '',
     author_id: initial?.author?.id ? String(initial.author.id) : '',
+    explainer_id: initial?.explainer?.id ? String(initial.explainer.id) : '',
+    category_id: initial?.category?.id ? String(initial.category.id) : 'none',
   })
   const [published, setPublished] = useState(initial?.is_published ?? false)
+  const [sharh, setSharh] = useState(initial?.is_sharh ?? false)
   const set = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }))
 
   return (
-    <form className="space-y-4" onSubmit={(e) => (e.preventDefault(), onSubmit({ ...values, slug: values.slug || undefined, author_id: Number(values.author_id), is_published: published }))}>
+    <form
+      className="space-y-4"
+      onSubmit={(e) => (
+        e.preventDefault(),
+        onSubmit({
+          ...values,
+          slug: values.slug || undefined,
+          author_id: Number(values.author_id),
+          category_id: values.category_id === 'none' ? null : Number(values.category_id),
+          is_sharh: sharh,
+          explainer_id: sharh && values.explainer_id ? Number(values.explainer_id) : null,
+          is_published: published,
+        })
+      )}
+    >
       <NameFields prefix="title" values={values} set={set} kind="শিরোনাম" />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="লেখক">
+        <Field label={sharh ? 'মূল গ্রন্থকার (মতনের লেখক)' : 'লেখক'}>
           <Select value={values.author_id} onValueChange={(v) => set('author_id', v)} required>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="লেখক বেছে নিন" />
@@ -94,9 +143,35 @@ export function BookForm({ initial, submitting, onSubmit, submitLabel = 'সং�
             </SelectContent>
           </Select>
         </Field>
-        <Field label="স্লাগ (URL)" hint="খালি রাখলে নিজে থেকে তৈরি হবে">
-          <Input value={values.slug} onChange={(e) => set('slug', e.target.value)} />
-        </Field>
+        <CategorySelect value={values.category_id} onChange={(v) => set('category_id', v)} />
+      </div>
+      <Field label="স্লাগ (URL)" hint="খালি রাখলে নিজে থেকে তৈরি হবে">
+        <Input value={values.slug} onChange={(e) => set('slug', e.target.value)} />
+      </Field>
+      <div className="space-y-3 rounded-lg border bg-muted/40 p-3">
+        <label className="flex items-start gap-3 text-sm">
+          <Switch checked={sharh} onCheckedChange={setSharh} className="mt-0.5" />
+          <span>
+            এটি একটি শারহ (ব্যাখ্যাগ্রন্থ)
+            <span className="block text-xs text-muted-foreground">উপরের লেখক হবেন মূল গ্রন্থকার; নিচে ব্যাখ্যাকার বেছে নিন</span>
+          </span>
+        </label>
+        {sharh && (
+          <Field label="ব্যাখ্যাকার (শারিহ)">
+            <Select value={values.explainer_id} onValueChange={(v) => set('explainer_id', v)}>
+              <SelectTrigger className="w-full bg-background">
+                <SelectValue placeholder="ব্যাখ্যাকার বেছে নিন" />
+              </SelectTrigger>
+              <SelectContent>
+                {authors.map((a) => (
+                  <SelectItem key={a.id} value={String(a.id)}>
+                    {a.name_bn}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
       </div>
       <Field label="পরিচিতি (Markdown)">
         <Textarea value={values.about_md} onChange={(e) => set('about_md', e.target.value)} className="min-h-28" />
@@ -104,7 +179,7 @@ export function BookForm({ initial, submitting, onSubmit, submitLabel = 'সং�
       <label className="flex items-center gap-3 text-sm">
         <Switch checked={published} onCheckedChange={setPublished} /> প্রকাশিত (সবাই দেখতে পাবে)
       </label>
-      <Button type="submit" disabled={submitting || !values.author_id}>
+      <Button type="submit" disabled={submitting || !values.author_id || (sharh && !values.explainer_id)}>
         {submitLabel}
       </Button>
     </form>
@@ -122,6 +197,7 @@ export function SeriesForm({ initial, submitting, onSubmit, submitLabel = 'স�
     about_md: initial?.about_md ?? '',
     author_id: initial?.author?.id ? String(initial.author.id) : '',
     book_id: initial?.book_id ? String(initial.book_id) : 'none',
+    category_id: initial?.category?.id ? String(initial.category.id) : 'none',
   })
   const [published, setPublished] = useState(initial?.is_published ?? false)
   const set = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }))
@@ -131,7 +207,7 @@ export function SeriesForm({ initial, submitting, onSubmit, submitLabel = 'স�
       className="space-y-4"
       onSubmit={(e) => (
         e.preventDefault(),
-        onSubmit({ ...values, slug: values.slug || undefined, author_id: Number(values.author_id), book_id: values.book_id === 'none' ? null : Number(values.book_id), is_published: published })
+        onSubmit({ ...values, slug: values.slug || undefined, author_id: Number(values.author_id), book_id: values.book_id === 'none' ? null : Number(values.book_id), category_id: values.category_id === 'none' ? null : Number(values.category_id), is_published: published })
       )}
     >
       <NameFields prefix="title" values={values} set={set} kind="কিতাবের নাম" />
@@ -166,9 +242,12 @@ export function SeriesForm({ initial, submitting, onSubmit, submitLabel = 'স�
           </Select>
         </Field>
       </div>
-      <Field label="স্লাগ (URL)">
-        <Input value={values.slug} onChange={(e) => set('slug', e.target.value)} />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <CategorySelect value={values.category_id} onChange={(v) => set('category_id', v)} />
+        <Field label="স্লাগ (URL)">
+          <Input value={values.slug} onChange={(e) => set('slug', e.target.value)} />
+        </Field>
+      </div>
       <Field label="পরিচিতি (Markdown)">
         <Textarea value={values.about_md} onChange={(e) => set('about_md', e.target.value)} />
       </Field>

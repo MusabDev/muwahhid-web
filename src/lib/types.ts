@@ -17,16 +17,30 @@ export interface User {
   is_admin: boolean
 }
 
+export interface Category {
+  id: number
+  slug: string
+  name_bn: string
+  name_ar: string | null
+  position: number
+  books_count?: number
+  dars_series_count?: number
+}
+
 export interface Author {
   id: number
   slug: string
   name_ar: string
   name_bn: string
   name_translit: string
+  /** Hijri year of death; null for living scholars. */
+  death_year_ah: number | null
   about_md: string | null
   books_count?: number
+  explained_books_count?: number
   dars_series_count?: number
   books?: Book[]
+  explained_books?: Book[]
   dars_series?: DarsSeries[]
 }
 
@@ -51,13 +65,18 @@ export interface Book {
   cover_url: string | null
   content_version: number
   is_published: boolean
+  /** A sharh (commentary): `author` wrote the original text, `explainer` wrote the explanation */
+  is_sharh?: boolean
   pages_count?: number
   first_page?: number | null
   last_page?: number | null
+  category?: Category | null
   author?: Author
+  explainer?: Author | null
   toc?: TocEntry[]
   dars_series?: DarsSeries[]
   created_at?: string
+  updated_at?: string
 }
 
 export interface Sentence {
@@ -101,6 +120,10 @@ export interface DarsSeries {
   is_published: boolean
   book_id: number | null
   durus_count?: number
+  /** Card stats (present on list endpoints) */
+  total_seconds?: number
+  media_type?: 'video' | 'audio' | null
+  category?: Category | null
   author?: Author
   book?: Book | null
   durus?: Dars[]

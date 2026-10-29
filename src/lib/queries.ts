@@ -1,8 +1,8 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from './api'
-import type { Author, Book, BookPage, Dars, DarsSeries, GlobalSearchResult, Paginated, Sentence } from './types'
+import type { Author, Book, BookPage, Category, Dars, DarsSeries, GlobalSearchResult, Paginated, Sentence } from './types'
 
-export const booksQuery = (params: { author?: string; sort?: string; page?: number; per_page?: number } = {}) =>
+export const booksQuery = (params: { author?: string; category?: string; sort?: string; page?: number; per_page?: number } = {}) =>
   queryOptions({
     queryKey: ['books', params],
     queryFn: () => api<Paginated<Book>>('/books', { query: params }),
@@ -21,10 +21,10 @@ export const pageQuery = (slug: string, number: number) =>
     staleTime: 5 * 60 * 1000,
   })
 
-export const authorsQuery = (page = 1) =>
+export const authorsQuery = (page = 1, perPage = 60) =>
   queryOptions({
-    queryKey: ['authors', page],
-    queryFn: () => api<Paginated<Author>>('/authors', { query: { page, per_page: 60 } }),
+    queryKey: ['authors', page, perPage],
+    queryFn: () => api<Paginated<Author>>('/authors', { query: { page, per_page: perPage } }),
   })
 
 export const authorQuery = (slug: string) =>
@@ -33,7 +33,7 @@ export const authorQuery = (slug: string) =>
     queryFn: () => api<Author>(`/authors/${slug}`),
   })
 
-export const seriesListQuery = (params: { author?: string; page?: number } = {}) =>
+export const seriesListQuery = (params: { author?: string; category?: string; page?: number; per_page?: number } = {}) =>
   queryOptions({
     queryKey: ['dars-series', params],
     queryFn: () => api<Paginated<DarsSeries>>('/dars-series', { query: params }),
@@ -49,6 +49,20 @@ export const darsQuery = (id: number) =>
   queryOptions({
     queryKey: ['dars', id],
     queryFn: () => api<Dars>(`/durus/${id}`),
+  })
+
+export const categoriesQuery = () =>
+  queryOptions({
+    queryKey: ['categories'],
+    queryFn: () => api<Category[]>('/categories'),
+    staleTime: 10 * 60 * 1000,
+  })
+
+export const statsQuery = () =>
+  queryOptions({
+    queryKey: ['stats'],
+    queryFn: () => api<{ books: number; dars_series: number; translated_pages: number; durus_seconds: number }>('/stats'),
+    staleTime: 10 * 60 * 1000,
   })
 
 export const searchQuery = (q: string) =>

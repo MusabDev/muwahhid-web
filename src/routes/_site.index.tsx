@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, BookOpen, Headphones, Languages, Search } from 'lucide-react'
+import { ArrowLeft, Search } from 'lucide-react'
 import { useState } from 'react'
-import { AuthorAvatar } from '@/components/author-avatar'
+import { AuthorCard } from '@/components/author-card'
 import { BookCard, ProgressBar, Shelf, ShelfPlank } from '@/components/book-card'
 import { BookCover } from '@/components/book-cover'
 import { Ornament, SectionHeading } from '@/components/brand'
+import { PatternBackdrop } from '@/components/pattern'
 import { BookGridSkeleton, EmptyState } from '@/components/states'
 import { SeriesCard } from '@/components/series-card'
 import { Button } from '@/components/ui/button'
-import { authorsQuery, booksQuery, seriesListQuery } from '@/lib/queries'
+import { authorsQuery, booksQuery, seriesListQuery, statsQuery } from '@/lib/queries'
 import { bnNum } from '@/lib/text'
 import { useLibrary } from '@/lib/user-data'
 import { pageTitle } from '@/lib/head'
@@ -38,25 +39,26 @@ function Hero() {
   const [q, setQ] = useState('')
 
   return (
-    <section className="wood-panel relative overflow-hidden">
-      <div className="pattern-star absolute inset-0 opacity-[0.09]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,oklch(0.15_0.03_45/0.55))]" />
-      <div className="relative mx-auto flex max-w-4xl flex-col items-center px-4 py-20 text-center md:py-28">
-        <p lang="ar" dir="rtl" className="font-arabic text-2xl text-gold md:text-3xl">
+    <section className="relative overflow-hidden">
+      <PatternBackdrop opacity={0.22} fade="hero" />
+      <div className="relative mx-auto flex max-w-4xl flex-col items-center px-4 pt-20 pb-16 text-center md:pt-28 md:pb-20">
+        <p lang="ar" dir="rtl" className="font-arabic text-2xl text-primary md:text-3xl">
           بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
         </p>
         <Ornament className="my-6" />
-        <h1 className="text-3xl leading-tight font-bold text-wood-foreground md:text-5xl md:leading-tight">
+        <h1 className="text-3xl leading-tight font-bold text-foreground md:text-5xl md:leading-tight">
           আলিমদের কিতাব ও দারস,
           <br />
-          <span className="text-gold">আরবি ও বাংলায়</span> পাশাপাশি
+          <span className="text-primary">আরবি ও বাংলায়</span> পাশাপাশি
         </h1>
-        <p className="mt-5 max-w-2xl text-base leading-relaxed text-wood-foreground/80 md:text-lg">
+        <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
           প্রতিটি আরবি বাক্যের পাশে তার বাংলা অনুবাদ — কিতাবের পাতার মতো করে পড়ুন, হাইলাইট ও নোট রাখুন, আর দারস শুনুন আরবি-বাংলা সাবটাইটেলসহ।
         </p>
 
+        <SiteStats />
+
         <form
-          className="mt-9 flex w-full max-w-xl items-center gap-2 rounded-full border border-gold/40 bg-parchment/95 p-1.5 shadow-xl"
+          className="mt-9 flex w-full max-w-xl items-center gap-2 rounded-full border bg-card p-1.5 shadow-lg shadow-primary/5 focus-within:border-gold"
           onSubmit={(e) => {
             e.preventDefault()
             navigate({ to: '/search', search: { q: q.trim() } })
@@ -74,22 +76,33 @@ function Hero() {
           </Button>
         </form>
 
-        <div className="mt-10 grid w-full max-w-3xl grid-cols-1 gap-3 text-start sm:grid-cols-3">
-          {[
-            { icon: Languages, title: 'বাক্যে বাক্যে অনুবাদ', text: 'আরবি বাক্যে চাপ দিলে বাংলা অংশটি আলোকিত হয়' },
-            { icon: BookOpen, title: 'কিতাবের মতো পাঠ', text: 'ডানে আরবি, বামে বাংলা — পাতা ও টীকাসহ' },
-            { icon: Headphones, title: 'সাবটাইটেলসহ দারস', text: 'শুনতে শুনতে আরবি ও বাংলা লেখা দেখুন' },
-          ].map((f) => (
-            <div key={f.title} className="rounded-xl border border-white/10 bg-black/15 p-4 backdrop-blur-sm">
-              <f.icon className="mb-2 size-5 text-gold" />
-              <div className="font-semibold text-wood-foreground">{f.title}</div>
-              <div className="mt-1 text-sm text-wood-foreground/70">{f.text}</div>
-            </div>
-          ))}
-        </div>
       </div>
-      <div className="gold-rule relative opacity-70" />
     </section>
+  )
+}
+
+/** One quiet line of totals under the hero text: books · translated pages · hours of durus. */
+function SiteStats() {
+  const { data } = useQuery(statsQuery())
+  const count = (n: number) => bnNum(n.toLocaleString('en-IN'))
+
+  const durus = !data
+    ? null
+    : data.durus_seconds >= 3600
+      ? `${count(Math.round(data.durus_seconds / 3600))} ঘণ্টার দারস`
+      : `${count(Math.max(data.durus_seconds > 0 ? 1 : 0, Math.round(data.durus_seconds / 60)))} মিনিটের দারস`
+
+  const items = data ? [`${count(data.books)}টি কিতাব`, `${count(data.translated_pages)} অনূদিত পৃষ্ঠা`, durus] : null
+
+  return (
+    <p className="mt-7 min-h-6 text-sm tracking-wide text-muted-foreground sm:text-base">
+      {items?.map((item, i) => (
+        <span key={i}>
+          {i > 0 && <span className="mx-2.5 text-gold/70">·</span>}
+          {item}
+        </span>
+      ))}
+    </p>
   )
 }
 
@@ -133,7 +146,7 @@ function NewBooks() {
         subtitle="সম্প্রতি যুক্ত হওয়া কিতাবসমূহ"
         action={
           <Button variant="ghost" asChild>
-            <Link to="/books">
+            <Link to="/library">
               সব দেখুন <ArrowLeft className="rotate-180" />
             </Link>
           </Button>
@@ -168,7 +181,7 @@ function DurusSection() {
         subtitle="আরবি ও বাংলা সাবটাইটেলসহ ব্যাখ্যা"
         action={
           <Button variant="ghost" asChild>
-            <Link to="/durus">
+            <Link to="/library" search={{ type: 'durus' }}>
               সব দেখুন <ArrowLeft className="rotate-180" />
             </Link>
           </Button>
@@ -201,18 +214,7 @@ function AuthorsSection() {
       />
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {data.data.slice(0, 6).map((author) => (
-          <Link
-            key={author.id}
-            to="/authors/$slug"
-            params={{ slug: author.slug }}
-            className="group flex flex-col items-center rounded-xl border bg-card p-5 text-center transition hover:border-gold/60 hover:shadow-md"
-          >
-            <AuthorAvatar author={author} className="size-16 text-lg" />
-            <p className="mt-3 line-clamp-2 text-sm font-semibold group-hover:text-primary">{author.name_bn}</p>
-            <p lang="ar" dir="rtl" className="mt-0.5 line-clamp-1 font-arabic text-sm text-muted-foreground">
-              {author.name_ar}
-            </p>
-          </Link>
+          <AuthorCard key={author.id} author={author} compact />
         ))}
       </div>
     </section>

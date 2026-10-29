@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 import { Ornament, StarMark } from '@/components/brand'
+import { PatternBackdrop } from '@/components/pattern'
 
 export function AuthCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
     <div className="relative flex min-h-[calc(100svh-4rem)] items-center justify-center overflow-hidden px-4 py-16">
-      <div className="pattern-star absolute inset-0 opacity-[0.14]" />
+      <PatternBackdrop opacity={0.22} fade="radial" />
       <div className="relative w-full max-w-md overflow-hidden rounded-2xl border bg-card shadow-xl">
         <div className="wood-panel flex flex-col items-center px-6 py-7 text-center">
           <StarMark className="size-10 text-gold" />

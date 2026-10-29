@@ -2,12 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { BookOpen, Headphones, PlayCircle, Video } from 'lucide-react'
 import { BookCover } from '@/components/book-cover'
+import { CategoryBadge } from '@/components/category-filter'
 import { Markdown } from '@/components/markdown'
 import { CenterSpinner, EmptyState } from '@/components/states'
 import { Button } from '@/components/ui/button'
 import { seriesQuery } from '@/lib/queries'
 import { bnNum, formatTime } from '@/lib/text'
 import { pageTitle } from '@/lib/head'
+import { PatternBackdrop } from '@/components/pattern'
 
 export const Route = createFileRoute('/_site/durus/series/$slug')({
   loader: ({ context, params }) => context.queryClient.ensureQueryData(seriesQuery(params.slug)),
@@ -23,16 +25,21 @@ function SeriesPage() {
 
   return (
     <>
-      <section className="relative overflow-hidden border-b bg-card/70">
-        <div className="pattern-star absolute inset-0 opacity-[0.1]" />
+      <section className="relative overflow-hidden border-b">
+        <PatternBackdrop opacity={0.16} />
         <div className="relative mx-auto flex max-w-5xl flex-col gap-8 px-4 py-12 md:flex-row md:items-center">
           {series.book && (
             <Link to="/books/$slug" params={{ slug: series.book.slug }} className="mx-auto w-36 shrink-0 md:mx-0">
               <BookCover book={series.book} />
             </Link>
           )}
-          <div className="flex-1">
-            <p lang="ar" dir="rtl" className="font-arabic text-3xl text-primary">
+          <div className="flex-1 text-center md:text-left">
+            {series.category && (
+              <Link to="/library" search={{ type: 'durus', category: series.category.slug }} className="mb-2 inline-block transition hover:opacity-80">
+                <CategoryBadge name={series.category.name_bn} />
+              </Link>
+            )}
+            <p lang="ar" dir="rtl" className="text-center font-arabic text-3xl text-primary md:text-left">
               {series.title_ar}
             </p>
             <h1 className="mt-1 text-3xl font-bold">{series.title_bn}</h1>
@@ -42,7 +49,7 @@ function SeriesPage() {
                 {series.author.name_bn}
               </Link>
             )}
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-wrap justify-center gap-3 md:justify-start">
               {series.durus?.[0] && (
                 <Button size="lg" asChild>
                   <Link to="/durus/$id" params={{ id: String(series.durus[0].id) }}>
@@ -78,7 +85,7 @@ function SeriesPage() {
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold group-hover:text-primary">{dars.title_bn}</p>
                       {dars.title_ar && (
-                        <p lang="ar" dir="rtl" className="text-right font-arabic text-sm text-muted-foreground">
+                        <p lang="ar" dir="rtl" className="text-left font-arabic text-sm text-muted-foreground">
                           {dars.title_ar}
                         </p>
                       )}

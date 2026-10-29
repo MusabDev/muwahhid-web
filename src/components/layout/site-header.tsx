@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { BookMarked, BookOpen, Library, LogIn, LogOut, Menu, Mic, Search, Shield, User as UserIcon, Users } from 'lucide-react'
+import { BookMarked, BookOpen, Library, LogIn, LogOut, Menu, Search, Shield, User as UserIcon, Users } from 'lucide-react'
 import { useState } from 'react'
 import { Brand } from '@/components/brand'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -10,10 +10,9 @@ import { useAuthActions, useUser } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 
 const NAV = [
-  { to: '/books', label: 'কিতাব', icon: BookOpen },
-  { to: '/durus', label: 'দারস', icon: Mic },
+  { to: '/library', label: 'লাইব্রেরি', icon: BookOpen },
   { to: '/authors', label: 'লেখক', icon: Users },
-  { to: '/library', label: 'আমার লাইব্রেরি', icon: Library },
+  { to: '/my-library', label: 'আমার লাইব্রেরি', icon: Library },
 ] as const
 
 export function SiteHeader() {
@@ -127,7 +126,7 @@ function UserMenu() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to="/library">
+              <Link to="/my-library">
                 <BookMarked /> আমার লাইব্রেরি
               </Link>
             </DropdownMenuItem>

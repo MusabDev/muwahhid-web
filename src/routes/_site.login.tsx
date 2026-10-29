@@ -36,7 +36,7 @@ function LoginPage() {
             {
               onSuccess: (user) => {
                 toast.success(`স্বাগতম, ${user.name}`)
-                navigate({ to: redirect ?? '/library' })
+                navigate({ to: redirect ?? '/my-library' })
               },
               onError: (error) => toast.error(firstError(error)),
             },

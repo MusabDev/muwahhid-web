@@ -19,6 +19,7 @@ import type { Dars, Segment } from '@/lib/types'
 import { useAnnotations, useReaderSettings } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 import { pageTitle } from '@/lib/head'
+import { PatternTint } from '@/components/pattern'
 
 export const Route = createFileRoute('/_site/durus/$id')({
   validateSearch: (search: Record<string, unknown>): { t?: string } => ({
@@ -131,7 +132,7 @@ function DarsPlayer({ dars }: { dars: Dars }) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-        <Link to="/durus" className="hover:text-primary">
+        <Link to="/library" search={{ type: 'durus' }} className="hover:text-primary">
           দারস
         </Link>
         <span>/</span>
@@ -151,7 +152,7 @@ function DarsPlayer({ dars }: { dars: Dars }) {
               <video ref={player.mediaRef} src={dars.media_url} controls playsInline className="aspect-video w-full" {...player.nativeProps} />
             ) : (
               <div className="wood-panel relative flex flex-col items-center gap-5 px-6 pt-10 pb-6">
-                <div className="pattern-star absolute inset-0 opacity-10" />
+                <PatternTint />
                 <div className="relative flex size-20 items-center justify-center rounded-full border border-gold/50 bg-black/20">
                   <Headphones className="size-8 text-gold" />
                 </div>
@@ -194,21 +195,33 @@ function DarsPlayer({ dars }: { dars: Dars }) {
             <p className="text-sm text-gold">দারস {bnNum(dars.number)}</p>
             <h1 className="mt-1 text-2xl font-bold">{dars.title_bn}</h1>
             {dars.title_ar && (
-              <p lang="ar" dir="rtl" className="mt-1 font-arabic text-xl text-muted-foreground">
+              <p lang="ar" dir="rtl" className="mt-1 text-left font-arabic text-xl text-muted-foreground">
                 {dars.title_ar}
               </p>
             )}
             <div className="mt-4 flex gap-2">
-              <Button variant="outline" size="sm" disabled={!dars.prev_id} asChild={!!dars.prev_id}>
-                <Link to="/durus/$id" params={{ id: String(dars.prev_id) }}>
+              {dars.prev_id ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/durus/$id" params={{ id: String(dars.prev_id) }}>
+                    <ChevronLeft /> আগের দারস
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" disabled>
                   <ChevronLeft /> আগের দারস
-                </Link>
-              </Button>
-              <Button variant="outline" size="sm" disabled={!dars.next_id} asChild={!!dars.next_id}>
-                <Link to="/durus/$id" params={{ id: String(dars.next_id) }}>
+                </Button>
+              )}
+              {dars.next_id ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/durus/$id" params={{ id: String(dars.next_id) }}>
+                    পরের দারস <ChevronRight />
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" disabled>
                   পরের দারস <ChevronRight />
-                </Link>
-              </Button>
+                </Button>
+              )}
             </div>
           </div>
         </div>

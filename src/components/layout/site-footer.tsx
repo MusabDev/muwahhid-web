@@ -12,22 +12,21 @@ export function SiteFooter() {
             <p className="max-w-sm text-sm leading-relaxed text-wood-foreground/75">
               আলিমদের কিতাব ও দারস আরবি ও বাংলায় — বাক্যে বাক্যে মিলিয়ে, কিতাবের পাতার মতো করে পড়ার জন্য।
             </p>
-            <p lang="ar" dir="rtl" className="font-arabic text-lg text-gold">
+            <p lang="ar" dir="rtl" className="text-left font-arabic text-lg text-gold">
               طَلَبُ الْعِلْمِ فَرِيضَةٌ عَلَى كُلِّ مُسْلِمٍ
             </p>
           </div>
           <FooterColumn
             title="পড়ুন"
             links={[
-              { to: '/books', label: 'সকল কিতাব' },
-              { to: '/durus', label: 'দারস সিরিজ' },
+              { to: '/library', label: 'লাইব্রেরি' },
               { to: '/authors', label: 'লেখকগণ' },
             ]}
           />
           <FooterColumn
             title="আপনার জন্য"
             links={[
-              { to: '/library', label: 'আমার লাইব্রেরি' },
+              { to: '/my-library', label: 'আমার লাইব্রেরি' },
               { to: '/search', label: 'অনুসন্ধান' },
               { to: '/login', label: 'লগইন / রেজিস্টার' },
             ]}

@@ -89,7 +89,7 @@ function SearchPage() {
                   <div className="flex flex-wrap gap-3">
                     {data.authors.map((author) => (
                       <Link key={author.id} to="/authors/$slug" params={{ slug: author.slug }} className="flex items-center gap-3 rounded-full border bg-card py-1.5 ps-1.5 pe-5 hover:border-gold/60">
-                        <AuthorAvatar author={author} className="size-10 text-sm ring-1 ring-offset-1" />
+                        <AuthorAvatar author={author} className="size-10" />
                         <span className="font-semibold">{author.name_bn}</span>
                       </Link>
                     ))}

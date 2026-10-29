@@ -20,7 +20,7 @@ export function TocList({ slug, entries, currentPage, onNavigate, depth = 0 }: {
           >
             <span className="min-w-0 flex-1">
               <span className="block leading-snug">{entry.title_bn}</span>
-              <span lang="ar" dir="rtl" className="block text-right font-arabic text-[15px] leading-snug text-muted-foreground">
+              <span lang="ar" dir="rtl" className="block text-left font-arabic text-[15px] leading-snug text-muted-foreground">
                 {entry.title_ar}
               </span>
             </span>

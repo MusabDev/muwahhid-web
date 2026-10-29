@@ -43,7 +43,7 @@ function AdminAuthors() {
         <div className="divide-y">
           {data?.data.map((author) => (
             <div key={author.id} className="flex items-center gap-4 py-3">
-              <AuthorAvatar author={author} className="size-10 text-sm ring-1 ring-offset-1" />
+              <AuthorAvatar author={author} className="size-10" />
               <div className="min-w-0 flex-1">
                 <div className="font-semibold">{author.name_bn}</div>
                 <div className="font-arabic text-sm text-muted-foreground">{author.name_ar}</div>

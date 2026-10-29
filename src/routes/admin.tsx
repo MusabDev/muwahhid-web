@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router'
-import { ArrowLeft, BookOpen, LayoutDashboard, Menu, Mic, Shield, Users, UserSquare } from 'lucide-react'
+import { ArrowLeft, BookOpen, LayoutDashboard, Menu, Mic, Shield, Tags, Users, UserSquare } from 'lucide-react'
 import { useState } from 'react'
 import { Brand } from '@/components/brand'
 import { CenterSpinner, EmptyState } from '@/components/states'
@@ -17,6 +17,7 @@ export const Route = createFileRoute('/admin')({
 const NAV = [
   { to: '/admin', label: 'ড্যাশবোর্ড', icon: LayoutDashboard, exact: true },
   { to: '/admin/books', label: 'কিতাব', icon: BookOpen },
+  { to: '/admin/categories', label: 'বিষয়', icon: Tags },
   { to: '/admin/authors', label: 'লেখক', icon: UserSquare },
   { to: '/admin/series', label: 'দারস সিরিজ', icon: Mic },
   { to: '/admin/users', label: 'ব্যবহারকারী', icon: Users },

@@ -192,7 +192,7 @@ function Reader() {
     <div
       data-reader-theme={settings.theme}
       className="min-h-svh bg-[var(--desk)]"
-      style={{ ['--font-ar' as string]: `'${arabicFamily(settings.fontAr)}'`, ['--font-bn' as string]: `'${banglaFamily(settings.fontBn)}'` }}
+      style={{ ['--font-ar' as string]: `'${arabicFamily(settings.fontAr)}'`, ['--font-bn' as string]: settings.fontBn === 'hind-siliguri' ? "'Bangla Digits', 'Hind Siliguri'" : `'${banglaFamily(settings.fontBn)}'` }}
     >
       {settings.theme === 'paper' || settings.theme === 'sepia' ? <div className="wood-panel pointer-events-none fixed inset-0 opacity-100" /> : null}
 
@@ -327,8 +327,8 @@ function BarButton({ label, children, className, ...props }: { label: string; ch
 }
 
 function PageJump({ current, last, onGo }: { current: number; last: number; onGo: (n: number) => void }) {
-  const [value, setValue] = useState(String(current))
-  useEffect(() => setValue(String(current)), [current])
+  const [value, setValue] = useState(bnNum(current))
+  useEffect(() => setValue(bnNum(current)), [current])
 
   return (
     <form

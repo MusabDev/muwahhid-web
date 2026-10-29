@@ -14,10 +14,12 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as SiteIndexRouteImport } from './routes/_site.index'
 import { Route as SiteLibraryRouteImport } from './routes/_site.library'
 import { Route as SiteLoginRouteImport } from './routes/_site.login'
+import { Route as SiteMyLibraryRouteImport } from './routes/_site.my-library'
 import { Route as SiteRegisterRouteImport } from './routes/_site.register'
 import { Route as SiteSearchRouteImport } from './routes/_site.search'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAuthorsRouteImport } from './routes/admin.authors'
+import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as SiteAuthorsIndexRouteImport } from './routes/_site.authors.index'
 import { Route as SiteAuthorsSlugRouteImport } from './routes/_site.authors.$slug'
@@ -58,6 +60,11 @@ const SiteLoginRoute = SiteLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => SiteRoute,
 } as any)
+const SiteMyLibraryRoute = SiteMyLibraryRouteImport.update({
+  id: '/my-library',
+  path: '/my-library',
+  getParentRoute: () => SiteRoute,
+} as any)
 const SiteRegisterRoute = SiteRegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -76,6 +83,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminAuthorsRoute = AdminAuthorsRouteImport.update({
   id: '/authors',
   path: '/authors',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -159,9 +171,11 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/library': typeof SiteLibraryRoute
   '/login': typeof SiteLoginRoute
+  '/my-library': typeof SiteMyLibraryRoute
   '/register': typeof SiteRegisterRoute
   '/search': typeof SiteSearchRoute
   '/admin/authors': typeof AdminAuthorsRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/': typeof AdminIndexRoute
   '/authors/$slug': typeof SiteAuthorsSlugRoute
@@ -182,9 +196,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/library': typeof SiteLibraryRoute
   '/login': typeof SiteLoginRoute
+  '/my-library': typeof SiteMyLibraryRoute
   '/register': typeof SiteRegisterRoute
   '/search': typeof SiteSearchRoute
   '/admin/authors': typeof AdminAuthorsRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
   '/': typeof SiteIndexRoute
   '/admin': typeof AdminIndexRoute
@@ -209,9 +225,11 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/_site/library': typeof SiteLibraryRoute
   '/_site/login': typeof SiteLoginRoute
+  '/_site/my-library': typeof SiteMyLibraryRoute
   '/_site/register': typeof SiteRegisterRoute
   '/_site/search': typeof SiteSearchRoute
   '/admin/authors': typeof AdminAuthorsRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
   '/_site/': typeof SiteIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -237,9 +255,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/library'
     | '/login'
+    | '/my-library'
     | '/register'
     | '/search'
     | '/admin/authors'
+    | '/admin/categories'
     | '/admin/users'
     | '/admin/'
     | '/authors/$slug'
@@ -260,9 +280,11 @@ export interface FileRouteTypes {
   to:
     | '/library'
     | '/login'
+    | '/my-library'
     | '/register'
     | '/search'
     | '/admin/authors'
+    | '/admin/categories'
     | '/admin/users'
     | '/'
     | '/admin'
@@ -286,9 +308,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/_site/library'
     | '/_site/login'
+    | '/_site/my-library'
     | '/_site/register'
     | '/_site/search'
     | '/admin/authors'
+    | '/admin/categories'
     | '/admin/users'
     | '/_site/'
     | '/admin/'
@@ -351,6 +375,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteLoginRouteImport
       parentRoute: typeof SiteRoute
     }
+    '/_site/my-library': {
+      id: '/_site/my-library'
+      path: '/my-library'
+      fullPath: '/my-library'
+      preLoaderRoute: typeof SiteMyLibraryRouteImport
+      parentRoute: typeof SiteRoute
+    }
     '/_site/register': {
       id: '/_site/register'
       path: '/register'
@@ -377,6 +408,13 @@ declare module '@tanstack/react-router' {
       path: '/authors'
       fullPath: '/admin/authors'
       preLoaderRoute: typeof AdminAuthorsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/categories': {
+      id: '/admin/categories'
+      path: '/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AdminCategoriesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/users': {
@@ -490,6 +528,7 @@ declare module '@tanstack/react-router' {
 interface SiteRouteChildren {
   SiteLibraryRoute: typeof SiteLibraryRoute
   SiteLoginRoute: typeof SiteLoginRoute
+  SiteMyLibraryRoute: typeof SiteMyLibraryRoute
   SiteRegisterRoute: typeof SiteRegisterRoute
   SiteSearchRoute: typeof SiteSearchRoute
   SiteIndexRoute: typeof SiteIndexRoute
@@ -505,6 +544,7 @@ interface SiteRouteChildren {
 const SiteRouteChildren: SiteRouteChildren = {
   SiteLibraryRoute: SiteLibraryRoute,
   SiteLoginRoute: SiteLoginRoute,
+  SiteMyLibraryRoute: SiteMyLibraryRoute,
   SiteRegisterRoute: SiteRegisterRoute,
   SiteSearchRoute: SiteSearchRoute,
   SiteIndexRoute: SiteIndexRoute,
@@ -521,6 +561,7 @@ const SiteRouteWithChildren = SiteRoute._addFileChildren(SiteRouteChildren)
 
 interface AdminRouteChildren {
   AdminAuthorsRoute: typeof AdminAuthorsRoute
+  AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminBooksIdRoute: typeof AdminBooksIdRoute
@@ -533,6 +574,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAuthorsRoute: AdminAuthorsRoute,
+  AdminCategoriesRoute: AdminCategoriesRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminBooksIdRoute: AdminBooksIdRoute,

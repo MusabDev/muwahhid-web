@@ -52,12 +52,14 @@ export function hashString(text: string) {
   return Math.abs(hash)
 }
 
-export function initials(name: string) {
-  const words = name.replace(/[^\p{L}\s]/gu, '').split(/\s+/).filter(Boolean)
-  const skip = new Set(['ibn', 'bin', 'al', 'abu', 'abd', 'ibnu', 'ath', 'ad', 'an', 'as', 'ar', 'az'])
-  const meaningful = words.filter((w) => !skip.has(w.toLowerCase()))
-  const picked = (meaningful.length ? meaningful : words).slice(0, 2)
-  return picked.map((w) => w[0]?.toUpperCase()).join('')
+/**
+ * Monogram letter for an Arabic name: the first letter of the name, skipping "ابن" so that
+ * ابن تيمية gives "ت", and dropping the article, e.g. الألباني → "أ".
+ */
+export function arabicInitial(name: string) {
+  const words = stripDiacritics(name).replace(/[^\p{L}\s]/gu, '').split(/\s+/).filter(Boolean)
+  const word = words.find((w) => w !== 'ابن' && w !== 'بن') ?? words[0] ?? ''
+  return word.replace(/^ال(?=..)/, '')[0] ?? ''
 }
 
 export const STATUS_LABELS: Record<string, string> = {

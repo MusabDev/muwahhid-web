@@ -10,10 +10,45 @@
 @import "@fontsource/amiri/400.css";
 @import "@fontsource/amiri/700.css";
 
+/* Hind Siliguri's Bangla digits are small and its ১ is hard to read; draw only the
+   digits (U+09E6–09EF) from Noto Sans Bengali by putting this face first in the UI stack. */
+@font-face {
+    font-family: 'Bangla Digits';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('../node_modules/@fontsource/noto-sans-bengali/files/noto-sans-bengali-bengali-400-normal.woff2') format('woff2');
+    unicode-range: U+09E6-09EF;
+}
+@font-face {
+    font-family: 'Bangla Digits';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('../node_modules/@fontsource/noto-sans-bengali/files/noto-sans-bengali-bengali-500-normal.woff2') format('woff2');
+    unicode-range: U+09E6-09EF;
+}
+@font-face {
+    font-family: 'Bangla Digits';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('../node_modules/@fontsource/noto-sans-bengali/files/noto-sans-bengali-bengali-600-normal.woff2') format('woff2');
+    unicode-range: U+09E6-09EF;
+}
+@font-face {
+    font-family: 'Bangla Digits';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('../node_modules/@fontsource/noto-sans-bengali/files/noto-sans-bengali-bengali-700-normal.woff2') format('woff2');
+    unicode-range: U+09E6-09EF;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-sans: 'Hind Siliguri', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Bangla Digits', 'Hind Siliguri', ui-sans-serif, system-ui, sans-serif;
     --font-heading: 'Noto Serif Bengali', 'Amiri', serif;
     --font-serif: 'Noto Serif Bengali', serif;
     --font-arabic: 'Amiri', 'Noto Naskh Arabic', serif;
@@ -114,25 +149,38 @@
     }
     body {
         @apply bg-background text-foreground antialiased;
-        background-image: var(--pattern-faint);
     }
     h1, h2, h3, h4 {
         font-family: var(--font-heading);
+    }
+    /* keep browser-autofilled fields on the parchment palette instead of bright blue */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+        -webkit-text-fill-color: var(--foreground);
+        -webkit-box-shadow: 0 0 0 1000px var(--card) inset;
+        caret-color: var(--foreground);
+        transition: background-color 9999s;
     }
     [lang="ar"], .font-arabic {
         font-family: var(--font-arabic);
     }
 }
 
-:root {
-    /* Eight-point star (khatam) tile, used as faint background texture */
-    --pattern-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23b08a3e' stroke-width='1'%3E%3Cpath d='M28 6 34.5 21.5 50 28 34.5 34.5 28 50 21.5 34.5 6 28 21.5 21.5Z'/%3E%3Cpath d='M12.4 12.4 28 18.8 43.6 12.4 37.2 28 43.6 43.6 28 37.2 12.4 43.6 18.8 28Z'/%3E%3C/g%3E%3C/svg%3E");
-    --pattern-faint: none;
+/* Eight-fold rosette tile (public/patterns). `pattern-tile` shows it in its own stone tones;
+   `pattern-tint` uses it as a mask so it takes the current text colour (for wood and covers). */
+@utility pattern-tile {
+    background-image: url('/patterns/rosette.svg');
+    background-size: 110px 110px;
+    background-repeat: repeat;
 }
 
-@utility pattern-star {
-    background-image: var(--pattern-star);
-    background-size: 56px 56px;
+@utility pattern-tint {
+    background-color: currentColor;
+    mask-image: url('/patterns/rosette-mask.svg');
+    mask-size: 110px 110px;
+    mask-repeat: repeat;
+    mask-mode: luminance;
 }
 
 /* Wood panel: layered gradients imitate walnut grain */

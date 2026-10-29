@@ -1,10 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { BookOpen, FileText, Headphones, ListTree } from 'lucide-react'
+import { ArrowRight, BookOpen, ChevronRight, FileText, Headphones, Languages, ListTree, ScrollText, Share2 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { toast } from 'sonner'
 import { AuthorAvatar } from '@/components/author-avatar'
-import { ProgressBar } from '@/components/book-card'
+import { CategoryBadge } from '@/components/category-filter'
+import { BookCard, ProgressBar, Shelf, ShelfPlank } from '@/components/book-card'
 import { BookCover } from '@/components/book-cover'
-import { Ornament } from '@/components/brand'
+import { SectionHeading } from '@/components/brand'
 import { Markdown } from '@/components/markdown'
 import { PdfDownload } from '@/components/pdf-download'
 import { SeriesCard } from '@/components/series-card'
@@ -12,10 +16,15 @@ import { CenterSpinner, EmptyState } from '@/components/states'
 import { StatusMenu } from '@/components/status-menu'
 import { TocList } from '@/components/toc-list'
 import { Button } from '@/components/ui/button'
-import { bookQuery } from '@/lib/queries'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { isSharh } from '@/lib/book'
+import { authorQuery, bookQuery } from '@/lib/queries'
 import { bnNum } from '@/lib/text'
+import type { Author, Book } from '@/lib/types'
 import { useLibraryEntry } from '@/lib/user-data'
+import { cn } from '@/lib/utils'
 import { pageTitle } from '@/lib/head'
+import { PatternBackdrop } from '@/components/pattern'
 
 export const Route = createFileRoute('/_site/books/$slug/')({
   loader: ({ context, params }) => context.queryClient.ensureQueryData(bookQuery(params.slug)),
@@ -31,94 +40,112 @@ function BookPage() {
 
   if (!book) return <CenterSpinner />
 
+  const sharh = isSharh(book)
   const startPage = book.first_page ?? 1
   const resumePage = entry?.last_page ?? null
 
   return (
     <>
-      <section className="relative overflow-hidden border-b bg-card/70">
-        <div className="pattern-star absolute inset-0 opacity-[0.1]" />
-        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-[260px_1fr] md:py-16">
-          <div className="mx-auto w-48 md:w-full">
-            <BookCover book={book} className="shadow-[0_24px_40px_-12px_oklch(0.2_0.03_50/0.6)]" />
-          </div>
+      <section className="relative overflow-hidden border-b">
+        <PatternBackdrop opacity={0.16} />
+        <div className="relative mx-auto max-w-6xl px-4 pt-6 pb-12 md:pb-16">
+          <Breadcrumbs book={book} />
 
-          <div className="flex flex-col justify-center">
-            <p lang="ar" dir="rtl" className="font-arabic text-3xl leading-relaxed font-bold text-primary md:text-4xl">
-              {book.title_ar}
-            </p>
-            <h1 className="mt-2 text-2xl font-bold md:text-3xl">{book.title_bn}</h1>
-            <p className="mt-1 text-sm text-muted-foreground italic">{book.title_translit}</p>
-
-            {book.author && (
-              <Link to="/authors/$slug" params={{ slug: book.author.slug }} className="mt-5 flex w-fit items-center gap-3 rounded-full border bg-background/60 py-1.5 ps-1.5 pe-4 hover:border-gold/60">
-                <AuthorAvatar author={book.author} className="size-9 text-xs ring-1 ring-offset-1" />
-                <span>
-                  <span className="block text-sm font-semibold">{book.author.name_bn}</span>
-                  <span lang="ar" className="block font-arabic text-xs text-muted-foreground">
-                    {book.author.name_ar}
-                  </span>
-                </span>
-              </Link>
-            )}
-
-            <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              {book.pages_count !== undefined && (
-                <span className="flex items-center gap-1.5">
-                  <FileText className="size-4 text-gold" /> {bnNum(book.pages_count)} পৃষ্ঠা
-                </span>
-              )}
-              {!!book.toc?.length && (
-                <span className="flex items-center gap-1.5">
-                  <ListTree className="size-4 text-gold" /> {bnNum(book.toc.length)}টি অধ্যায়
-                </span>
-              )}
-              {!!book.dars_series?.length && (
-                <span className="flex items-center gap-1.5">
-                  <Headphones className="size-4 text-gold" /> দারস রয়েছে
-                </span>
-              )}
+          <div className="mt-8 grid gap-10 md:grid-cols-[260px_1fr] md:gap-12">
+            <div className="relative mx-auto w-48 md:w-full">
+              <div aria-hidden className="absolute inset-x-[8%] -bottom-4 h-8 rounded-[50%] bg-black/25 blur-xl dark:bg-black/50" />
+              <BookCover book={book} className="relative shadow-[0_24px_40px_-12px_oklch(0.2_0.03_50/0.6)]" />
             </div>
 
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              {book.pages_count ? (
-                <Button size="lg" className="h-11 px-6 text-base" asChild>
-                  <Link
-                    to="/books/$slug/read/$page"
-                    params={{ slug: book.slug, page: String(resumePage ?? startPage) }}
-                    hash={resumePage && entry?.last_sentence_id ? `s-${entry.last_sentence_id}` : undefined}
-                  >
-                    <BookOpen /> {resumePage ? `পড়া চালিয়ে যান · পৃষ্ঠা ${bnNum(resumePage)}` : 'পড়া শুরু করুন'}
+            <div className="flex min-w-0 flex-col items-center text-center md:items-start md:text-left">
+              <div className="mb-3 flex flex-wrap justify-center gap-2 md:justify-start">
+                {book.category && (
+                  <Link to="/library" search={{ category: book.category.slug }} className="transition hover:opacity-80">
+                    <CategoryBadge name={book.category.name_bn} />
                   </Link>
-                </Button>
-              ) : null}
-              <StatusMenu book={book} />
-              {!!book.pages_count && <PdfDownload book={book} />}
-            </div>
-
-            {entry && entry.progress > 0 && (
-              <div className="mt-5 max-w-sm">
-                <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                  <span>অগ্রগতি</span>
-                  <span>{bnNum(Math.round(entry.progress))}%</span>
-                </div>
-                <ProgressBar value={entry.progress} />
+                )}
+                {sharh && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/50 bg-gold/10 px-3 py-0.5 text-xs font-semibold text-primary">
+                    <ScrollText className="size-3.5 text-gold" /> শারহ · ব্যাখ্যাগ্রন্থ
+                  </span>
+                )}
               </div>
-            )}
+
+              <p lang="ar" dir="rtl" className="font-arabic text-3xl leading-relaxed font-bold text-primary md:text-4xl">
+                {book.title_ar}
+              </p>
+              <h1 className="mt-1 text-2xl leading-snug font-bold text-balance md:text-[2rem]">{book.title_bn}</h1>
+              {book.title_translit && <p className="mt-1.5 text-sm text-muted-foreground italic">{book.title_translit}</p>}
+
+              {book.author && (
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 md:justify-start">
+                  <Byline author={book.author} label={sharh ? 'মূল গ্রন্থকার' : 'লেখক'} />
+                  {sharh && (
+                    <>
+                      <span aria-hidden className="hidden h-8 w-px bg-border sm:block" />
+                      <Byline author={book.explainer!} label="ব্যাখ্যাকার" />
+                    </>
+                  )}
+                </div>
+              )}
+
+              <Stats book={book} />
+
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+                {book.pages_count ? (
+                  <Button size="lg" className="h-11 px-6 text-base shadow-sm" asChild>
+                    <Link
+                      to="/books/$slug/read/$page"
+                      params={{ slug: book.slug, page: String(resumePage ?? startPage) }}
+                      hash={resumePage && entry?.last_sentence_id ? `s-${entry.last_sentence_id}` : undefined}
+                    >
+                      <BookOpen /> {resumePage ? `পড়া চালিয়ে যান · পৃষ্ঠা ${bnNum(resumePage)}` : 'পড়া শুরু করুন'}
+                    </Link>
+                  </Button>
+                ) : null}
+                <StatusMenu book={book} />
+                {!!book.pages_count && <PdfDownload book={book} />}
+                <ShareButton book={book} />
+              </div>
+
+              {entry && entry.progress > 0 && (
+                <div className="mt-6 w-full max-w-sm">
+                  <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
+                    <span>আপনার অগ্রগতি</span>
+                    <span className="font-medium text-foreground tabular-nums">{bnNum(Math.round(entry.progress))}%</span>
+                  </div>
+                  <ProgressBar value={entry.progress} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
 
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 lg:grid-cols-[1fr_380px]">
-        <div className="space-y-10">
+      <div className="mx-auto grid max-w-6xl gap-12 px-4 py-12 lg:grid-cols-[1fr_360px]">
+        <div className="min-w-0 space-y-14">
           <section>
-            <h2 className="mb-4 text-xl font-bold">কিতাব পরিচিতি</h2>
-            {book.about_md ? <Markdown text={book.about_md} className="leading-relaxed text-foreground/90" /> : <p className="text-muted-foreground">পরিচিতি যুক্ত করা হয়নি।</p>}
+            <SectionHeading title="কিতাব পরিচিতি" />
+            {book.about_md ? (
+              <Markdown text={book.about_md} className="text-[17px] leading-relaxed text-foreground/90" />
+            ) : (
+              <p className="text-muted-foreground">পরিচিতি যুক্ত করা হয়নি।</p>
+            )}
           </section>
+
+          {book.author && (
+            <section>
+              <SectionHeading title={sharh ? 'গ্রন্থকারদ্বয়' : 'লেখক পরিচিতি'} />
+              <div className={cn('grid gap-4', sharh && 'md:grid-cols-2')}>
+                <AuthorCard author={book.author} label={sharh ? 'মূল গ্রন্থকার' : undefined} />
+                {sharh && <AuthorCard author={book.explainer!} label="ব্যাখ্যাকার" />}
+              </div>
+            </section>
+          )}
 
           {!!book.dars_series?.length && (
             <section>
-              <h2 className="mb-4 text-xl font-bold">এই কিতাবের দারস</h2>
+              <SectionHeading title="এই কিতাবের দারস" subtitle="অডিও ও ভিডিও ব্যাখ্যা সিরিজ" />
               <div className="grid gap-4 sm:grid-cols-2">
                 {book.dars_series.map((series) => (
                   <SeriesCard key={series.id} series={series} />
@@ -128,22 +155,217 @@ function BookPage() {
           )}
         </div>
 
-        <aside>
-          <div className="rounded-xl border bg-card p-5 shadow-sm lg:sticky lg:top-24">
-            <h2 className="flex items-center gap-2 text-lg font-bold">
-              <ListTree className="size-5 text-gold" /> সূচিপত্র
-            </h2>
-            <Ornament className="my-3 justify-start [&>span:first-child]:hidden" />
+        <aside className="space-y-6">
+          <DetailsCard book={book} />
+
+          <div className="overflow-hidden rounded-xl border bg-card shadow-sm lg:sticky lg:top-24">
+            <div className="flex items-center justify-between gap-3 border-b bg-muted/40 px-5 py-3.5">
+              <h2 className="flex items-center gap-2 font-bold">
+                <ListTree className="size-[18px] text-gold" /> সূচিপত্র
+              </h2>
+              {!!book.toc?.length && <span className="text-xs text-muted-foreground">{bnNum(book.toc.length)}টি অধ্যায়</span>}
+            </div>
             {book.toc?.length ? (
-              <div className="max-h-[60vh] overflow-y-auto pe-1 scrollbar-thin">
-                <TocList slug={book.slug} entries={book.toc} />
+              <div className="max-h-[60vh] overflow-y-auto p-2 scrollbar-thin">
+                <TocList slug={book.slug} entries={book.toc} currentPage={resumePage ?? undefined} />
               </div>
             ) : (
-              <EmptyState title="সূচিপত্র নেই" />
+              <div className="p-4">
+                <EmptyState title="সূচিপত্র নেই" />
+              </div>
             )}
           </div>
         </aside>
       </div>
+
+      {book.author && <MoreByAuthor book={book} author={book.author} />}
     </>
+  )
+}
+
+function Breadcrumbs({ book }: { book: Book }) {
+  return (
+    <nav aria-label="breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+      <Link to="/library" className="shrink-0 transition hover:text-primary">
+        লাইব্রেরি
+      </Link>
+      {book.category && (
+        <>
+          <ChevronRight className="size-3.5 shrink-0 opacity-60" />
+          <Link to="/library" search={{ category: book.category.slug }} className="shrink-0 transition hover:text-primary">
+            {book.category.name_bn}
+          </Link>
+        </>
+      )}
+      <ChevronRight className="size-3.5 shrink-0 opacity-60" />
+      <span aria-current="page" className="truncate font-medium text-foreground">
+        {book.title_bn}
+      </span>
+    </nav>
+  )
+}
+
+function Byline({ author, label }: { author: Author; label: string }) {
+  return (
+    <Link to="/authors/$slug" params={{ slug: author.slug }} className="group flex items-center gap-3 text-start">
+      <AuthorAvatar author={author} className="size-10" />
+      <span className="min-w-0">
+        <span className="block text-xs text-muted-foreground">{label}</span>
+        <span className="block font-semibold transition-colors group-hover:text-primary">{author.name_bn}</span>
+      </span>
+    </Link>
+  )
+}
+
+/** The book's key figures as a single bordered strip. */
+function Stats({ book }: { book: Book }) {
+  const items: { icon: LucideIcon; value: string; label: string }[] = []
+  if (book.pages_count !== undefined) items.push({ icon: FileText, value: bnNum(book.pages_count), label: 'পৃষ্ঠা' })
+  if (book.toc?.length) items.push({ icon: ListTree, value: bnNum(book.toc.length), label: 'অধ্যায়' })
+  if (book.dars_series?.length) items.push({ icon: Headphones, value: bnNum(book.dars_series.length), label: 'দারস সিরিজ' })
+  items.push({ icon: Languages, value: 'আরবি · বাংলা', label: 'ভাষা' })
+
+  return (
+    <dl className="mt-7 grid w-full max-w-xl grid-cols-2 divide-border overflow-hidden rounded-xl border bg-background/70 backdrop-blur-sm sm:flex sm:divide-x">
+      {items.map(({ icon: Icon, value, label }) => (
+        <div key={label} className="flex flex-1 flex-col items-center gap-0.5 px-4 py-3 sm:items-start [&:last-child:nth-child(odd)]:col-span-2 [&:nth-child(n+3)]:border-t even:border-s sm:[&:nth-child(n+3)]:border-t-0 sm:even:border-s-0">
+          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Icon className="size-3.5 text-gold" /> {label}
+          </dt>
+          <dd className="font-semibold whitespace-nowrap tabular-nums">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+function ShareButton({ book }: { book: Book }) {
+  const share = async () => {
+    const url = window.location.href
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: book.title_bn, text: book.title_ar, url })
+      } catch {
+        // dismissed by the user
+      }
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('লিংক কপি করা হয়েছে')
+    } catch {
+      toast.error('লিংক কপি করা যায়নি')
+    }
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="outline" size="icon-lg" onClick={share} aria-label="শেয়ার করুন">
+          <Share2 />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>শেয়ার করুন</TooltipContent>
+    </Tooltip>
+  )
+}
+
+function DetailsCard({ book }: { book: Book }) {
+  const sharh = isSharh(book)
+  const updated = book.updated_at ? new Date(book.updated_at).toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' }) : null
+
+  return (
+    <div className="rounded-xl border bg-card p-5 shadow-sm">
+      <h2 className="mb-3 font-bold">কিতাবের তথ্য</h2>
+      <dl className="divide-y text-sm">
+        {book.author && (
+          <DetailRow label={sharh ? 'মূল গ্রন্থকার' : 'লেখক'}>
+            <Link to="/authors/$slug" params={{ slug: book.author.slug }} className="hover:text-primary">
+              {book.author.name_bn}
+            </Link>
+          </DetailRow>
+        )}
+        {sharh && (
+          <DetailRow label="ব্যাখ্যাকার">
+            <Link to="/authors/$slug" params={{ slug: book.explainer!.slug }} className="hover:text-primary">
+              {book.explainer!.name_bn}
+            </Link>
+          </DetailRow>
+        )}
+        {book.category && (
+          <DetailRow label="বিষয়">
+            <Link to="/library" search={{ category: book.category.slug }} className="hover:text-primary">
+              {book.category.name_bn}
+            </Link>
+          </DetailRow>
+        )}
+        <DetailRow label="ধরন">{sharh ? 'ব্যাখ্যাগ্রন্থ (শারহ)' : 'মূল গ্রন্থ'}</DetailRow>
+        {book.pages_count !== undefined && <DetailRow label="পৃষ্ঠা সংখ্যা">{bnNum(book.pages_count)}</DetailRow>}
+        <DetailRow label="ভাষা">আরবি মূলপাঠ ও বাংলা অনুবাদ</DetailRow>
+        {updated && <DetailRow label="সর্বশেষ হালনাগাদ">{updated}</DetailRow>}
+      </dl>
+    </div>
+  )
+}
+
+function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="text-end font-medium">{children}</dd>
+    </div>
+  )
+}
+
+function AuthorCard({ author, label }: { author: Author; label?: string }) {
+  return (
+    <div className="flex h-full flex-col rounded-xl border bg-card p-5 shadow-sm">
+      <div className="flex items-center gap-4">
+        <AuthorAvatar author={author} className="size-14" />
+        <div className="min-w-0">
+          {label && <p className="text-xs font-medium text-gold">{label}</p>}
+          <p className="font-heading text-lg leading-snug font-bold">{author.name_bn}</p>
+          <p lang="ar" dir="rtl" className="text-left font-arabic text-muted-foreground">
+            {author.name_ar}
+          </p>
+        </div>
+      </div>
+      {author.about_md && <Markdown text={author.about_md} className="mt-4 line-clamp-4 text-sm leading-relaxed text-foreground/80" />}
+      <Link
+        to="/authors/$slug"
+        params={{ slug: author.slug }}
+        className="group mt-auto inline-flex items-center gap-1.5 pt-4 text-sm font-semibold text-primary hover:underline"
+      >
+        সম্পূর্ণ পরিচিতি ও কিতাবসমূহ <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+      </Link>
+    </div>
+  )
+}
+
+/** Other books by the same author, shown on a shelf below the main content. */
+function MoreByAuthor({ book, author }: { book: Book; author: Author }) {
+  const { data } = useQuery(authorQuery(author.slug))
+  const others = data?.books?.filter((other) => other.id !== book.id).slice(0, 6) ?? []
+  if (!others.length) return null
+
+  return (
+    <section className="border-t bg-muted/30">
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        <SectionHeading
+          title={`${author.name_bn}-এর আরও কিতাব`}
+          action={
+            <Link to="/authors/$slug" params={{ slug: author.slug }} className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-primary hover:underline">
+              সব দেখুন <ArrowRight className="size-3.5" />
+            </Link>
+          }
+        />
+        <Shelf>
+          {others.map((other) => (
+            <BookCard key={other.id} book={{ ...other, author }} />
+          ))}
+        </Shelf>
+        <ShelfPlank />
+      </div>
+    </section>
   )
 }

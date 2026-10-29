@@ -46,7 +46,9 @@ export function useLibraryEntry(book: Book | undefined) {
         about_md: null,
         content_version: book.content_version,
         is_published: book.is_published,
+        is_sharh: book.is_sharh,
         author: book.author,
+        explainer: book.explainer,
       },
     [book],
   )

@@ -30,7 +30,7 @@ function RegisterPage() {
           register.mutate(form, {
             onSuccess: () => {
               toast.success('অ্যাকাউন্ট তৈরি হয়েছে')
-              navigate({ to: '/library' })
+              navigate({ to: '/my-library' })
             },
             onError: (error) => toast.error(firstError(error)),
           })

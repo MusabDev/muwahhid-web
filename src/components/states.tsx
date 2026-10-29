@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { StarMark } from '@/components/brand'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PatternBackdrop } from '@/components/pattern'
 
 export function EmptyState({ icon: Icon, title, children }: { icon?: LucideIcon; title: string; children?: ReactNode }) {
   return (
@@ -29,11 +30,11 @@ export function BookGridSkeleton({ count = 6 }: { count?: number }) {
 
 export function PageTitle({ title, arabic, children }: { title: string; arabic?: string; children?: ReactNode }) {
   return (
-    <div className="relative overflow-hidden border-b bg-card/70">
-      <div className="pattern-star absolute inset-0 opacity-[0.12]" />
+    <div className="relative overflow-hidden border-b">
+      <PatternBackdrop opacity={0.16} />
       <div className="relative mx-auto max-w-7xl px-4 py-10">
         {arabic && (
-          <p lang="ar" dir="rtl" className="mb-1 font-arabic text-xl text-gold">
+          <p lang="ar" dir="rtl" className="mb-1 text-left font-arabic text-xl text-gold">
             {arabic}
           </p>
         )}
