@@ -205,6 +205,13 @@
     scrollbar-width: thin;
 }
 
+@utility scrollbar-none {
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
 /* ---------------------------------------------------------------- Reader */
 
 [data-reader-theme] {

@@ -71,3 +71,23 @@ export const STATUS_LABELS: Record<string, string> = {
 }
 
 export const STATUS_ORDER = ['reading', 'read_later', 'on_hold', 'completed', 'dropped'] as const
+
+/** "৫ মিনিট আগে", "৩ দিন আগে" — coarse Bangla relative time for the last reading session. */
+export function timeAgo(iso: string | null) {
+  if (!iso) return null
+  const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
+  const steps: [number, string][] = [
+    [60, 'সেকেন্ড'],
+    [60, 'মিনিট'],
+    [24, 'ঘণ্টা'],
+    [30, 'দিন'],
+    [12, 'মাস'],
+    [Infinity, 'বছর'],
+  ]
+  let value = seconds
+  for (const [size, unit] of steps) {
+    if (value < size) return unit === 'সেকেন্ড' ? 'এইমাত্র' : `${bnNum(Math.floor(value))} ${unit} আগে`
+    value /= size
+  }
+  return null
+}

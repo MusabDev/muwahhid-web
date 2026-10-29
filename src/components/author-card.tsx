@@ -74,8 +74,12 @@ export function AuthorCard({ author, compact = false }: { author: Author; compac
       {!compact && (
         <div className="relative mt-auto flex items-center gap-2 pt-4 text-xs text-muted-foreground">
           <span>{bnNum(books)}টি কিতাব</span>
-          <Diamond className="size-1.5 text-gold" />
-          <span>{bnNum(series)}টি দারস সিরিজ</span>
+          {series > 0 && (
+            <>
+              <Diamond className="size-1.5 text-gold" />
+              <span>{bnNum(series)}টি দারস সিরিজ</span>
+            </>
+          )}
         </div>
       )}
     </Link>

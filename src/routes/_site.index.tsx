@@ -3,9 +3,9 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Search } from 'lucide-react'
 import { useState } from 'react'
 import { AuthorCard } from '@/components/author-card'
-import { BookCard, ProgressBar, Shelf, ShelfPlank } from '@/components/book-card'
-import { BookCover } from '@/components/book-cover'
+import { BookCard, Shelf, ShelfPlank } from '@/components/book-card'
 import { Ornament, SectionHeading } from '@/components/brand'
+import { ContinueCard, inProgressEntries } from '@/components/continue-card'
 import { PatternBackdrop } from '@/components/pattern'
 import { BookGridSkeleton, EmptyState } from '@/components/states'
 import { SeriesCard } from '@/components/series-card'
@@ -108,28 +108,15 @@ function SiteStats() {
 
 function ContinueReading() {
   const { entries } = useLibrary()
-  const reading = entries.filter((e) => e.book && e.last_page && e.status !== 'completed' && e.status !== 'dropped').slice(0, 3)
+  const reading = inProgressEntries(entries)
   if (!reading.length) return null
 
   return (
     <section>
       <SectionHeading title="পড়া চালিয়ে যান" />
-      <div className="grid gap-4 md:grid-cols-3">
-        {reading.map((entry) => (
-          <Link
-            key={entry.book_id}
-            to="/books/$slug/read/$page"
-            params={{ slug: entry.book!.slug, page: String(entry.last_page) }}
-            hash={entry.last_sentence_id ? `s-${entry.last_sentence_id}` : undefined}
-            className="group flex gap-4 rounded-xl border bg-card p-3 shadow-sm transition hover:border-gold/60 hover:shadow-md"
-          >
-            <BookCover book={entry.book!} className="w-16 shrink-0" />
-            <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
-              <div className="line-clamp-1 font-heading font-semibold group-hover:text-primary">{entry.book!.title_bn}</div>
-              <div className="text-xs text-muted-foreground">পৃষ্ঠা {bnNum(entry.last_page ?? 1)}</div>
-              <ProgressBar value={entry.progress} />
-            </div>
-          </Link>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {reading.map((entry, i) => (
+          <ContinueCard key={entry.book_id} entry={entry} featured={i === 0 && reading.length > 1} />
         ))}
       </div>
     </section>

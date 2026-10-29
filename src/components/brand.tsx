@@ -19,8 +19,8 @@ export function Brand({ className }: { className?: string }) {
     <Link to="/" className={cn('flex items-center gap-2.5', className)}>
       <StarMark className="size-8 text-gold" />
       <span className="flex flex-col leading-none">
-        <span className="font-heading text-lg font-bold tracking-wide">মুওয়াহহিদ</span>
-        <span className="mt-0.5 font-arabic text-[15px] leading-tight text-gold">مُوَحِّد</span>
+        <span className="font-heading text-lg font-bold tracking-wide">আল-মুওয়াহহিদ</span>
+        <span className="mt-0.5 font-arabic text-[15px] leading-tight text-gold">الْمُوَحِّد</span>
       </span>
     </Link>
   )

@@ -1,6 +1,6 @@
 /** Document title + description for a route's `head`. */
 export function pageTitle(title?: string, description?: string | null) {
-  const full = title ? `${title} · মুওয়াহহিদ` : 'মুওয়াহহিদ · আলিমদের কিতাব ও দারস আরবি ও বাংলায়'
+  const full = title ? `${title} · আল-মুওয়াহহিদ` : 'আল-মুওয়াহহিদ · আলিমদের কিতাব ও দারস আরবি ও বাংলায়'
   return {
     meta: [
       { title: full },

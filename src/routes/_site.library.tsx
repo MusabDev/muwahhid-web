@@ -2,7 +2,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { BookOpen, Headphones, Loader2, Search, SlidersHorizontal, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { BookCard } from '@/components/book-card'
+import { BookCard, ShelfPlank } from '@/components/book-card'
 import { Ornament } from '@/components/brand'
 import { PatternBackdrop } from '@/components/pattern'
 import { SeriesCard } from '@/components/series-card'
@@ -241,9 +241,27 @@ function LoadMore({ hasMore, loading, onClick }: { hasMore: boolean; loading: bo
   )
 }
 
+/** Column count of the book grid at the current width, matching its sm/md/lg breakpoints. */
+function useGridColumns() {
+  const read = () => (window.matchMedia('(min-width: 1024px)').matches ? 5 : window.matchMedia('(min-width: 768px)').matches ? 4 : window.matchMedia('(min-width: 640px)').matches ? 3 : 2)
+  const [columns, setColumns] = useState(read)
+  useEffect(() => {
+    const update = () => setColumns(read())
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+  return columns
+}
+
+function chunk<T>(items: T[], size: number) {
+  return Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, i * size + size))
+}
+
+/** Books stand in rows on wooden shelves, one plank per grid row. */
 function BookResults({ search }: { search: LibrarySearch }) {
   const query = useLibraryList<Book>('/books', 'books', search)
   const books = query.data?.pages.flatMap((page) => page.data) ?? []
+  const columns = useGridColumns()
 
   return (
     <>
@@ -251,9 +269,16 @@ function BookResults({ search }: { search: LibrarySearch }) {
       {query.isLoading ? (
         <BookGridSkeleton count={10} />
       ) : books.length ? (
-        <div className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7">
-          {books.map((book) => (
-            <BookCard key={book.id} book={book} />
+        <div className="space-y-12">
+          {chunk(books, columns).map((row) => (
+            <div key={row[0].id}>
+              <div className="grid grid-cols-2 gap-x-5 px-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7">
+                {row.map((book) => (
+                  <BookCard key={book.id} book={book} />
+                ))}
+              </div>
+              <ShelfPlank />
+            </div>
           ))}
         </div>
       ) : (
