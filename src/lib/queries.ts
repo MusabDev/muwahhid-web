@@ -1,0 +1,65 @@
+import { queryOptions } from '@tanstack/react-query'
+import { api } from './api'
+import type { Author, Book, BookPage, Dars, DarsSeries, GlobalSearchResult, Paginated, Sentence } from './types'
+
+export const booksQuery = (params: { author?: string; sort?: string; page?: number; per_page?: number } = {}) =>
+  queryOptions({
+    queryKey: ['books', params],
+    queryFn: () => api<Paginated<Book>>('/books', { query: params }),
+  })
+
+export const bookQuery = (slug: string) =>
+  queryOptions({
+    queryKey: ['book', slug],
+    queryFn: () => api<Book>(`/books/${slug}`),
+  })
+
+export const pageQuery = (slug: string, number: number) =>
+  queryOptions({
+    queryKey: ['book', slug, 'page', number],
+    queryFn: () => api<BookPage>(`/books/${slug}/pages/${number}`),
+    staleTime: 5 * 60 * 1000,
+  })
+
+export const authorsQuery = (page = 1) =>
+  queryOptions({
+    queryKey: ['authors', page],
+    queryFn: () => api<Paginated<Author>>('/authors', { query: { page, per_page: 60 } }),
+  })
+
+export const authorQuery = (slug: string) =>
+  queryOptions({
+    queryKey: ['author', slug],
+    queryFn: () => api<Author>(`/authors/${slug}`),
+  })
+
+export const seriesListQuery = (params: { author?: string; page?: number } = {}) =>
+  queryOptions({
+    queryKey: ['dars-series', params],
+    queryFn: () => api<Paginated<DarsSeries>>('/dars-series', { query: params }),
+  })
+
+export const seriesQuery = (slug: string) =>
+  queryOptions({
+    queryKey: ['dars-series', slug],
+    queryFn: () => api<DarsSeries>(`/dars-series/${slug}`),
+  })
+
+export const darsQuery = (id: number) =>
+  queryOptions({
+    queryKey: ['dars', id],
+    queryFn: () => api<Dars>(`/durus/${id}`),
+  })
+
+export const searchQuery = (q: string) =>
+  queryOptions({
+    queryKey: ['search', q],
+    queryFn: () => api<GlobalSearchResult>('/search', { query: { q } }),
+    enabled: q.trim().length >= 2,
+  })
+
+export const sentenceQuery = (id: number) =>
+  queryOptions({
+    queryKey: ['sentence', id],
+    queryFn: () => api<{ sentence: Sentence; book_slug: string; page_number: number }>(`/sentences/${id}`),
+  })
