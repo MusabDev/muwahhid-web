@@ -24,18 +24,20 @@ export function SearchPanel({ slug, onNavigate }: { slug: string; onNavigate: ()
   })
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="relative">
-        <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          autoFocus
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="এই কিতাবে খুঁজুন…"
-          className="h-10 w-full rounded-lg border bg-background ps-9 pe-3 text-sm outline-none focus:border-gold"
-        />
+    <div>
+      <div className="sticky top-0 z-10 -mx-3 -mt-3 bg-card px-3 pt-3 pb-3">
+        <div className="relative">
+          <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            autoFocus
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="এই কিতাবে খুঁজুন…"
+            className="h-10 w-full rounded-lg border bg-background ps-9 pe-3 text-sm outline-none focus:border-gold"
+          />
+        </div>
       </div>
-      <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pe-1 scrollbar-thin">
+      <div className="space-y-2">
         {isFetching && !data && (
           <div className="flex justify-center py-8">
             <Spinner />

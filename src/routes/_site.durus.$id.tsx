@@ -1,9 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight, Headphones, Link2, ListVideo, Subtitles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, Headphones, Link2, ListOrdered, ListVideo, Subtitles, Video } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { AuthorAvatar } from '@/components/author-avatar'
 import { StarMark } from '@/components/brand'
+import { EpisodeList, episodeNumber } from '@/components/episode-list'
 import type { HighlightRange } from '@/components/markdown'
 import { PlainHighlight } from '@/components/plain-highlight'
 import { CenterSpinner, EmptyState } from '@/components/states'
@@ -12,7 +14,9 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useMediaPlayer } from '@/hooks/use-media-player'
-import { darsQuery } from '@/lib/queries'
+import { api } from '@/lib/api'
+import { useUser } from '@/lib/auth'
+import { darsQuery, seriesQuery } from '@/lib/queries'
 import type { TextTarget } from '@/lib/selection'
 import { bnNum, formatTime, parseTime } from '@/lib/text'
 import type { Dars, Segment } from '@/lib/types'
@@ -62,6 +66,12 @@ function DarsPlayer({ dars }: { dars: Dars }) {
   const player = useMediaPlayer(dars.media_url, startAt)
   const { settings, update } = useReaderSettings()
   const { annotations, create, update: updateAnnotation, remove } = useAnnotations({ darsId: dars.id })
+  const { data: series } = useQuery({ ...seriesQuery(dars.series?.slug ?? ''), enabled: !!dars.series })
+  const siblings = series?.durus ?? []
+  useRecordDuration(dars, player.duration)
+  const prev = siblings.find((d) => d.id === dars.prev_id)
+  const next = siblings.find((d) => d.id === dars.next_id)
+  const seriesSeconds = siblings.reduce((sum, d) => sum + (d.duration_seconds ?? 0), 0)
   const listRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
   const [flashId, setFlashId] = useState<number | null>(null)
@@ -131,17 +141,23 @@ function DarsPlayer({ dars }: { dars: Dars }) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-        <Link to="/library" search={{ type: 'durus' }} className="hover:text-primary">
+      <nav aria-label="breadcrumb" className="mb-5 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+        <Link to="/library" search={{ type: 'durus' }} className="shrink-0 transition hover:text-primary">
           দারস
         </Link>
-        <span>/</span>
         {dars.series && (
-          <Link to="/durus/series/$slug" params={{ slug: dars.series.slug }} className="hover:text-primary">
-            {dars.series.title_bn}
-          </Link>
+          <>
+            <ChevronRight className="size-3.5 shrink-0 opacity-60" />
+            <Link to="/durus/series/$slug" params={{ slug: dars.series.slug }} className="min-w-0 truncate transition hover:text-primary">
+              {dars.series.title_bn}
+            </Link>
+          </>
         )}
-      </div>
+        <ChevronRight className="size-3.5 shrink-0 opacity-60" />
+        <span aria-current="page" className="shrink-0 font-medium text-foreground">
+          দারস {bnNum(dars.number)}
+        </span>
+      </nav>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="space-y-4">
@@ -177,53 +193,79 @@ function DarsPlayer({ dars }: { dars: Dars }) {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card px-3 py-2.5 shadow-xs">
             <div className="flex items-center gap-2">
               <Subtitles className="size-4 text-gold" />
+              <span className="hidden text-sm text-muted-foreground sm:inline">সাবটাইটেল</span>
               <ToggleGroup type="single" variant="outline" size="sm" value={subtitleMode} onValueChange={(v) => v && update({ subtitles: v as typeof subtitleMode })}>
                 <ToggleGroupItem value="ar">আরবি</ToggleGroupItem>
                 <ToggleGroupItem value="bn">বাংলা</ToggleGroupItem>
                 <ToggleGroupItem value="both">উভয়</ToggleGroupItem>
               </ToggleGroup>
             </div>
-            <Button variant="outline" size="sm" onClick={copyTimestamp} className="ms-auto">
-              <Link2 /> {formatTime(player.time)} — লিংক কপি
+            <Button variant="ghost" size="sm" onClick={copyTimestamp} className="ms-auto">
+              <Link2 className="text-gold" /> <span className="tabular-nums">{bnNum(formatTime(player.time))}</span> থেকে লিংক কপি
             </Button>
           </div>
 
-          <div className="rounded-xl border bg-card p-5">
-            <p className="text-sm text-gold">দারস {bnNum(dars.number)}</p>
-            <h1 className="mt-1 text-2xl font-bold">{dars.title_bn}</h1>
-            {dars.title_ar && (
-              <p lang="ar" dir="rtl" className="mt-1 text-left font-arabic text-xl text-muted-foreground">
-                {dars.title_ar}
-              </p>
-            )}
-            <div className="mt-4 flex gap-2">
-              {dars.prev_id ? (
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/durus/$id" params={{ id: String(dars.prev_id) }}>
-                    <ChevronLeft /> আগের দারস
+          <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
+            <div className="flex items-start gap-4 sm:gap-5">
+              <span className="font-heading text-4xl leading-none text-gold tabular-nums sm:text-5xl">{episodeNumber(dars.number)}</span>
+              <div className="min-w-0 flex-1">
+                {dars.series && (
+                  <Link to="/durus/series/$slug" params={{ slug: dars.series.slug }} className="text-xs font-semibold tracking-wide text-muted-foreground transition hover:text-primary">
+                    {dars.series.title_bn}
+                    {siblings.length > 0 && <span className="font-normal"> · {bnNum(siblings.length)}টির মধ্যে {bnNum(dars.number)}</span>}
                   </Link>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" disabled>
-                  <ChevronLeft /> আগের দারস
-                </Button>
+                )}
+                <h1 className="mt-1 text-xl leading-snug font-bold text-balance sm:text-2xl">{dars.title_bn}</h1>
+                {dars.title_ar && (
+                  <p lang="ar" dir="rtl" className="mt-1 text-left font-arabic text-xl leading-relaxed text-muted-foreground">
+                    {dars.title_ar}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3 border-t pt-4 text-sm">
+              {dars.series?.author && (
+                <Link to="/authors/$slug" params={{ slug: dars.series.author.slug }} className="group flex items-center gap-2.5">
+                  <AuthorAvatar author={dars.series.author} className="size-8" />
+                  <span className="font-semibold transition-colors group-hover:text-primary">{dars.series.author.name_bn}</span>
+                </Link>
               )}
-              {dars.next_id ? (
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/durus/$id" params={{ id: String(dars.next_id) }}>
-                    পরের দারস <ChevronRight />
-                  </Link>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" disabled>
-                  পরের দারস <ChevronRight />
-                </Button>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                {dars.media_type === 'video' ? <Video className="size-4 text-gold" /> : <Headphones className="size-4 text-gold" />}
+                {dars.media_type === 'video' ? 'ভিডিও' : 'অডিও'}
+              </span>
+              {!!dars.duration_seconds && (
+                <span className="flex items-center gap-1.5 text-muted-foreground tabular-nums">
+                  <Clock className="size-4 text-gold" /> <span className="tabular-nums">{bnNum(formatTime(dars.duration_seconds))}</span>
+                </span>
               )}
             </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <NavCard id={dars.prev_id} title={prev?.title_bn} label="আগের দারস" direction="prev" />
+              <NavCard id={dars.next_id} title={next?.title_bn} label="পরের দারস" direction="next" />
+            </div>
           </div>
+
+          {siblings.length > 1 && (
+            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+              <div className="flex items-center justify-between gap-3 border-b bg-muted/40 px-4 py-3">
+                <h2 className="flex items-center gap-2 font-bold">
+                  <ListOrdered className="size-4 text-gold" /> এই সিরিজের দারস
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  {bnNum(siblings.length)}টি{seriesSeconds > 0 && ` · মোট ${bnNum(formatTime(seriesSeconds))}`}
+                </span>
+              </div>
+              <div className="max-h-96 overflow-y-auto scrollbar-thin">
+                <EpisodeList durus={siblings} currentId={dars.id} compact />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Transcript */}
@@ -231,6 +273,7 @@ function DarsPlayer({ dars }: { dars: Dars }) {
           <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
             <h2 className="flex items-center gap-2 font-bold">
               <ListVideo className="size-4 text-gold" /> ট্রান্সক্রিপ্ট
+              {!!segments.length && <span className="text-xs font-normal text-muted-foreground">({bnNum(segments.length)})</span>}
             </h2>
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               স্বয়ংক্রিয় স্ক্রল <Switch checked={autoScroll} onCheckedChange={setAutoScroll} />
@@ -245,8 +288,8 @@ function DarsPlayer({ dars }: { dars: Dars }) {
                     key={seg.id}
                     data-seg={seg.id}
                     className={cn(
-                      'group flex cursor-pointer gap-3 border-b border-border/50 px-4 py-3 transition-colors hover:bg-muted/60',
-                      isActive && 'bg-gold/15 hover:bg-gold/20',
+                      'group relative flex cursor-pointer gap-3 border-b border-border/50 px-4 py-3.5 transition-colors hover:bg-muted/60',
+                      isActive && 'bg-gold/15 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-gold hover:bg-gold/20',
                       flashId === seg.id && 'animate-pulse bg-gold/25',
                     )}
                     onClick={(e) => {
@@ -256,7 +299,7 @@ function DarsPlayer({ dars }: { dars: Dars }) {
                       if (window.getSelection()?.isCollapsed !== false) player.seek(seg.start_time)
                     }}
                   >
-                    <span className={cn('mt-1 h-fit shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground', isActive ? 'bg-gold text-gold-foreground' : 'bg-muted')}>
+                    <span className={cn('mt-1 h-fit shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums transition-colors', isActive ? 'bg-gold text-gold-foreground' : 'bg-muted text-muted-foreground group-hover:bg-gold/25 group-hover:text-foreground')}>
                       {formatTime(seg.start_time)}
                     </span>
                     <div className="min-w-0 flex-1 space-y-1">
@@ -284,5 +327,51 @@ function DarsPlayer({ dars }: { dars: Dars }) {
       </div>
       {actions.element}
     </div>
+  )
+}
+
+/**
+ * When an admin opens a dars that has no saved length, store the one the player reports,
+ * so list rows and series totals fill in without typing seconds by hand.
+ */
+function useRecordDuration(dars: Dars, duration: number) {
+  const { data: user } = useUser()
+  const queryClient = useQueryClient()
+  const saved = useRef(false)
+  const seconds = Math.round(duration)
+
+  useEffect(() => {
+    if (!user?.is_admin || dars.duration_seconds || seconds <= 0 || saved.current) return
+    saved.current = true
+    api(`/admin/durus/${dars.id}`, { method: 'PUT', body: { duration_seconds: seconds } })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ['dars', dars.id] })
+        queryClient.invalidateQueries({ queryKey: ['dars-series'] })
+        toast.success(`সময়কাল সংরক্ষিত — ${bnNum(formatTime(seconds))}`)
+      })
+      .catch(() => {
+        saved.current = false
+      })
+  }, [user?.is_admin, dars.id, dars.duration_seconds, seconds, queryClient])
+}
+
+function NavCard({ id, title, label, direction }: { id?: number | null; title?: string; label: string; direction: 'prev' | 'next' }) {
+  const Icon = direction === 'prev' ? ChevronLeft : ChevronRight
+  const body = (
+    <>
+      {direction === 'prev' && <Icon className="size-5 shrink-0 text-muted-foreground transition group-hover:-translate-x-0.5 group-hover:text-primary" />}
+      <span className={cn('min-w-0 flex-1', direction === 'next' && 'text-right')}>
+        <span className="block text-xs text-muted-foreground">{label}</span>
+        <span className="line-clamp-1 text-sm font-semibold transition-colors group-hover:text-primary">{id ? (title ?? '…') : 'নেই'}</span>
+      </span>
+      {direction === 'next' && <Icon className="size-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />}
+    </>
+  )
+  const base = 'group flex items-center gap-3 rounded-lg border px-3.5 py-3 transition'
+  if (!id) return <div className={cn(base, 'opacity-50', direction === 'next' && 'sm:col-start-2')}>{body}</div>
+  return (
+    <Link to="/durus/$id" params={{ id: String(id) }} className={cn(base, 'hover:border-gold/60 hover:bg-muted/40')}>
+      {body}
+    </Link>
   )
 }

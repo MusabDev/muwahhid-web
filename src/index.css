@@ -218,7 +218,13 @@
     --page-radius: 4px;
 }
 [data-reader-theme="paper"] {
-    --desk: var(--wood);
+    --desk: oklch(0.935 0.024 82);
+    --desk-glow: oklch(0.975 0.014 86);
+    --desk-edge: oklch(0.88 0.035 76);
+    --desk-pattern: oklch(0.62 0.09 72);
+    --desk-pattern-opacity: 0;
+    --desk-tile-opacity: 0.22;
+    --page-shadow: 0 0 0 1px oklch(0.86 0.03 78 / 0.7), 0 2px 4px oklch(0.35 0.04 55 / 0.06), 0 28px 56px -28px oklch(0.35 0.05 55 / 0.4);
     --page-bg: oklch(0.99 0.008 90);
     --page-ink: oklch(0.22 0.02 60);
     --page-muted: oklch(0.52 0.03 65);
@@ -228,7 +234,13 @@
     --page-active: oklch(0.88 0.08 85);
 }
 [data-reader-theme="sepia"] {
-    --desk: oklch(0.36 0.06 48);
+    --desk: oklch(0.85 0.045 76);
+    --desk-glow: oklch(0.9 0.04 80);
+    --desk-edge: oklch(0.78 0.055 70);
+    --desk-pattern: oklch(0.5 0.09 60);
+    --desk-pattern-opacity: 0;
+    --desk-tile-opacity: 0.2;
+    --page-shadow: 0 0 0 1px oklch(0.78 0.05 75 / 0.7), 0 2px 4px oklch(0.3 0.05 50 / 0.08), 0 28px 56px -28px oklch(0.3 0.06 50 / 0.45);
     --page-bg: oklch(0.93 0.04 82);
     --page-ink: oklch(0.32 0.05 52);
     --page-muted: oklch(0.5 0.05 60);
@@ -238,7 +250,13 @@
     --page-active: oklch(0.84 0.09 78);
 }
 [data-reader-theme="dark"] {
-    --desk: oklch(0.14 0 0);
+    --desk: oklch(0.155 0.004 60);
+    --desk-glow: oklch(0.205 0.006 60);
+    --desk-edge: oklch(0.12 0.003 60);
+    --desk-pattern: oklch(0.76 0.11 78);
+    --desk-pattern-opacity: 0.07;
+    --desk-tile-opacity: 0;
+    --page-shadow: 0 0 0 1px oklch(1 0 0 / 0.06), 0 30px 60px -24px oklch(0 0 0 / 0.75);
     --page-bg: oklch(0.22 0 0);
     --page-ink: oklch(0.88 0 0);
     --page-muted: oklch(0.62 0 0);
@@ -248,7 +266,13 @@
     --page-active: oklch(0.33 0.03 80);
 }
 [data-reader-theme="night"] {
-    --desk: oklch(0.13 0.015 55);
+    --desk: oklch(0.14 0.018 55);
+    --desk-glow: oklch(0.2 0.03 62);
+    --desk-edge: oklch(0.11 0.014 55);
+    --desk-pattern: oklch(0.76 0.11 78);
+    --desk-pattern-opacity: 0.09;
+    --desk-tile-opacity: 0;
+    --page-shadow: 0 0 0 1px oklch(0.76 0.11 78 / 0.08), 0 30px 60px -24px oklch(0 0 0 / 0.8);
     --page-bg: oklch(0.19 0.02 55);
     --page-ink: oklch(0.86 0.06 75);
     --page-muted: oklch(0.62 0.05 70);
@@ -293,15 +317,26 @@
 
 mark.hl {
     color: inherit;
-    border-radius: 2px;
+    border-radius: 0;
     padding: 0.05em 0;
+    background: var(--hl-bg);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
 }
-mark.hl[data-color="yellow"] { background: oklch(0.9 0.14 95 / 0.65); }
-mark.hl[data-color="green"] { background: oklch(0.87 0.12 150 / 0.55); }
-mark.hl[data-color="blue"] { background: oklch(0.85 0.08 240 / 0.6); }
-mark.hl[data-color="pink"] { background: oklch(0.85 0.1 0 / 0.55); }
-mark.hl[data-color="orange"] { background: oklch(0.85 0.12 60 / 0.6); }
-[data-reader-theme="dark"] mark.hl, [data-reader-theme="night"] mark.hl { filter: saturate(0.8) brightness(0.55); color: var(--page-ink); }
+mark.hl[data-color="yellow"] { --hl-bg: oklch(0.9 0.14 95 / 0.65); --hl-bg-dark: oklch(0.78 0.15 92 / 0.3); --hl-line: oklch(0.8 0.15 92 / 0.85); }
+mark.hl[data-color="green"] { --hl-bg: oklch(0.87 0.12 150 / 0.55); --hl-bg-dark: oklch(0.72 0.14 152 / 0.28); --hl-line: oklch(0.74 0.14 152 / 0.85); }
+mark.hl[data-color="blue"] { --hl-bg: oklch(0.85 0.08 240 / 0.6); --hl-bg-dark: oklch(0.68 0.12 245 / 0.32); --hl-line: oklch(0.72 0.12 245 / 0.85); }
+mark.hl[data-color="pink"] { --hl-bg: oklch(0.85 0.1 0 / 0.55); --hl-bg-dark: oklch(0.68 0.15 2 / 0.3); --hl-line: oklch(0.72 0.15 2 / 0.85); }
+mark.hl[data-color="orange"] { --hl-bg: oklch(0.85 0.12 60 / 0.6); --hl-bg-dark: oklch(0.72 0.15 58 / 0.3); --hl-line: oklch(0.75 0.15 58 / 0.85); }
+/* On dark pages: a translucent wash of the colour with a solid underline for definition,
+   so the ink keeps its full brightness instead of being dimmed with the background. */
+[data-reader-theme="dark"] mark.hl,
+[data-reader-theme="night"] mark.hl,
+.dark mark.hl:not([data-reader-theme="paper"] *, [data-reader-theme="sepia"] *) {
+    background: var(--hl-bg-dark);
+    box-shadow: inset 0 -2px 0 var(--hl-line);
+    color: var(--page-ink, var(--foreground));
+}
 mark.hl[data-note="true"] {
     text-decoration: underline dotted;
     text-underline-offset: 4px;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface YTPlayer {
   getCurrentTime(): number
+  getDuration(): number
   seekTo(seconds: number, allowSeekAhead: boolean): void
   playVideo(): void
   pauseVideo(): void
@@ -40,7 +41,7 @@ function loadYouTubeApi() {
 
 /**
  * One interface over a YouTube embed or a native <audio>/<video> element:
- * current time (polled ~4×/s), seeking and play state.
+ * current time (polled ~4×/s), total duration once known, seeking and play state.
  */
 export function useMediaPlayer(url: string, startAt: number | null) {
   const ytId = youtubeId(url)
@@ -49,6 +50,7 @@ export function useMediaPlayer(url: string, startAt: number | null) {
   const ytPlayer = useRef<YTPlayer | null>(null)
   const [time, setTime] = useState(0)
   const [ready, setReady] = useState(false)
+  const [duration, setDuration] = useState(0)
 
   useEffect(() => {
     if (!ytId || !ytHost.current) return
@@ -67,7 +69,11 @@ export function useMediaPlayer(url: string, startAt: number | null) {
         events: {
           onReady: () => {
             setReady(true)
-            poll = window.setInterval(() => setTime(ytPlayer.current?.getCurrentTime() ?? 0), 250)
+            poll = window.setInterval(() => {
+              setTime(ytPlayer.current?.getCurrentTime() ?? 0)
+              // YouTube reports 0 until the video's metadata has loaded
+              setDuration(ytPlayer.current?.getDuration() ?? 0)
+            }, 250)
           },
         },
       })
@@ -98,8 +104,10 @@ export function useMediaPlayer(url: string, startAt: number | null) {
     [ytId],
   )
 
-  const onNativeReady = useCallback(() => {
+  const onNativeReady = useCallback((e: React.SyntheticEvent<HTMLMediaElement>) => {
     setReady(true)
+    // live streams report Infinity
+    if (Number.isFinite(e.currentTarget.duration)) setDuration(e.currentTarget.duration)
     if (startAt && mediaRef.current) mediaRef.current.currentTime = startAt
   }, [startAt])
 
@@ -108,6 +116,7 @@ export function useMediaPlayer(url: string, startAt: number | null) {
     ytHost,
     mediaRef,
     time,
+    duration,
     ready,
     seek,
     nativeProps: {

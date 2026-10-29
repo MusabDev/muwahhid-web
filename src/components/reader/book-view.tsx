@@ -14,11 +14,11 @@ export function BookView({ book, page }: { book: Book; page: BookPage }) {
 
   return (
     <div className={cn('mx-auto w-full', both ? 'max-w-[1180px]' : 'max-w-[680px]')}>
-      <div className={cn('relative grid rounded-[6px] shadow-[0_30px_60px_-20px_oklch(0.08_0.02_50/0.75)]', both && 'lg:grid-cols-2')}>
+      <div className={cn('relative grid rounded-[6px] [box-shadow:var(--page-shadow)]', both && '@3xl:grid-cols-2')}>
         {/* Bangla on the left page, Arabic on the right — like an opened bilingual book */}
         {showBn && <PageSheet book={book} page={page} lang="bn" blocks={blocks} side={both ? 'left' : 'single'} />}
         {showAr && <PageSheet book={book} page={page} lang="ar" blocks={blocks} side={both ? 'right' : 'single'} />}
-        {both && <div className="pointer-events-none absolute inset-y-0 left-1/2 hidden w-px -translate-x-1/2 bg-black/15 lg:block" />}
+        {both && <div className="pointer-events-none absolute inset-y-0 left-1/2 hidden w-px -translate-x-1/2 bg-black/15 @3xl:block" />}
       </div>
     </div>
   )
@@ -35,15 +35,15 @@ function PageSheet({ book, page, lang, blocks, side }: { book: Book; page: BookP
       dir={isAr ? 'rtl' : 'ltr'}
       className={cn(
         'relative flex min-h-[78vh] flex-col bg-[var(--page-bg)] px-6 pt-6 pb-5 text-[var(--page-ink)] sm:px-10 sm:pt-8',
-        side === 'left' && 'max-lg:rounded-b-[6px] lg:rounded-s-[6px]',
-        side === 'right' && 'max-lg:order-first max-lg:rounded-t-[6px] lg:rounded-e-[6px]',
+        side === 'left' && '@max-3xl:rounded-b-[6px] @3xl:rounded-s-[6px]',
+        side === 'right' && '@max-3xl:order-first @max-3xl:rounded-t-[6px] @3xl:rounded-e-[6px]',
         side === 'single' && 'rounded-[6px]',
-        side !== 'single' && 'max-lg:border-b max-lg:border-[var(--page-edge)]',
+        side !== 'single' && '@max-3xl:border-b @max-3xl:border-[var(--page-edge)]',
       )}
     >
       {/* gutter shading toward the spine */}
-      {side === 'left' && <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-10 bg-linear-to-l from-black/10 to-transparent lg:block" />}
-      {side === 'right' && <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-10 bg-linear-to-r from-black/10 to-transparent lg:block" />}
+      {side === 'left' && <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-10 bg-linear-to-l from-black/10 to-transparent @3xl:block" />}
+      {side === 'right' && <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-10 bg-linear-to-r from-black/10 to-transparent @3xl:block" />}
 
       <header className="mb-6 flex items-center justify-between gap-3 border-b border-double border-[var(--page-edge)] pb-2 text-[12px] text-[var(--page-muted)]" style={{ borderBottomWidth: 3 }}>
         <span className={cn('truncate', isAr ? 'font-arabic text-[15px]' : 'font-heading')}>{isAr ? book.title_ar : book.title_bn}</span>

@@ -1,20 +1,20 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowRight, BookOpen, ChevronRight, FileText, Headphones, Languages, ListTree, ScrollText, Share2 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { ArrowRight, BookOpen, ChevronRight, ScrollText, Share2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import { AuthorAvatar } from '@/components/author-avatar'
 import { CategoryBadge } from '@/components/category-filter'
+import { HeroStats, type HeroStat } from '@/components/hero-stats'
 import { BookCard, ProgressBar, Shelf, ShelfPlank } from '@/components/book-card'
 import { BookCover } from '@/components/book-cover'
 import { SectionHeading } from '@/components/brand'
 import { Markdown } from '@/components/markdown'
 import { PdfDownload } from '@/components/pdf-download'
 import { SeriesCard } from '@/components/series-card'
-import { CenterSpinner, EmptyState } from '@/components/states'
+import { CenterSpinner } from '@/components/states'
 import { StatusMenu } from '@/components/status-menu'
-import { TocList } from '@/components/toc-list'
+import { TocSection } from '@/components/toc-list'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { isSharh } from '@/lib/book'
@@ -133,6 +133,8 @@ function BookPage() {
             )}
           </section>
 
+          <TocSection slug={book.slug} entries={book.toc} currentPage={resumePage ?? undefined} />
+
           {book.author && (
             <section>
               <SectionHeading title={sharh ? 'গ্রন্থকারদ্বয়' : 'লেখক পরিচিতি'} />
@@ -155,26 +157,9 @@ function BookPage() {
           )}
         </div>
 
-        <aside className="space-y-6">
+        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
           <DetailsCard book={book} />
 
-          <div className="overflow-hidden rounded-xl border bg-card shadow-sm lg:sticky lg:top-24">
-            <div className="flex items-center justify-between gap-3 border-b bg-muted/40 px-5 py-3.5">
-              <h2 className="flex items-center gap-2 font-bold">
-                <ListTree className="size-[18px] text-gold" /> সূচিপত্র
-              </h2>
-              {!!book.toc?.length && <span className="text-xs text-muted-foreground">{bnNum(book.toc.length)}টি অধ্যায়</span>}
-            </div>
-            {book.toc?.length ? (
-              <div className="max-h-[60vh] overflow-y-auto p-2 scrollbar-thin">
-                <TocList slug={book.slug} entries={book.toc} currentPage={resumePage ?? undefined} />
-              </div>
-            ) : (
-              <div className="p-4">
-                <EmptyState title="সূচিপত্র নেই" />
-              </div>
-            )}
-          </div>
         </aside>
       </div>
 
@@ -217,26 +202,14 @@ function Byline({ author, label }: { author: Author; label: string }) {
   )
 }
 
-/** The book's key figures as a single bordered strip. */
+/** The book's key figures, set inline under the title. */
 function Stats({ book }: { book: Book }) {
-  const items: { icon: LucideIcon; value: string; label: string }[] = []
-  if (book.pages_count !== undefined) items.push({ icon: FileText, value: bnNum(book.pages_count), label: 'পৃষ্ঠা' })
-  if (book.toc?.length) items.push({ icon: ListTree, value: bnNum(book.toc.length), label: 'অধ্যায়' })
-  if (book.dars_series?.length) items.push({ icon: Headphones, value: bnNum(book.dars_series.length), label: 'দারস সিরিজ' })
-  items.push({ icon: Languages, value: 'আরবি · বাংলা', label: 'ভাষা' })
-
-  return (
-    <dl className="mt-7 grid w-full max-w-xl grid-cols-2 divide-border overflow-hidden rounded-xl border bg-background/70 backdrop-blur-sm sm:flex sm:divide-x">
-      {items.map(({ icon: Icon, value, label }) => (
-        <div key={label} className="flex flex-1 flex-col items-center gap-0.5 px-4 py-3 sm:items-start [&:last-child:nth-child(odd)]:col-span-2 [&:nth-child(n+3)]:border-t even:border-s sm:[&:nth-child(n+3)]:border-t-0 sm:even:border-s-0">
-          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Icon className="size-3.5 text-gold" /> {label}
-          </dt>
-          <dd className="font-semibold whitespace-nowrap tabular-nums">{value}</dd>
-        </div>
-      ))}
-    </dl>
-  )
+  const items: HeroStat[] = []
+  if (book.pages_count !== undefined) items.push({ value: bnNum(book.pages_count), label: 'পৃষ্ঠা' })
+  if (book.toc?.length) items.push({ value: bnNum(book.toc.length), label: 'অধ্যায়' })
+  if (book.dars_series?.length) items.push({ value: bnNum(book.dars_series.length), label: 'দারস সিরিজ' })
+  items.push({ value: 'আরবি · বাংলা', label: 'ভাষা' })
+  return <HeroStats items={items} />
 }
 
 function ShareButton({ book }: { book: Book }) {
