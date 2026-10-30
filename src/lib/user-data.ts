@@ -235,6 +235,35 @@ export function useAnnotations(scope: AnnotationScope) {
   return { annotations, create, update, remove }
 }
 
+/** Every book highlight with a note, across the whole library. */
+export function useNotes() {
+  const { data: user } = useUser()
+  const queryClient = useQueryClient()
+  const [guest, setGuest] = useLocal<Annotation[]>(GUEST_KEYS.annotations, [])
+
+  const query = useQuery({
+    queryKey: ['me', 'annotations', 'notes'],
+    queryFn: () => api<Annotation[]>('/me/annotations', { query: { has_note: 1 } }),
+    enabled: !!user,
+  })
+
+  const notes = user ? (query.data ?? []) : guest.filter((a) => a.book_id && a.note?.trim())
+
+  /* a highlight's parts are removed together */
+  const remove = async (id: Annotation['id']) => {
+    const annotation = notes.find((a) => a.id === id)
+    const ids = annotation ? annotationGroup(notes, annotation).map((a) => a.id) : [id]
+    if (user) {
+      await Promise.all(ids.map((part) => api(`/me/annotations/${part}`, { method: 'DELETE' })))
+      queryClient.invalidateQueries({ queryKey: ['me', 'annotations'] })
+    } else {
+      setGuest((prev) => prev.filter((a) => !ids.includes(a.id)))
+    }
+  }
+
+  return { notes, remove }
+}
+
 /* ---------------------------------------------------------------- Bookmarks */
 
 export function useBookmarks(bookId?: number) {

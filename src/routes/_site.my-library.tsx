@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowRight, BookMarked, BookOpen, Bookmark as BookmarkIcon, CheckCircle2, CloudOff, Search, Trash2, X } from 'lucide-react'
+import { ArrowRight, BookMarked, BookOpen, Bookmark as BookmarkIcon, CheckCircle2, CloudOff, NotebookPen, Search, X } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { BookCard, ProgressBar } from '@/components/book-card'
-import { BookCover } from '@/components/book-cover'
+import { BookJournal } from '@/components/book-journal'
 import { ContinueCard, inProgressEntries, ResumeLink, type ShelfEntry, StatusChip } from '@/components/continue-card'
 import { Ornament } from '@/components/brand'
 import { PatternBackdrop } from '@/components/pattern'
@@ -11,18 +11,18 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useUser } from '@/lib/auth'
 import { pageTitle } from '@/lib/head'
-import { bnNum, STATUS_LABELS, STATUS_ORDER, timeAgo } from '@/lib/text'
-import type { Book, Bookmark, BookStatus } from '@/lib/types'
-import { useBookmarks, useLibrary } from '@/lib/user-data'
+import { bnNum, STATUS_LABELS, STATUS_ORDER } from '@/lib/text'
+import type { Book, BookStatus } from '@/lib/types'
+import { groupAnnotations, useBookmarks, useLibrary, useNotes } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
-type Tab = BookStatus | 'all' | 'bookmarks'
+type Tab = BookStatus | 'all' | 'notes'
 type Sort = 'recent' | 'title' | 'progress'
 
 export const Route = createFileRoute('/_site/my-library')({
   head: () => pageTitle('আমার লাইব্রেরি'),
   validateSearch: (search: Record<string, unknown>): { tab?: Exclude<Tab, 'all'> } => ({
-    tab: typeof search.tab === 'string' ? (search.tab as Exclude<Tab, 'all'>) : undefined,
+    tab: search.tab === 'notes' || STATUS_ORDER.includes(search.tab as BookStatus) ? (search.tab as Exclude<Tab, 'all'>) : undefined,
   }),
   component: LibraryPage,
 })
@@ -39,6 +39,7 @@ function LibraryPage() {
   const { data: user } = useUser()
   const { entries, isLoading } = useLibrary()
   const { bookmarks, remove: removeBookmark } = useBookmarks()
+  const { notes, remove: removeNote } = useNotes()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<Sort>('recent')
 
@@ -50,9 +51,7 @@ function LibraryPage() {
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase()
     const list = shelf.filter(
-      (e) =>
-        (tab === 'all' || e.status === tab) &&
-        (!term || [e.book.title_bn, e.book.title_ar, e.book.title_translit, e.book.author?.name_bn].some((s) => s?.toLowerCase().includes(term))),
+      (e) => (tab === 'all' || e.status === tab) && (!term || [e.book.title_bn, e.book.title_ar, e.book.title_translit, e.book.author?.name_bn].some((s) => s?.toLowerCase().includes(term))),
     )
     return list.sort((a, b) => {
       if (sort === 'title') return a.book.title_bn.localeCompare(b.book.title_bn, 'bn')
@@ -63,11 +62,19 @@ function LibraryPage() {
 
   const setTab = (value: Tab) => navigate({ search: { tab: value === 'all' ? undefined : value }, replace: true, resetScroll: false })
 
-  const tabs: { value: Tab; label: string; count: number; icon?: typeof BookmarkIcon }[] = [
+  const tabs: { value: Tab; label: string; count: number; icon?: typeof NotebookPen }[] = [
     { value: 'all', label: 'সব কিতাব', count: shelf.length },
     ...STATUS_ORDER.map((status) => ({ value: status as Tab, label: STATUS_LABELS[status], count: count(status) })),
-    { value: 'bookmarks', label: 'বুকমার্ক', count: bookmarks.length, icon: BookmarkIcon },
+    { value: 'notes', label: 'নোট ও বুকমার্ক', count: groupAnnotations(notes).length + bookmarks.length, icon: NotebookPen },
   ]
+
+  /* guest notes carry no book of their own, so look it up on the shelf or a bookmark */
+  const knownBooks = useMemo(() => {
+    const map = new Map<number, Book>()
+    for (const b of bookmarks) if (b.book) map.set(b.book_id, b.book)
+    for (const e of shelf) map.set(e.book_id, e.book)
+    return map
+  }, [bookmarks, shelf])
 
   return (
     <>
@@ -81,9 +88,7 @@ function LibraryPage() {
                 مَكْتَبَتِي
               </p>
               <h1 className="mt-1 text-4xl font-bold md:text-5xl">আমার লাইব্রেরি</h1>
-              <p className="mt-3 max-w-xl text-muted-foreground">
-                {user ? `আস-সালামু আলাইকুম, ${user.name}। ` : ''}আপনার পড়া কিতাব, অগ্রগতি ও বুকমার্ক — সব এক জায়গায়।
-              </p>
+              <p className="mt-3 max-w-xl text-muted-foreground">{user ? `আস-সালামু আলাইকুম, ${user.name}। ` : ''}আপনার পড়া কিতাব, অগ্রগতি, নোট ও বুকমার্ক — সব এক জায়গায়।</p>
               <Ornament className="mt-5 justify-start" />
             </div>
 
@@ -126,8 +131,8 @@ function LibraryPage() {
         )}
 
         {/* Toolbar: shelves on the left, search and sort on the right */}
-        <div className="sticky top-16 z-10 -mx-4 mb-8 border-b bg-background/85 px-4 py-3 backdrop-blur-md">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="sticky top-16 z-10 -mx-4 mb-8 border-b bg-background px-4 py-3">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <nav aria-label="তাক" className="-mx-4 overflow-x-auto px-4 scrollbar-none">
               <div className="flex w-max gap-1.5">
                 {tabs.map((t) => (
@@ -156,9 +161,9 @@ function LibraryPage() {
               </div>
             </nav>
 
-            {tab !== 'bookmarks' && (
+            {tab !== 'notes' && (
               <div className="flex items-center gap-2">
-                <div className="relative min-w-0 flex-1 lg:w-64 lg:flex-none">
+                <div className="relative min-w-0 flex-1 xl:w-58 xl:flex-none">
                   <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="search"
@@ -187,8 +192,14 @@ function LibraryPage() {
           </div>
         </div>
 
-        {tab === 'bookmarks' ? (
-          <BookmarkList bookmarks={bookmarks} onRemove={removeBookmark} />
+        {tab === 'notes' ? (
+          notes.length || bookmarks.length ? (
+            <BookJournal notes={notes} bookmarks={bookmarks} knownBooks={knownBooks} onRemoveNote={removeNote} onRemoveBookmark={removeBookmark} />
+          ) : (
+            <EmptyState icon={NotebookPen} title="কোনো নোট বা বুকমার্ক নেই">
+              পড়ার সময় লেখা নির্বাচন করে নোট যোগ করুন, অথবা বুকমার্ক বাটন থেকে পাতা সংরক্ষণ করুন।
+            </EmptyState>
+          )
         ) : isLoading ? (
           <BookGridSkeleton />
         ) : visible.length ? (
@@ -262,97 +273,5 @@ function EntryFooter({ entry }: { entry: ShelfEntry }) {
         </>
       ) : null}
     </div>
-  )
-}
-
-/* ---------------------------------------------------------------- Bookmarks */
-
-function BookmarkList({ bookmarks, onRemove }: { bookmarks: Bookmark[]; onRemove: (id: Bookmark['id']) => void }) {
-  // Group by book so each kitab shows its own bookmarks together
-  const groups = useMemo(() => {
-    const map = new Map<string, { book?: Book; items: Bookmark[] }>()
-    for (const bookmark of bookmarks) {
-      const key = String(bookmark.book_id)
-      const group = map.get(key) ?? { book: bookmark.book, items: [] }
-      group.items.push(bookmark)
-      map.set(key, group)
-    }
-    for (const group of map.values()) group.items.sort((a, b) => a.page_number - b.page_number)
-    return [...map.values()]
-  }, [bookmarks])
-
-  if (!bookmarks.length) {
-    return (
-      <EmptyState icon={BookmarkIcon} title="কোনো বুকমার্ক নেই">
-        পড়ার সময় উপরের বুকমার্ক বাটন থেকে পাতা বা বাক্য সংরক্ষণ করুন।
-      </EmptyState>
-    )
-  }
-
-  return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      {groups.map((group, i) => (
-        <section key={group.book?.id ?? i} className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-          <header className="flex items-center gap-4 border-b bg-muted/40 p-4">
-            {group.book && <BookCover book={group.book} className="w-12 shrink-0" />}
-            <div className="min-w-0 flex-1">
-              {group.book ? (
-                <Link to="/books/$slug" params={{ slug: group.book.slug }} className="line-clamp-1 font-heading font-bold hover:text-primary">
-                  {group.book.title_bn}
-                </Link>
-              ) : (
-                <p className="font-heading font-bold">অজানা কিতাব</p>
-              )}
-              <p className="text-xs text-muted-foreground">{bnNum(group.items.length)}টি বুকমার্ক</p>
-            </div>
-          </header>
-
-          <ul className="divide-y">
-            {group.items.map((bookmark) => (
-              <li key={bookmark.id} className="group/row flex items-center gap-2 pe-2">
-                {group.book ? (
-                  <Link
-                    to="/books/$slug/read/$page"
-                    params={{ slug: group.book.slug, page: String(bookmark.page_number) }}
-                    hash={bookmark.sentence_id ? `s-${bookmark.sentence_id}` : undefined}
-                    className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition hover:bg-muted/60"
-                  >
-                    <BookmarkRowBody bookmark={bookmark} />
-                  </Link>
-                ) : (
-                  <div className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
-                    <BookmarkRowBody bookmark={bookmark} />
-                  </div>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="বুকমার্ক মুছুন"
-                  className="size-8 shrink-0 text-muted-foreground opacity-100 hover:text-destructive sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-visible:opacity-100"
-                  onClick={() => onRemove(bookmark.id)}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-    </div>
-  )
-}
-
-function BookmarkRowBody({ bookmark }: { bookmark: Bookmark }) {
-  return (
-    <>
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gold/15">
-        <BookmarkIcon className="size-3.5 fill-gold text-gold" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold">{bookmark.label || `পৃষ্ঠা ${bnNum(bookmark.page_number)}`}</span>
-        {bookmark.created_at && <span className="block text-xs text-muted-foreground">{timeAgo(bookmark.created_at)}</span>}
-      </span>
-      <span className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums">পৃ. {bnNum(bookmark.page_number)}</span>
-    </>
   )
 }

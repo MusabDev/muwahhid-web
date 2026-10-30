@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowRight, BookOpen, ChevronRight, ScrollText, Share2 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { AuthorAvatar } from '@/components/author-avatar'
 import { CategoryBadge } from '@/components/category-filter'
 import { HeroStats, type HeroStat } from '@/components/hero-stats'
 import { BookCard, ProgressBar, Shelf, ShelfPlank } from '@/components/book-card'
 import { BookCover } from '@/components/book-cover'
+import { JournalCard, journalGroups } from '@/components/book-journal'
 import { SectionHeading } from '@/components/brand'
 import { Markdown } from '@/components/markdown'
 import { PdfDownload } from '@/components/pdf-download'
@@ -21,7 +22,7 @@ import { isSharh } from '@/lib/book'
 import { authorQuery, bookQuery } from '@/lib/queries'
 import { bnNum } from '@/lib/text'
 import type { Author, Book } from '@/lib/types'
-import { useLibraryEntry } from '@/lib/user-data'
+import { useAnnotations, useBookmarks, useLibraryEntry } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 import { pageTitle } from '@/lib/head'
 import { PatternBackdrop } from '@/components/pattern'
@@ -157,9 +158,10 @@ function BookPage() {
           )}
         </div>
 
-        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+        {/* a long notes card would run off screen, so the sidebar only sticks without it */}
+        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start lg:has-data-journal:static">
           <DetailsCard book={book} />
-
+          <MyJournal book={book} />
         </aside>
       </div>
 
@@ -277,6 +279,21 @@ function DetailsCard({ book }: { book: Book }) {
         <DetailRow label="ভাষা">আরবি মূলপাঠ ও বাংলা অনুবাদ</DetailRow>
         {updated && <DetailRow label="সর্বশেষ হালনাগাদ">{updated}</DetailRow>}
       </dl>
+    </div>
+  )
+}
+
+/** The reader's own notes and bookmarks in this kitab; nothing when there are none. */
+function MyJournal({ book }: { book: Book }) {
+  const { annotations, remove: removeNote } = useAnnotations({ bookId: book.id })
+  const { bookmarks, remove: removeBookmark } = useBookmarks(book.id)
+  const notes = useMemo(() => annotations.filter((a) => a.note?.trim()), [annotations])
+  const [group] = useMemo(() => journalGroups(notes, bookmarks, new Map([[book.id, book]])), [notes, bookmarks, book])
+
+  if (!group) return null
+  return (
+    <div data-journal>
+      <JournalCard group={group} title="আপনার নোট ও বুকমার্ক" onRemoveNote={removeNote} onRemoveBookmark={removeBookmark} />
     </div>
   )
 }

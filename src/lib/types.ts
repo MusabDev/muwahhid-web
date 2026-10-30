@@ -183,6 +183,8 @@ export interface Annotation {
   /** The book page the highlighted sentence is on. */
   page_number?: number | null
   created_at?: string
+  /** Sent with library-wide notes (`has_note`). */
+  book?: Book
 }
 
 export interface Bookmark {
