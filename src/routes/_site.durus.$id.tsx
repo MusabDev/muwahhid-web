@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AuthorAvatar } from '@/components/author-avatar'
 import { StarMark } from '@/components/brand'
+import { DarsStatusMenu } from '@/components/status-menu'
 import { EpisodeList, episodeNumber } from '@/components/episode-list'
 import type { HighlightRange } from '@/components/markdown'
 import { PlainHighlight } from '@/components/plain-highlight'
@@ -19,8 +20,8 @@ import { useUser } from '@/lib/auth'
 import { darsQuery, seriesQuery } from '@/lib/queries'
 import type { TextTarget } from '@/lib/selection'
 import { bnNum, formatTime, parseTime } from '@/lib/text'
-import type { Dars, Segment } from '@/lib/types'
-import { useAnnotations, useReaderSettings } from '@/lib/user-data'
+import type { Dars, DarsEntry, Segment } from '@/lib/types'
+import { DARS_COMPLETED_AT, useAnnotations, useDarsEntry, useReaderSettings } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 import { pageTitle } from '@/lib/head'
 import { PatternTint } from '@/components/pattern'
@@ -30,7 +31,7 @@ export const Route = createFileRoute('/_site/durus/$id')({
     t: typeof search.t === 'string' || typeof search.t === 'number' ? String(search.t) : undefined,
   }),
   loader: ({ context, params }) => context.queryClient.ensureQueryData(darsQuery(Number(params.id))),
-  head: ({ loaderData }) => pageTitle(loaderData && `${loaderData.title_bn} — ${loaderData.series?.title_bn ?? 'দারস'}`),
+  head: ({ loaderData }) => pageTitle(loaderData && [loaderData.title_bn, loaderData.series?.title_bn, loaderData.series?.author?.name_bn].filter(Boolean).join(' - ')),
   pendingComponent: CenterSpinner,
   component: DarsPage,
 })
@@ -38,8 +39,17 @@ export const Route = createFileRoute('/_site/durus/$id')({
 function DarsPage() {
   const { id } = Route.useParams()
   const { data: dars } = useQuery(darsQuery(Number(id)))
-  if (!dars) return <CenterSpinner />
-  return <DarsPlayer key={dars.id} dars={dars} />
+  const { isLoading: userLoading } = useUser()
+  const { entry, isLoading: entryLoading } = useDarsEntry(dars)
+  // the player takes its start time once, so wait for the saved position
+  if (!dars || userLoading || entryLoading) return <CenterSpinner />
+  return <DarsPlayer key={dars.id} dars={dars} resumeAt={resumePosition(entry)} />
+}
+
+/** Where to pick up a dars again: nowhere if it was barely started or already finished. */
+function resumePosition(entry: DarsEntry | undefined) {
+  if (!entry || entry.position_seconds < 5 || entry.progress >= DARS_COMPLETED_AT) return null
+  return entry.position_seconds
 }
 
 function activeIndex(segments: Segment[], time: number) {
@@ -59,11 +69,16 @@ function activeIndex(segments: Segment[], time: number) {
   return found
 }
 
-function DarsPlayer({ dars }: { dars: Dars }) {
+function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number | null }) {
+  // fixed when the dars opens; later saves must not move the start point again
+  const [resumeAt] = useState(savedAt)
   const { t } = Route.useSearch()
   const startAt = parseTime(t)
   const segments = useMemo(() => dars.segments ?? [], [dars])
-  const player = useMediaPlayer(dars.media_url, startAt)
+  // a timestamp link wins over the saved position
+  const player = useMediaPlayer(dars.media_url, startAt ?? resumeAt)
+  useSaveListening(dars, player.time, player.duration)
+  useResumeNotice(startAt == null ? resumeAt : null, player.seek)
   const { settings, update } = useReaderSettings()
   const { annotations, create, update: updateAnnotation, remove } = useAnnotations({ darsId: dars.id })
   const { data: series } = useQuery({ ...seriesQuery(dars.series?.slug ?? ''), enabled: !!dars.series })
@@ -134,7 +149,7 @@ function DarsPlayer({ dars }: { dars: Dars }) {
 
   const copyTimestamp = async () => {
     await navigator.clipboard.writeText(linkAt(player.time))
-    toast.success(`${formatTime(player.time)} — লিংক কপি হয়েছে`)
+    toast.success(`${formatTime(player.time)} থেকে শোনার লিংক কপি হয়েছে`)
   }
 
   const subtitleMode = settings.subtitles
@@ -243,6 +258,9 @@ function DarsPlayer({ dars }: { dars: Dars }) {
                   <Clock className="size-4 text-gold" /> <span className="tabular-nums">{bnNum(formatTime(dars.duration_seconds))}</span>
                 </span>
               )}
+              <span className="ms-auto">
+                <DarsStatusMenu dars={dars} />
+              </span>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -330,6 +348,60 @@ function DarsPlayer({ dars }: { dars: Dars }) {
   )
 }
 
+/** Saving interval while playing; the position is also saved when the page is hidden or left. */
+const SAVE_EVERY_MS = 15_000
+
+/** Keep the listening position in the library (account or localStorage) while the dars plays. */
+function useSaveListening(dars: Dars, time: number, duration: number) {
+  const { saveProgress } = useDarsEntry(dars)
+  const latest = useRef({ time, duration, saveProgress })
+  useEffect(() => {
+    latest.current = { time, duration, saveProgress }
+  })
+  const saved = useRef<number | null>(null)
+
+  useEffect(() => {
+    const flush = (keepalive = false) => {
+      const { time, duration, saveProgress } = latest.current
+      // nothing played yet, or nothing new since the last save
+      if (time < 1 || (saved.current != null && Math.abs(time - saved.current) < 1)) return
+      saved.current = time
+      saveProgress(time, duration, keepalive).catch(() => {
+        saved.current = null
+      })
+    }
+    const timer = window.setInterval(flush, SAVE_EVERY_MS)
+    const onHide = () => document.visibilityState === 'hidden' && flush(true)
+    const onPageHide = () => flush(true)
+    document.addEventListener('visibilitychange', onHide)
+    window.addEventListener('pagehide', onPageHide)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onHide)
+      window.removeEventListener('pagehide', onPageHide)
+      flush()
+    }
+  }, [dars.id])
+}
+
+/** Tell the listener the dars picks up where they stopped, with a way back to the start. */
+function useResumeNotice(resumeAt: number | null, seek: (seconds: number) => void) {
+  const seekRef = useRef(seek)
+  useEffect(() => {
+    seekRef.current = seek
+  })
+
+  useEffect(() => {
+    if (resumeAt == null) return
+    const id = toast(`${bnNum(formatTime(resumeAt))} থেকে আবার শুরু হচ্ছে`, {
+      action: { label: 'শুরু থেকে', onClick: () => seekRef.current(0) },
+    })
+    return () => {
+      toast.dismiss(id)
+    }
+  }, [resumeAt])
+}
+
 /**
  * When an admin opens a dars that has no saved length, store the one the player reports,
  * so list rows and series totals fill in without typing seconds by hand.
@@ -347,7 +419,7 @@ function useRecordDuration(dars: Dars, duration: number) {
       .then(() => {
         queryClient.invalidateQueries({ queryKey: ['dars', dars.id] })
         queryClient.invalidateQueries({ queryKey: ['dars-series'] })
-        toast.success(`সময়কাল সংরক্ষিত — ${bnNum(formatTime(seconds))}`)
+        toast.success(`সময়কাল ${bnNum(formatTime(seconds))} হিসেবে সেভ হয়েছে`)
       })
       .catch(() => {
         saved.current = false

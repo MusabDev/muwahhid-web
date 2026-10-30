@@ -31,7 +31,7 @@ import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/books/$slug/read/$page')({
   loader: ({ context, params }) => context.queryClient.ensureQueryData(bookQuery(params.slug)),
-  head: ({ loaderData, params }) => pageTitle(loaderData && `${loaderData.title_bn} · পৃষ্ঠা ${bnNum(params.page)}`),
+  head: ({ loaderData, params }) => pageTitle(loaderData && [loaderData.title_bn, loaderData.author?.name_bn, `পৃষ্ঠা ${bnNum(params.page)}`].filter(Boolean).join(' - ')),
   component: Reader,
 })
 

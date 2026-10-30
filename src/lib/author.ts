@@ -19,7 +19,7 @@ export interface Era {
 }
 
 function eraTitles(century: number | null) {
-  if (century === null) return { title_bn: 'সমকালীন আলিমগণ', title_ar: 'العلماء المعاصرون' }
+  if (century === null) return { title_bn: 'সমকালীন আলেমগণ', title_ar: 'العلماء المعاصرون' }
   return {
     title_bn: `${CENTURY_BN[century - 1] ?? `${bnNum(century)}তম`} শতাব্দী হিজরি`,
     title_ar: `القرن ${CENTURY_AR[century - 1] ?? century} الهجري`,

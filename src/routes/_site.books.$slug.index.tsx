@@ -29,7 +29,7 @@ import { PatternBackdrop } from '@/components/pattern'
 
 export const Route = createFileRoute('/_site/books/$slug/')({
   loader: ({ context, params }) => context.queryClient.ensureQueryData(bookQuery(params.slug)),
-  head: ({ loaderData }) => pageTitle(loaderData?.title_bn, loaderData?.about_md),
+  head: ({ loaderData }) => pageTitle(loaderData && [loaderData.title_bn, loaderData.author?.name_bn].filter(Boolean).join(' - '), loaderData?.about_md),
   pendingComponent: CenterSpinner,
   component: BookPage,
 })

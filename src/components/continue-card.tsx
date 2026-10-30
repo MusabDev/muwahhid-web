@@ -18,8 +18,8 @@ const STATUS_TONE: Record<BookStatus, string> = {
   dropped: 'bg-muted text-muted-foreground/80 border-border',
 }
 
-export function StatusChip({ status, className }: { status: BookStatus; className?: string }) {
-  return <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium', STATUS_TONE[status], className)}>{STATUS_LABELS[status]}</span>
+export function StatusChip({ status, labels = STATUS_LABELS, className }: { status: BookStatus; labels?: Record<string, string>; className?: string }) {
+  return <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium', STATUS_TONE[status], className)}>{labels[status]}</span>
 }
 
 /** Link to the page and sentence where the reader left off. */

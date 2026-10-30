@@ -80,7 +80,7 @@ export function SearchPanel({ slug, active, onNavigate }: { slug: string; active
 
       {!searching ? (
         <Hint icon={Search} title="কিতাবের ভেতরে খুঁজুন">
-          আরবি বা বাংলা — অন্তত দুই অক্ষর লিখুন। আরবিতে হরকত ছাড়াও খোঁজা যায়।
+          আরবি বা বাংলায় অন্তত দুটি অক্ষর লিখুন। আরবিতে হরকত না দিলেও খুঁজে পাবেন।
         </Hint>
       ) : !data ? null : total === 0 ? (
         <Hint icon={SearchX} title="কিছু পাওয়া যায়নি">

@@ -1,9 +1,11 @@
 import { Link } from '@tanstack/react-router'
-import { AudioLines, Clock, Play, Search, X } from 'lucide-react'
+import { AudioLines, CheckCircle2, Clock, Play, Search, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { ProgressBar } from '@/components/book-card'
 import { EmptyState } from '@/components/states'
 import { bnNum, formatTime, stripDiacritics } from '@/lib/text'
-import type { Dars } from '@/lib/types'
+import type { Dars, DarsEntry } from '@/lib/types'
+import { DARS_COMPLETED_AT, useDarsLibrary } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
 const BN_TO_LATIN: Record<string, string> = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' }
@@ -26,6 +28,8 @@ export function episodeNumber(n: number) {
  */
 export function EpisodeList({ durus, currentId, compact, searchable }: { durus: Dars[]; currentId?: number; compact?: boolean; searchable?: boolean }) {
   const [query, setQuery] = useState('')
+  const { entries } = useDarsLibrary()
+  const listened = useMemo(() => new Map(entries.map((e) => [e.dars_id, e])), [entries])
 
   const shown = useMemo(() => {
     const q = normalize(query)
@@ -63,7 +67,7 @@ export function EpisodeList({ durus, currentId, compact, searchable }: { durus: 
         <ol className={cn('divide-y divide-border/80', !compact && 'border-y border-border/80')}>
           {shown.map((dars) => (
             <li key={dars.id}>
-              <EpisodeRow dars={dars} current={dars.id === currentId} compact={compact} />
+              <EpisodeRow dars={dars} entry={listened.get(dars.id)} current={dars.id === currentId} compact={compact} />
             </li>
           ))}
         </ol>
@@ -76,7 +80,9 @@ export function EpisodeList({ durus, currentId, compact, searchable }: { durus: 
   )
 }
 
-function EpisodeRow({ dars, current, compact }: { dars: Dars; current?: boolean; compact?: boolean }) {
+function EpisodeRow({ dars, entry, current, compact }: { dars: Dars; entry?: DarsEntry; current?: boolean; compact?: boolean }) {
+  const finished = entry?.status === 'completed' || (entry?.progress ?? 0) >= DARS_COMPLETED_AT
+  const started = !finished && !!entry?.position_seconds
   return (
     <Link
       to="/durus/$id"
@@ -124,10 +130,17 @@ function EpisodeRow({ dars, current, compact }: { dars: Dars; current?: boolean;
           )}
           {current ? (
             <span className="font-semibold text-gold">এখন চলছে</span>
+          ) : finished ? (
+            <span className="flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="size-3.5" /> শোনা শেষ
+            </span>
+          ) : started ? (
+            <span className="tabular-nums">{bnNum(formatTime(entry!.position_seconds))} পর্যন্ত শোনা</span>
           ) : (
             !compact && !!dars.segments_count && <span className="font-semibold text-primary">ট্রান্সক্রিপ্টসহ</span>
           )}
         </p>
+        {started && !current && <ProgressBar value={entry!.progress} className={cn('h-1', compact ? 'mt-1.5' : 'mt-2.5 max-w-xs')} />}
       </div>
 
       <span

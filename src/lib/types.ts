@@ -164,6 +164,16 @@ export interface LibraryEntry {
   book?: Book
 }
 
+/** A dars in the user's library; status uses the same values as books. */
+export interface DarsEntry {
+  dars_id: number
+  status: BookStatus | null
+  position_seconds: number
+  progress: number
+  last_played_at: string | null
+  dars?: Dars
+}
+
 export type AnnotationTarget = 'book_sentence' | 'dars_segment'
 
 export interface Annotation {

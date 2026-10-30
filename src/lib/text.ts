@@ -70,6 +70,15 @@ export const STATUS_LABELS: Record<string, string> = {
   dropped: 'বাদ দিয়েছি',
 }
 
+/** The same statuses, worded for listening to a dars. */
+export const DARS_STATUS_LABELS: Record<string, string> = {
+  reading: 'শুনছি',
+  read_later: 'পরে শুনব',
+  on_hold: 'স্থগিত',
+  completed: 'শোনা শেষ',
+  dropped: 'বাদ দিয়েছি',
+}
+
 export const STATUS_ORDER = ['reading', 'read_later', 'on_hold', 'completed', 'dropped'] as const
 
 /** "৫ মিনিট আগে", "৩ দিন আগে" — coarse Bangla relative time for the last reading session. */

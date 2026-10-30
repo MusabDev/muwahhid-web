@@ -10,7 +10,7 @@ export function SiteFooter() {
           <div className="space-y-4">
             <Brand />
             <p className="max-w-sm text-sm leading-relaxed text-wood-foreground/75">
-              আলিমদের কিতাব ও দারস আরবি ও বাংলায় — বাক্যে বাক্যে মিলিয়ে, কিতাবের পাতার মতো করে পড়ার জন্য।
+              আলেমদের কিতাব আর দারস এক জায়গায়। আরবি মূল আর বাংলা অনুবাদ পাশাপাশি রেখে বাক্য ধরে ধরে পড়ুন।
             </p>
             <p lang="ar" dir="rtl" className="text-left font-arabic text-lg text-gold">
               طَلَبُ الْعِلْمِ فَرِيضَةٌ عَلَى كُلِّ مُسْلِمٍ

@@ -4,6 +4,7 @@ import { ArrowDownAZ, BookOpen, Check, Clock, Headphones, Loader2, RotateCcw, Se
 import { useEffect, useState, type ReactNode } from 'react'
 import { AuthorAvatar } from '@/components/author-avatar'
 import { BookCard, ShelfPlank } from '@/components/book-card'
+import { chunk, useGridColumns } from '@/hooks/use-grid-columns'
 import { Ornament } from '@/components/brand'
 import { PatternBackdrop } from '@/components/pattern'
 import { SeriesCard } from '@/components/series-card'
@@ -371,7 +372,7 @@ function ResultsHeader({ total, noun, query }: { total?: number; noun: string; q
     <p className="mb-6 text-sm text-muted-foreground">
       {query ? (
         <>
-          “<span className="font-semibold text-foreground">{query}</span>” — {bnNum(total)}টি {noun} পাওয়া গেছে
+          “<span className="font-semibold text-foreground">{query}</span>” খুঁজে {bnNum(total)}টি {noun} পাওয়া গেছে
         </>
       ) : (
         <>
@@ -394,21 +395,6 @@ function LoadMore({ hasMore, loading, onClick }: { hasMore: boolean; loading: bo
 }
 
 /** Column count of the book grid at the current width, matching its sm/md/lg breakpoints. */
-function useGridColumns() {
-  const read = () => (window.matchMedia('(min-width: 1024px)').matches ? 5 : window.matchMedia('(min-width: 768px)').matches ? 4 : window.matchMedia('(min-width: 640px)').matches ? 3 : 2)
-  const [columns, setColumns] = useState(read)
-  useEffect(() => {
-    const update = () => setColumns(read())
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
-  return columns
-}
-
-function chunk<T>(items: T[], size: number) {
-  return Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, i * size + size))
-}
-
 /** Books stand in rows on wooden shelves, one plank per grid row. */
 function BookResults({ search }: { search: LibrarySearch }) {
   const query = useLibraryList<Book>('/books', 'books', search)

@@ -52,7 +52,7 @@ function Hero() {
           <span className="text-primary">আরবি ও বাংলায়</span> পাশাপাশি
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
-          প্রতিটি আরবি বাক্যের পাশে তার বাংলা অনুবাদ — কিতাবের পাতার মতো করে পড়ুন, হাইলাইট ও নোট রাখুন, আর দারস শুনুন আরবি-বাংলা সাবটাইটেলসহ।
+          প্রতিটি আরবি বাক্যের পাশেই তার বাংলা অনুবাদ, ঠিক কিতাবের পাতার মতো। পড়তে পড়তে হাইলাইট করুন, নোট লিখে রাখুন। দারসগুলোও শুনতে পারবেন আরবি-বাংলা সাবটাইটেলসহ।
         </p>
 
         <SiteStats />
@@ -130,7 +130,7 @@ function NewBooks() {
     <section>
       <SectionHeading
         title="নতুন কিতাব"
-        subtitle="সম্প্রতি যুক্ত হওয়া কিতাবসমূহ"
+        subtitle="নতুন যোগ হওয়া কিতাব"
         action={
           <Button variant="ghost" asChild>
             <Link to="/library">
@@ -165,7 +165,7 @@ function DurusSection() {
     <section>
       <SectionHeading
         title="দারস সিরিজ"
-        subtitle="আরবি ও বাংলা সাবটাইটেলসহ ব্যাখ্যা"
+        subtitle="আরবি আর বাংলা সাবটাইটেলসহ শুনুন"
         action={
           <Button variant="ghost" asChild>
             <Link to="/library" search={{ type: 'durus' }}>

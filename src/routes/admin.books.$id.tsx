@@ -182,7 +182,7 @@ function TocPanel({ book }: { book: Book }) {
             if (!Array.isArray(parsed)) throw new Error()
             save.mutate(parsed)
           } catch {
-            toast.error('JSON ঠিক নেই — একটি তালিকা ([...]) হতে হবে')
+            toast.error('JSON ঠিক নেই, এটা একটা তালিকা ([...]) হতে হবে')
           }
         }}
       >

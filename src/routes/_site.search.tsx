@@ -47,7 +47,7 @@ function SearchPage() {
           খুঁজুন
         </Button>
       </form>
-      <p className="mt-2 ps-4 text-xs text-muted-foreground">আরবিতে হরকত ছাড়া লিখলেও চলবে — যেমন “رحمك الله”</p>
+      <p className="mt-2 ps-4 text-xs text-muted-foreground">আরবিতে হরকত না দিলেও চলবে, যেমন “رحمك الله”</p>
 
       <div className="mt-10">
         {q.trim().length < 2 ? (

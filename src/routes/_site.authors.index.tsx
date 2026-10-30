@@ -33,7 +33,6 @@ function AuthorsPage() {
     (a) => !needle || a.name_bn.includes(needle) || stripDiacritics(a.name_ar).includes(needle) || a.name_translit.toLowerCase().includes(needle),
   )
   const eras = groupByEra(authors)
-  const centuries = groupByEra(all).filter((era) => era.century !== null).length
 
   return (
     <>
@@ -45,15 +44,6 @@ function AuthorsPage() {
           </p>
           <h1 className="mt-1 text-4xl font-bold md:text-6xl">আহলুল ইলম</h1>
           <Ornament className="mt-5" />
-          <p className="mt-4 text-muted-foreground">
-            যুগ অনুযায়ী কিংবা নাম ধরে আলিমদের খুঁজুন
-            {all.length > 0 && (
-              <span className="text-sm">
-                {' '}
-                · {bnNum(all.length)} জন আলিম, {bnNum(centuries)}টি শতাব্দী
-              </span>
-            )}
-          </p>
 
           {/* By era | A–Z */}
           <nav className="mx-auto mt-7 flex w-fit items-center gap-1 rounded-full border bg-card/90 p-1 shadow-sm backdrop-blur-sm" aria-label="সাজানো">

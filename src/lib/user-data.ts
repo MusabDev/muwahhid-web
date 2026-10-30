@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { api } from './api'
 import { useUser } from './auth'
-import { GUEST_KEYS, guestId, type GuestLibrary } from './guest'
+import { GUEST_KEYS, guestId, type GuestDurus, type GuestLibrary } from './guest'
 import { useLocal } from './storage'
-import type { Annotation, AnnotationTarget, Book, Bookmark, BookStatus, Lang, LibraryEntry } from './types'
+import type { Annotation, AnnotationTarget, Book, Bookmark, BookStatus, Dars, DarsEntry, Lang, LibraryEntry } from './types'
 
 /* ------------------------------------------------------------------ Library */
 
@@ -108,6 +108,107 @@ export function useLibraryEntry(book: Book | undefined) {
   )
 
   return { entry, setStatus, saveProgress }
+}
+
+/* -------------------------------------------------------------------- Durus */
+
+/** Share of a dars after which it counts as fully listened (same as the server). */
+export const DARS_COMPLETED_AT = 95
+
+export function useDarsLibrary() {
+  const { data: user } = useUser()
+  const [guest] = useLocal<GuestDurus>(GUEST_KEYS.durus, {})
+  const query = useQuery({
+    queryKey: ['me', 'durus'],
+    queryFn: () => api<DarsEntry[]>('/me/durus'),
+    enabled: !!user,
+  })
+  const entries = user ? (query.data ?? []) : Object.values(guest).sort((a, b) => (b.last_played_at ?? '').localeCompare(a.last_played_at ?? ''))
+  return { entries, isLoading: !!user && query.isLoading }
+}
+
+export function useDarsEntry(dars: Dars | undefined) {
+  const { data: user } = useUser()
+  const queryClient = useQueryClient()
+  const [guest, setGuest] = useLocal<GuestDurus>(GUEST_KEYS.durus, {})
+  const darsId = dars?.id
+
+  const query = useQuery({
+    queryKey: ['me', 'durus', darsId],
+    queryFn: () => api<DarsEntry>(`/me/durus/${darsId}`),
+    enabled: !!user && !!darsId,
+  })
+
+  const entry: DarsEntry | undefined = user ? query.data : darsId ? guest[darsId] : undefined
+
+  /* stored with guest entries so the library can show them without the API */
+  const slimDars = useMemo(
+    () =>
+      dars && {
+        id: dars.id,
+        series_id: dars.series_id,
+        number: dars.number,
+        title_ar: dars.title_ar,
+        title_bn: dars.title_bn,
+        media_type: dars.media_type,
+        media_url: dars.media_url,
+        duration_seconds: dars.duration_seconds,
+        series: dars.series && { ...dars.series, durus: undefined, book: undefined, about_md: null },
+      },
+    [dars],
+  )
+
+  const updateGuest = useCallback(
+    (patch: Partial<DarsEntry>) => {
+      if (!darsId || !slimDars) return
+      setGuest((prev) => {
+        const current: DarsEntry = prev[darsId] ?? { dars_id: darsId, status: null, position_seconds: 0, progress: 0, last_played_at: null }
+        return { ...prev, [darsId]: { ...current, ...patch, dars: slimDars as Dars } }
+      })
+    },
+    [darsId, slimDars, setGuest],
+  )
+
+  const statusMutation = useMutation({
+    mutationFn: (status: BookStatus | null) => api<DarsEntry>(`/me/durus/${darsId}/status`, { method: 'PUT', body: { status } }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['me', 'durus', darsId], data)
+      queryClient.invalidateQueries({ queryKey: ['me', 'durus'], exact: true })
+    },
+  })
+
+  const setStatus = (status: BookStatus | null) => {
+    if (user) statusMutation.mutate(status)
+    else updateGuest({ status })
+  }
+
+  const saveProgress = useCallback(
+    async (position: number, duration: number, keepalive = false) => {
+      if (!darsId) return
+      if (user) {
+        const data = await api<DarsEntry>(`/me/durus/${darsId}/progress`, {
+          method: 'PUT',
+          keepalive,
+          body: { position_seconds: position, duration_seconds: duration || null },
+        })
+        queryClient.setQueryData(['me', 'durus', darsId], data)
+        queryClient.invalidateQueries({ queryKey: ['me', 'durus'], exact: true })
+      } else {
+        const total = dars?.duration_seconds || duration
+        const progress = total ? Math.round(Math.min(position / total, 1) * 10000) / 100 : 0
+        const status = guest[darsId]?.status ?? null
+        updateGuest({
+          position_seconds: position,
+          progress,
+          last_played_at: new Date().toISOString(),
+          status: progress >= DARS_COMPLETED_AT && (status === null || status === 'reading') ? 'completed' : (status ?? 'reading'),
+        })
+      }
+    },
+    [darsId, dars?.duration_seconds, user, guest, updateGuest, queryClient],
+  )
+
+  return { entry, isLoading: !!user && query.isLoading, setStatus, saveProgress }
 }
 
 /* -------------------------------------------------------------- Annotations */

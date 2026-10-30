@@ -26,7 +26,7 @@ async function ensureCsrf() {
 
 type Body = Record<string, unknown> | unknown[] | FormData | undefined
 
-export async function api<T>(path: string, options: { method?: string; body?: Body; query?: Record<string, unknown>; retried?: boolean } = {}): Promise<T> {
+export async function api<T>(path: string, options: { method?: string; body?: Body; query?: Record<string, unknown>; retried?: boolean; keepalive?: boolean } = {}): Promise<T> {
   const method = options.method ?? 'GET'
   const headers: Record<string, string> = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
 
@@ -54,7 +54,7 @@ export async function api<T>(path: string, options: { method?: string; body?: Bo
     if (qs) url += `?${qs}`
   }
 
-  const response = await fetch(url, { method, headers, body, credentials: 'include' })
+  const response = await fetch(url, { method, headers, body, credentials: 'include', keepalive: options.keepalive })
 
   if (response.status === 419 && method !== 'GET' && !options.retried) {
     document.cookie = 'XSRF-TOKEN=; Max-Age=0; path=/'
