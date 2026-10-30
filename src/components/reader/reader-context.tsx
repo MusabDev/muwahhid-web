@@ -8,7 +8,7 @@ export interface ReaderContextValue {
   settings: ReaderSettings
   flashId: number | null
   onMarkClick: (annotation: Annotation, el: HTMLElement) => void
-  onSentenceClick: (target: TextTarget, el: HTMLElement, tapAt: number) => void
+  onSentenceClick: (target: TextTarget, el: HTMLElement) => void
   highlightsFor: (sentenceId: number, lang: Lang) => HighlightRange[]
   annotationById: (id: string) => Annotation | undefined
   footnotes: { ar: Footnote[]; bn: Footnote[] }

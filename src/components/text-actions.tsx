@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import { ShareDialog, type ShareQuote } from '@/components/share-dialog'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
 import { readSelection, type SelectionSegment, type TextTarget } from '@/lib/selection'
 import type { Annotation } from '@/lib/types'
@@ -106,13 +106,17 @@ export function useTextActions(options: Options) {
     }
   }, [menu])
 
+  /* event time stamps and performance.now() share a clock */
+  const justDismissed = () => performance.now() - dismissedAt.current < TAP_DISMISS_MS
+
   const openForMark = useCallback((annotation: Annotation, el: HTMLElement) => {
+    if (justDismissed()) return
     setMenu({ kind: 'mark', rect: el.getBoundingClientRect(), annotation })
   }, [])
 
   /** A tap on a sentence offers the toolbar for the whole sentence, as if it had been selected. */
-  const openForSentence = useCallback((target: TextTarget, el: HTMLElement, tapAt: number) => {
-    if (tapAt - dismissedAt.current < TAP_DISMISS_MS) return
+  const openForSentence = useCallback((target: TextTarget, el: HTMLElement) => {
+    if (justDismissed()) return
     const plain = optionsRef.current.plainFor(target) ?? ''
     const range = trimRange(plain, 0, plain.length)
     if (!range) return
@@ -184,14 +188,26 @@ export function useTextActions(options: Options) {
 
   const openNote = () => {
     if (!menu) return
-    if (menu.kind === 'mark') setNoteFor({ annotation: menu.annotation, quote: quoteByLang(parts), note: menu.annotation.note ?? '' })
-    else {
+    const container = options.containerRef.current ?? undefined
+    if (menu.kind === 'mark') {
+      const mark = container?.querySelector(`mark[data-id="${CSS.escape(String(menu.annotation.id))}"]`)
+      const anchor = mark ? { getBoundingClientRect: () => mark.getBoundingClientRect(), contextElement: mark } : fixedAnchor(menu.rect)
+      setNoteFor({ annotation: menu.annotation, quote: quoteByLang(parts), note: menu.annotation.note ?? '', anchor })
+    } else {
       const plan = planHighlight(menu.segments, options.annotations.list, options.plainFor)
       if (!plan.parts.length) {
         toast.info('কিতাবের লেখা থেকে অংশ নির্বাচন করুন')
         return
       }
-      setNoteFor({ plan, quote: quoteByLang(plan.parts), note: '' })
+      /* pin to the tapped sentence, or to a copy of the selected range since the selection itself is cleared */
+      const selection = window.getSelection()
+      const range = !menu.sentence && selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null
+      const anchor = menu.sentence
+        ? { getBoundingClientRect: () => menu.sentence!.getBoundingClientRect(), contextElement: menu.sentence }
+        : range
+          ? { getBoundingClientRect: () => range.getBoundingClientRect(), contextElement: container }
+          : fixedAnchor(menu.rect)
+      setNoteFor({ plan, quote: quoteByLang(plan.parts), note: '', anchor, sentence: menu.sentence })
     }
     close()
   }
@@ -261,9 +277,12 @@ export function useTextActions(options: Options) {
 
   const dialogs = (
     <>
-      <NoteDialog
+      <NotePopover
         state={noteFor}
         onClose={() => setNoteFor(null)}
+        onDismiss={(at) => {
+          dismissedAt.current = at
+        }}
         onSave={async (note) => {
           if (noteFor?.annotation) await options.annotations.update(noteFor.annotation.id, { note })
           else if (noteFor?.plan) await saveHighlight(noteFor.plan, noteFor.plan.color ?? 'yellow', note)
@@ -292,41 +311,127 @@ function ToolButton({ label, icon: Icon, onClick, className }: { label: string; 
   )
 }
 
-type NoteState = { annotation?: Annotation; plan?: HighlightPlan; quote: ReturnType<typeof quoteByLang>; note: string }
+type NoteState = {
+  annotation?: Annotation
+  plan?: HighlightPlan
+  quote: ReturnType<typeof quoteByLang>
+  note: string
+  anchor: NoteAnchor
+  sentence?: HTMLElement
+}
 
-function NoteDialog({ state, onClose, onSave }: { state: NoteState | null; onClose: () => void; onSave: (note: string | null) => Promise<void> }) {
+/** Something the note popover can be pinned to: the tapped sentence, the clicked mark or the selected range. */
+type NoteAnchor = { getBoundingClientRect(): DOMRect; contextElement?: Element }
+
+function NotePopover({
+  state,
+  onClose,
+  onDismiss,
+  onSave,
+}: {
+  state: NoteState | null
+  onClose: () => void
+  /** A tap outside closed it, at this time. */
+  onDismiss: (at: number) => void
+  onSave: (note: string | null) => Promise<void>
+}) {
   const [note, setNote] = useState('')
+  const [saving, setSaving] = useState(false)
+  const anchorRef = useRef<NoteAnchor>({ getBoundingClientRect: () => new DOMRect() })
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  /* set while rendering, so the popover measures the right place as it opens */
+  if (state) anchorRef.current = state.anchor
 
   useEffect(() => {
     setNote(state?.note ?? '')
+    if (state) requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }))
   }, [state])
 
+  /* the tapped sentence stays tinted while its note is being written */
+  useEffect(() => {
+    const el = state?.sentence
+    if (!el) return
+    el.dataset.active = 'true'
+    return () => {
+      delete el.dataset.active
+    }
+  }, [state])
+
+  const dirty = note !== (state?.note ?? '')
+  const save = async () => {
+    setSaving(true)
+    try {
+      await onSave(note.trim() || null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <Dialog open={!!state} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>নোট</DialogTitle>
-        </DialogHeader>
-        <blockquote className="space-y-2 rounded-lg border-s-4 border-gold bg-muted/60 px-4 py-3">
-          {state?.quote.map((passage, i) => (
-            <p key={i} lang={passage.lang} dir={passage.lang === 'ar' ? 'rtl' : 'ltr'} className={passage.lang === 'ar' ? 'font-arabic text-lg' : 'text-sm'}>
-              {passage.text}
-            </p>
-          ))}
-        </blockquote>
-        <Textarea autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="আপনার চিন্তা বা ফায়দা লিখুন…" className="min-h-32" />
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            বাতিল
-          </Button>
-          <Button onClick={() => onSave(note.trim() || null)}>সংরক্ষণ</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <Popover open={!!state} onOpenChange={(open) => !open && onClose()}>
+      <PopoverAnchor virtualRef={anchorRef} />
+      <PopoverContent
+        side="bottom"
+        sideOffset={10}
+        collisionPadding={16}
+        className="w-[min(24rem,calc(100vw-2rem))] gap-0 rounded-xl border border-gold/30 p-0 shadow-2xl ring-0"
+        onOpenAutoFocus={(e) => {
+          /* focus is handled below, also for a note that was already showing */
+          e.preventDefault()
+        }}
+        /* a tap outside closes it, unless that would throw away what was typed */
+        onInteractOutside={(e) => {
+          if (dirty) e.preventDefault()
+          else onDismiss(e.detail.originalEvent.timeStamp)
+        }}
+      >
+        <div className="flex items-center gap-2 border-b px-3.5 py-2.5">
+          <StickyNote className="size-4 text-gold" />
+          <span className="flex-1 text-sm font-medium">{state?.note ? 'নোট সম্পাদনা' : 'নোট যোগ করুন'}</span>
+        </div>
+        {state && (
+          <div className="mx-3.5 mt-3 line-clamp-2 border-s-[3px] border-gold/70 ps-2.5 text-[13px] leading-relaxed text-muted-foreground">
+            {state.quote.map((passage, i) => (
+              <span key={i} lang={passage.lang} dir={passage.lang === 'ar' ? 'rtl' : 'ltr'} className={cn(passage.lang === 'ar' && 'font-arabic text-[15px]')}>
+                {i > 0 && ' '}
+                {passage.text}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="p-3.5 pt-3">
+          <Textarea
+            ref={textareaRef}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault()
+                void save()
+              }
+            }}
+            placeholder="আপনার চিন্তা বা ফায়দা লিখুন…"
+            className="max-h-[40svh] min-h-28 resize-none text-[15px] leading-relaxed"
+          />
+          <div className="mt-2.5 flex items-center justify-end gap-2">
+            <span className="me-auto hidden text-[11px] text-muted-foreground [@media(hover:hover)]:inline">⌘/Ctrl + Enter</span>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              বাতিল
+            </Button>
+            <Button size="sm" disabled={saving} onClick={save}>
+              সংরক্ষণ
+            </Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
 const newGroupId = () => crypto.randomUUID()
+
+const fixedAnchor = (rect: DOMRect): NoteAnchor => ({ getBoundingClientRect: () => rect })
 
 interface HighlightPlan {
   /** The new highlight, one part per selected sentence; colour, note and group are filled in on save. */

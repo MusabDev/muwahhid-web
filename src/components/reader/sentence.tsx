@@ -26,7 +26,7 @@ export const Sentence = memo(function Sentence({ sentence, lang }: { sentence: S
         if (annotation) return onMarkClick(annotation, mark)
         /* footnote markers and links keep their own behaviour */
         if (target.closest('a, button')) return
-        onSentenceClick({ type: 'book_sentence', id: sentence.id, lang }, e.currentTarget, e.timeStamp)
+        onSentenceClick({ type: 'book_sentence', id: sentence.id, lang }, e.currentTarget)
       }}
     >
       <Markdown
