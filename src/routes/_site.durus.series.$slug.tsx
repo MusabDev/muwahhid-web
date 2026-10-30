@@ -2,17 +2,22 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { BookOpen, ChevronRight, Headphones, PlayCircle, Video } from 'lucide-react'
 import { AuthorAvatar } from '@/components/author-avatar'
+import { ProgressBar } from '@/components/book-card'
 import { BookCover } from '@/components/book-cover'
 import { SectionHeading } from '@/components/brand'
 import { CategoryBadge } from '@/components/category-filter'
 import { HeroStats, type HeroStat } from '@/components/hero-stats'
-import { EpisodeList } from '@/components/episode-list'
+import { EpisodeList, episodeNumber } from '@/components/episode-list'
 import { Markdown } from '@/components/markdown'
+import { ShareButton } from '@/components/share-button'
+import { DarsSeriesStatusMenu } from '@/components/status-menu'
 import { CenterSpinner, EmptyState } from '@/components/states'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { seriesQuery } from '@/lib/queries'
 import { bnNum, formatTime } from '@/lib/text'
 import type { DarsSeries } from '@/lib/types'
+import { useDarsSeriesProgress } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 import { pageTitle } from '@/lib/head'
 import { PatternBackdrop } from '@/components/pattern'
@@ -27,6 +32,7 @@ export const Route = createFileRoute('/_site/durus/series/$slug')({
 function SeriesPage() {
   const { slug } = Route.useParams()
   const { data: series } = useQuery(seriesQuery(slug))
+  const { progress, completed, resume } = useDarsSeriesProgress(series)
   if (!series) return <CenterSpinner />
 
   const durus = series.durus ?? []
@@ -89,22 +95,41 @@ function SeriesPage() {
 
               <Stats series={series} />
 
-              <div className="mt-7 flex flex-wrap justify-center gap-3 md:justify-start">
-                {durus[0] && (
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+                {(resume ?? durus[0]) && (
                   <Button size="lg" className="h-11 px-6 text-base shadow-sm" asChild>
-                    <Link to="/durus/$id" params={{ id: String(durus[0].id) }}>
-                      <PlayCircle /> প্রথম দারস শুরু করুন
+                    <Link to="/durus/$id" params={{ id: String((resume ?? durus[0]).id) }}>
+                      <PlayCircle /> {resume ? `শোনা চালিয়ে যান · দারস ${episodeNumber(resume.number)}` : 'প্রথম দারস শুরু করুন'}
                     </Link>
                   </Button>
                 )}
+                {!!durus.length && <DarsSeriesStatusMenu series={series} />}
                 {series.book && (
-                  <Button size="lg" variant="outline" className="h-11 px-5" asChild>
-                    <Link to="/books/$slug" params={{ slug: series.book.slug }}>
-                      <BookOpen /> কিতাবটি পড়ুন
-                    </Link>
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="icon-lg" aria-label="কিতাবটি পড়ুন" asChild>
+                        <Link to="/books/$slug" params={{ slug: series.book.slug }}>
+                          <BookOpen />
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>কিতাবটি পড়ুন</TooltipContent>
+                  </Tooltip>
                 )}
+                <ShareButton title={series.title_bn} text={series.title_ar} />
               </div>
+
+              {progress > 0 && (
+                <div className="mt-6 w-full max-w-sm">
+                  <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
+                    <span>
+                      আপনার অগ্রগতি · {bnNum(completed)}/{bnNum(durus.length)} দারস শেষ
+                    </span>
+                    <span className="font-medium text-foreground tabular-nums">{bnNum(Math.round(progress))}%</span>
+                  </div>
+                  <ProgressBar value={progress} />
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowRight, BookOpen, ChevronRight, ScrollText, Share2 } from 'lucide-react'
+import { ArrowRight, BookOpen, ChevronRight, ScrollText } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
-import { toast } from 'sonner'
 import { AuthorAvatar } from '@/components/author-avatar'
 import { CategoryBadge } from '@/components/category-filter'
 import { HeroStats, type HeroStat } from '@/components/hero-stats'
@@ -13,11 +12,11 @@ import { SectionHeading } from '@/components/brand'
 import { Markdown } from '@/components/markdown'
 import { PdfDownload } from '@/components/pdf-download'
 import { SeriesCard } from '@/components/series-card'
+import { ShareButton } from '@/components/share-button'
 import { CenterSpinner } from '@/components/states'
 import { StatusMenu } from '@/components/status-menu'
 import { TocSection } from '@/components/toc-list'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { isSharh } from '@/lib/book'
 import { authorQuery, bookQuery } from '@/lib/queries'
 import { bnNum } from '@/lib/text'
@@ -106,7 +105,7 @@ function BookPage() {
                 ) : null}
                 <StatusMenu book={book} />
                 {!!book.pages_count && <PdfDownload book={book} />}
-                <ShareButton book={book} />
+                <ShareButton title={book.title_bn} text={book.title_ar} />
               </div>
 
               {entry && entry.progress > 0 && (
@@ -212,37 +211,6 @@ function Stats({ book }: { book: Book }) {
   if (book.dars_series?.length) items.push({ value: bnNum(book.dars_series.length), label: 'দারস সিরিজ' })
   items.push({ value: 'আরবি · বাংলা', label: 'ভাষা' })
   return <HeroStats items={items} />
-}
-
-function ShareButton({ book }: { book: Book }) {
-  const share = async () => {
-    const url = window.location.href
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: book.title_bn, text: book.title_ar, url })
-      } catch {
-        // dismissed by the user
-      }
-      return
-    }
-    try {
-      await navigator.clipboard.writeText(url)
-      toast.success('লিংক কপি করা হয়েছে')
-    } catch {
-      toast.error('লিংক কপি করা যায়নি')
-    }
-  }
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="outline" size="icon-lg" onClick={share} aria-label="শেয়ার করুন">
-          <Share2 />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>শেয়ার করুন</TooltipContent>
-    </Tooltip>
-  )
 }
 
 function DetailsCard({ book }: { book: Book }) {

@@ -4,7 +4,7 @@ import { api } from './api'
 import { useUser } from './auth'
 import { GUEST_KEYS, guestId, type GuestDurus, type GuestLibrary } from './guest'
 import { useLocal } from './storage'
-import type { Annotation, AnnotationTarget, Book, Bookmark, BookStatus, Dars, DarsEntry, Lang, LibraryEntry } from './types'
+import type { Annotation, AnnotationTarget, Book, Bookmark, BookStatus, Dars, DarsEntry, DarsSeries, Lang, LibraryEntry } from './types'
 
 /* ------------------------------------------------------------------ Library */
 
@@ -209,6 +209,93 @@ export function useDarsEntry(dars: Dars | undefined) {
   )
 
   return { entry, isLoading: !!user && query.isLoading, setStatus, saveProgress }
+}
+
+/**
+ * How far the user is through a series: the share listened (each dars weighed by
+ * its length when known), how many durus are finished, and the dars to resume.
+ */
+export function useDarsSeriesProgress(series: DarsSeries | undefined) {
+  const { entries } = useDarsLibrary()
+
+  return useMemo(() => {
+    const durus = series?.durus ?? []
+    const byId = new Map(entries.map((e) => [e.dars_id, e]))
+    const done = (e: DarsEntry | undefined) => !!e && (e.status === 'completed' || e.progress >= DARS_COMPLETED_AT)
+
+    let listened = 0
+    let total = 0
+    for (const d of durus) {
+      const entry = byId.get(d.id)
+      const weight = d.duration_seconds || 1
+      listened += weight * (done(entry) ? 100 : (entry?.progress ?? 0))
+      total += weight
+    }
+
+    const started = durus.filter((d) => byId.get(d.id)?.position_seconds)
+    const latest = started.sort((a, b) => (byId.get(b.id)?.last_played_at ?? '').localeCompare(byId.get(a.id)?.last_played_at ?? ''))[0]
+    /* the last played dars, or the one after it once that is finished */
+    const resume = latest && done(byId.get(latest.id)) ? durus.find((d) => d.number > latest.number && !done(byId.get(d.id))) : latest
+
+    return {
+      progress: total ? listened / total : 0,
+      completed: durus.filter((d) => done(byId.get(d.id))).length,
+      resume,
+    }
+  }, [series, entries])
+}
+
+/** The library status of a whole series: one shared by every dars in it, or null. */
+export function useDarsSeriesStatus(series: DarsSeries | undefined) {
+  const { data: user } = useUser()
+  const queryClient = useQueryClient()
+  const { entries } = useDarsLibrary()
+  const [, setGuest] = useLocal<GuestDurus>(GUEST_KEYS.durus, {})
+  const durus = useMemo(() => series?.durus ?? [], [series])
+
+  const byId = new Map(entries.map((e) => [e.dars_id, e]))
+  const statuses = durus.map((d) => byId.get(d.id)?.status ?? null)
+  const status = statuses.length && statuses.every((s) => s === statuses[0]) ? statuses[0] : null
+  const saved = statuses.some((s) => s !== null)
+
+  const statusMutation = useMutation({
+    mutationFn: (status: BookStatus | null) => api<DarsEntry[]>(`/me/dars-series/${series?.id}/status`, { method: 'PUT', body: { status } }),
+    onSuccess: (data) => {
+      for (const entry of data) queryClient.setQueryData(['me', 'durus', entry.dars_id], entry)
+      queryClient.invalidateQueries({ queryKey: ['me', 'durus'], exact: true })
+    },
+  })
+
+  const setStatus = (status: BookStatus | null) => {
+    if (!series) return
+    if (user) return statusMutation.mutate(status)
+    /* stored like useDarsEntry's guest entries, so the library can show them without the API */
+    const slimSeries = { ...series, durus: undefined, book: undefined, about_md: null }
+    setGuest((prev) => {
+      const next = { ...prev }
+      for (const d of durus) {
+        const current: DarsEntry = prev[d.id] ?? { dars_id: d.id, status: null, position_seconds: 0, progress: 0, last_played_at: null }
+        next[d.id] = {
+          ...current,
+          status,
+          dars: {
+            id: d.id,
+            series_id: d.series_id,
+            number: d.number,
+            title_ar: d.title_ar,
+            title_bn: d.title_bn,
+            media_type: d.media_type,
+            media_url: d.media_url,
+            duration_seconds: d.duration_seconds,
+            series: slimSeries,
+          },
+        }
+      }
+      return next
+    })
+  }
+
+  return { status, saved, setStatus, isPending: statusMutation.isPending }
 }
 
 /* -------------------------------------------------------------- Annotations */

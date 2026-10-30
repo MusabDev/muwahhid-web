@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { AudioLines, CheckCircle2, Clock, Play, Search, X } from 'lucide-react'
+import { AudioLines, CheckCircle2, Clock, Headphones, Play, ScrollText, Search, Video, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ProgressBar } from '@/components/book-card'
 import { EmptyState } from '@/components/states'
@@ -23,8 +23,8 @@ export function episodeNumber(n: number) {
 }
 
 /**
- * The episodes of a series as an editorial list: large serif number, title, a quiet meta line
- * and a play mark. `currentId` marks the dars being played; `compact` is the sidebar variant.
+ * The episodes of a series as boxed rows. `currentId` marks the dars being played;
+ * `compact` is the player sidebar's plainer row list.
  */
 export function EpisodeList({ durus, currentId, compact, searchable }: { durus: Dars[]; currentId?: number; compact?: boolean; searchable?: boolean }) {
   const [query, setQuery] = useState('')
@@ -40,7 +40,7 @@ export function EpisodeList({ durus, currentId, compact, searchable }: { durus: 
   return (
     <div>
       {searchable && (
-        <div className="relative mb-2">
+        <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="search"
@@ -64,15 +64,19 @@ export function EpisodeList({ durus, currentId, compact, searchable }: { durus: 
       )}
 
       {shown.length ? (
-        <ol className={cn('divide-y divide-border/80', !compact && 'border-y border-border/80')}>
+        <ol className={compact ? 'divide-y divide-border/80' : 'mt-3 grid gap-3 md:grid-cols-2'}>
           {shown.map((dars) => (
             <li key={dars.id}>
-              <EpisodeRow dars={dars} entry={listened.get(dars.id)} current={dars.id === currentId} compact={compact} />
+              {compact ? (
+                <EpisodeRow dars={dars} entry={listened.get(dars.id)} current={dars.id === currentId} />
+              ) : (
+                <EpisodeCard dars={dars} entry={listened.get(dars.id)} />
+              )}
             </li>
           ))}
         </ol>
       ) : (
-        <div className="border-y py-6">
+        <div className={cn('py-6', compact && 'border-y')}>
           <EmptyState title="কোনো দারস মেলেনি" />
         </div>
       )}
@@ -80,26 +84,101 @@ export function EpisodeList({ durus, currentId, compact, searchable }: { durus: 
   )
 }
 
-function EpisodeRow({ dars, entry, current, compact }: { dars: Dars; entry?: DarsEntry; current?: boolean; compact?: boolean }) {
+function listenState(entry?: DarsEntry) {
   const finished = entry?.status === 'completed' || (entry?.progress ?? 0) >= DARS_COMPLETED_AT
-  const started = !finished && !!entry?.position_seconds
+  return { finished, started: !finished && !!entry?.position_seconds }
+}
+
+/** A dars as a boxed row: framed number, titles, a quiet meta line and a play mark. */
+function EpisodeCard({ dars, entry }: { dars: Dars; entry?: DarsEntry }) {
+  const { finished, started } = listenState(entry)
+  return (
+    <Link
+      to="/durus/$id"
+      params={{ id: String(dars.id) }}
+      className={cn(
+        'group relative flex h-full items-center gap-4 overflow-hidden rounded-xl border bg-card p-4 shadow-xs transition duration-200 hover:-translate-y-px hover:border-gold/60 hover:shadow-[0_10px_24px_-14px_oklch(0.3_0.05_50/0.45)]',
+        started && 'border-gold/45',
+      )}
+    >
+      <span
+        className={cn(
+          'flex size-12 shrink-0 items-center justify-center rounded-lg border font-heading text-xl leading-none tabular-nums transition-colors',
+          finished
+            ? 'border-emerald-600/30 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'
+            : 'border-gold/40 bg-gold/10 text-primary group-hover:border-gold group-hover:bg-gold/20 dark:text-gold',
+        )}
+      >
+        {episodeNumber(dars.number)}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="line-clamp-2 leading-snug font-semibold text-balance transition-colors group-hover:text-primary">{dars.title_bn}</p>
+        {dars.title_ar && (
+          <p lang="ar" dir="rtl" className="line-clamp-1 text-left font-arabic text-sm text-muted-foreground">
+            {dars.title_ar}
+          </p>
+        )}
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            {dars.media_type === 'video' ? <Video className="size-3.5 text-gold" /> : <Headphones className="size-3.5 text-gold" />}
+            {dars.media_type === 'video' ? 'ভিডিও' : 'অডিও'}
+          </span>
+          {!!dars.duration_seconds && (
+            <span className="flex items-center gap-1">
+              <Clock className="size-3.5 text-gold" /> <span className="tabular-nums">{bnNum(formatTime(dars.duration_seconds))}</span>
+            </span>
+          )}
+          {finished ? (
+            <span className="flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="size-3.5" /> শোনা শেষ
+            </span>
+          ) : started ? (
+            <span className="font-semibold text-primary tabular-nums dark:text-gold">{bnNum(formatTime(entry!.position_seconds))} পর্যন্ত শোনা</span>
+          ) : (
+            !!dars.segments_count && (
+              <span className="flex items-center gap-1">
+                <ScrollText className="size-3.5 text-gold" /> ট্রান্সক্রিপ্ট
+              </span>
+            )
+          )}
+        </p>
+      </div>
+
+      <span
+        className={cn(
+          'flex size-10 shrink-0 items-center justify-center rounded-full transition',
+          started ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground dark:bg-gold/15 dark:text-gold',
+        )}
+      >
+        <Play className="size-4 translate-x-px fill-current" />
+      </span>
+
+      {/* listening progress runs along the bottom edge */}
+      {started && (
+        <span aria-hidden className="absolute inset-x-0 bottom-0 h-[3px] bg-border/60">
+          <span className="block h-full bg-gold" style={{ width: `${entry!.progress}%` }} />
+        </span>
+      )}
+    </Link>
+  )
+}
+
+/** The player sidebar's row: number, title, a quiet meta line and a play mark. */
+function EpisodeRow({ dars, entry, current }: { dars: Dars; entry?: DarsEntry; current?: boolean }) {
+  const { finished, started } = listenState(entry)
   return (
     <Link
       to="/durus/$id"
       params={{ id: String(dars.id) }}
       aria-current={current ? 'page' : undefined}
-      className={cn(
-        'group relative flex items-center transition-colors',
-        compact ? 'gap-3 px-4 py-3 hover:bg-muted/50' : 'gap-4 py-5 sm:gap-8 sm:py-6',
-        current && compact && 'bg-gold/10 hover:bg-gold/15',
-      )}
+      className={cn('group relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50', current && 'bg-gold/10 hover:bg-gold/15')}
     >
-      {current && compact && <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-gold" />}
+      {current && <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-gold" />}
 
       <span
         className={cn(
-          'shrink-0 font-heading leading-none tabular-nums transition-colors',
-          compact ? 'w-7 text-lg' : 'w-10 text-[1.7rem] sm:w-16 sm:text-[2rem]',
+          'w-7 shrink-0 font-heading text-lg leading-none tabular-nums transition-colors',
           current ? 'text-primary' : 'text-muted-foreground/45 group-hover:text-primary',
         )}
       >
@@ -107,21 +186,10 @@ function EpisodeRow({ dars, entry, current, compact }: { dars: Dars; entry?: Dar
       </span>
 
       <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            'leading-snug font-semibold text-balance transition-colors',
-            compact ? 'line-clamp-2 text-sm' : 'text-[17px] sm:text-lg',
-            current ? 'text-primary' : 'group-hover:text-primary',
-          )}
-        >
+        <p className={cn('line-clamp-2 text-sm leading-snug font-semibold text-balance transition-colors', current ? 'text-primary' : 'group-hover:text-primary')}>
           {dars.title_bn}
         </p>
-        {!compact && dars.title_ar && (
-          <p lang="ar" dir="rtl" className="mt-0.5 line-clamp-1 text-left font-arabic text-[15px] text-muted-foreground">
-            {dars.title_ar}
-          </p>
-        )}
-        <p className={cn('flex flex-wrap items-center gap-x-4 gap-y-0.5 text-muted-foreground', compact ? 'mt-0.5 text-xs' : 'mt-1.5 text-[13px]')}>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
           <span>{dars.media_type === 'video' ? 'ভিডিও' : 'অডিও'}</span>
           {!!dars.duration_seconds && (
             <span className="flex items-center gap-1">
@@ -134,25 +202,22 @@ function EpisodeRow({ dars, entry, current, compact }: { dars: Dars; entry?: Dar
             <span className="flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
               <CheckCircle2 className="size-3.5" /> শোনা শেষ
             </span>
-          ) : started ? (
-            <span className="tabular-nums">{bnNum(formatTime(entry!.position_seconds))} পর্যন্ত শোনা</span>
           ) : (
-            !compact && !!dars.segments_count && <span className="font-semibold text-primary">ট্রান্সক্রিপ্টসহ</span>
+            started && <span className="tabular-nums">{bnNum(formatTime(entry!.position_seconds))} পর্যন্ত শোনা</span>
           )}
         </p>
-        {started && !current && <ProgressBar value={entry!.progress} className={cn('h-1', compact ? 'mt-1.5' : 'mt-2.5 max-w-xs')} />}
+        {started && !current && <ProgressBar value={entry!.progress} className="mt-1.5 h-1" />}
       </div>
 
       <span
         className={cn(
-          'flex shrink-0 items-center justify-center rounded-full border-2 transition',
-          compact ? 'size-8 border-[1.5px]' : 'size-11',
+          'flex size-8 shrink-0 items-center justify-center rounded-full border-[1.5px] transition',
           current
             ? 'border-primary bg-primary text-primary-foreground'
             : 'border-muted-foreground/35 text-muted-foreground/70 group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground',
         )}
       >
-        {current ? <AudioLines className={compact ? 'size-3.5' : 'size-4'} /> : <Play className={cn('translate-x-px fill-current', compact ? 'size-3' : 'size-4')} />}
+        {current ? <AudioLines className="size-3.5" /> : <Play className="size-3 translate-x-px fill-current" />}
       </span>
     </Link>
   )
