@@ -506,6 +506,42 @@ export type ReaderTheme = 'paper' | 'sepia' | 'dark' | 'night'
 export type ReaderMode = 'book' | 'sentence'
 export type ReaderLeading = 'compact' | 'normal' | 'relaxed'
 
+/** How the synced subtitles over the dars player look. */
+export interface SubtitleStyle {
+  fontAr: string
+  fontBn: string
+  /** Percent of each script's base size, which itself follows the player width. */
+  sizeAr: number
+  sizeBn: number
+  colorAr: string
+  colorBn: string
+  bold: boolean
+  /** Which language's line comes first. */
+  order: 'ar' | 'bn'
+  stroke: boolean
+  /** Outline thickness in px. */
+  strokeWidth: number
+  strokeColor: string
+  shadow: boolean
+  /** One box around the cue, a strip behind each line of text, or none. */
+  shape: 'box' | 'lines' | 'none'
+  backgroundColor: string
+  /** 0–100 */
+  backgroundOpacity: number
+  /** Blur behind the background, in px. */
+  backgroundBlur: number
+  /** Distance from the bottom of the video, in percent of its height. */
+  position: number
+  align: 'center' | 'left' | 'right'
+  /** Percent of the normal line height. */
+  lineHeight: number
+  /** Widest the cue may get, in percent of the player width. */
+  width: number
+  /** Show the upcoming line, dimmed, under the current one. */
+  nextLine: boolean
+  fade: boolean
+}
+
 export interface ReaderSettings {
   mode: ReaderMode
   theme: ReaderTheme
@@ -516,7 +552,11 @@ export interface ReaderSettings {
   showArabic: boolean
   showBangla: boolean
   diacritics: boolean
-  subtitles: 'ar' | 'bn' | 'both'
+  subtitles: 'ar' | 'bn' | 'both' | 'off'
+  subtitle: SubtitleStyle
+  /** Dars page: wide player with the transcript hidden. */
+  theater: boolean
+  playbackRate: number
 }
 
 export const DEFAULT_SETTINGS: ReaderSettings = {
@@ -530,13 +570,44 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   showBangla: true,
   diacritics: true,
   subtitles: 'both',
+  subtitle: {
+    fontAr: 'amiri',
+    fontBn: 'noto-serif-bengali',
+    sizeAr: 100,
+    sizeBn: 100,
+    colorAr: '#f2dca6',
+    colorBn: '#ffffff',
+    bold: false,
+    order: 'ar',
+    stroke: false,
+    strokeWidth: 2,
+    strokeColor: '#000000',
+    shadow: true,
+    shape: 'box',
+    backgroundColor: '#000000',
+    backgroundOpacity: 55,
+    backgroundBlur: 4,
+    position: 10,
+    align: 'center',
+    lineHeight: 100,
+    width: 90,
+    nextLine: false,
+    fade: true,
+  },
+
+  theater: false,
+  playbackRate: 1,
 }
+
+/** Settings the dars page owns; the book reader leaves them alone when it resets. */
+export const DARS_SETTING_KEYS = ['subtitles', 'subtitle', 'theater', 'playbackRate'] as const satisfies readonly (keyof ReaderSettings)[]
 
 /** Settings live in localStorage for everyone and are mirrored to the account when signed in. */
 export function useReaderSettings() {
   const { data: user } = useUser()
   const [stored, setStored] = useLocal<Partial<ReaderSettings>>(GUEST_KEYS.settings, {})
-  const settings = useMemo(() => ({ ...DEFAULT_SETTINGS, ...stored }), [stored])
+  // subtitle style is nested, so options added later still get their defaults
+  const settings = useMemo(() => ({ ...DEFAULT_SETTINGS, ...stored, subtitle: { ...DEFAULT_SETTINGS.subtitle, ...stored.subtitle } }), [stored])
   const timer = useRef<number | undefined>(undefined)
   const pulled = useRef<number | null>(null)
   const pending = useRef<Partial<ReaderSettings>>({})

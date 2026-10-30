@@ -8,7 +8,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Button } from '@/components/ui/button'
 import { ARABIC_FONTS, BANGLA_FONTS } from '@/lib/fonts'
 import { bnNum } from '@/lib/text'
-import { DEFAULT_SETTINGS, type ReaderLeading, type ReaderSettings, type ReaderTheme } from '@/lib/user-data'
+import { DARS_SETTING_KEYS, DEFAULT_SETTINGS, type ReaderLeading, type ReaderSettings, type ReaderTheme } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
 export const FONT_SIZE = { min: 14, max: 32 }
@@ -44,7 +44,8 @@ export const SHORTCUTS: { keys: string[]; label: string }[] = [
 
 /** `allowBoth` is off on phones, where there is room for only one language. */
 export function SettingsPanel({ settings, update, allowBoth = true }: { settings: ReaderSettings; update: (patch: Partial<ReaderSettings>) => void; allowBoth?: boolean }) {
-  const isDefault = (Object.keys(DEFAULT_SETTINGS) as (keyof ReaderSettings)[]).every((k) => settings[k] === DEFAULT_SETTINGS[k])
+  const keys = (Object.keys(DEFAULT_SETTINGS) as (keyof ReaderSettings)[]).filter((k) => !(DARS_SETTING_KEYS as readonly string[]).includes(k))
+  const isDefault = keys.every((k) => settings[k] === DEFAULT_SETTINGS[k])
 
   return (
     <div className="space-y-5">
@@ -185,14 +186,14 @@ export function SettingsPanel({ settings, update, allowBoth = true }: { settings
         </dl>
       </details>
 
-      <Button variant="ghost" size="sm" className="w-full text-muted-foreground" disabled={isDefault} onClick={() => update(DEFAULT_SETTINGS)}>
+      <Button variant="ghost" size="sm" className="w-full text-muted-foreground" disabled={isDefault} onClick={() => update(Object.fromEntries(keys.map((k) => [k, DEFAULT_SETTINGS[k]])))}>
         <RotateCcw /> আগের অবস্থায় ফিরিয়ে নিন
       </Button>
     </div>
   )
 }
 
-function Section({ label, value, children }: { label: string; value?: ReactNode; children: ReactNode }) {
+export function Section({ label, value, children }: { label: string; value?: ReactNode; children: ReactNode }) {
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between">
