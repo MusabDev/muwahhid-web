@@ -20,7 +20,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { loadFont, readerFontVars } from '@/lib/fonts'
 import { bookQuery, orNotFound, pageQuery } from '@/lib/queries'
-import { bookId, breadcrumbLd, ogImage, seo } from '@/lib/seo'
+import { bookId, breadcrumbLd, seo } from '@/lib/seo'
 import { absoluteUrl } from '@/lib/site'
 import type { TextTarget } from '@/lib/selection'
 import { arNum, bnNum } from '@/lib/text'
@@ -49,8 +49,6 @@ export const Route = createFileRoute('/books/$slug/read/$page')({
       description: text || `${book.title_bn} (${book.title_ar}), ${pageLabel}: আরবি মূলপাঠ ও বাংলা অনুবাদ।`,
       path,
       type: 'article',
-      image: ogImage('book', book.slug),
-      imageAlt: `${book.title_bn} — ${book.title_ar}`,
       prev: page.prev_page ? `/books/${book.slug}/read/${page.prev_page}` : null,
       next: page.next_page ? `/books/${book.slug}/read/${page.next_page}` : null,
       jsonLd: [

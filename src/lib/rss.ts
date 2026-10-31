@@ -1,5 +1,4 @@
 import { youtubeId } from '@/hooks/use-media-player'
-import { ogImage } from './seo'
 import type { FeedItem } from './seo-data'
 import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from './site'
 import { cdata, rfc822, xml } from './xml'
@@ -17,16 +16,14 @@ interface Channel {
 function itemImage(item: FeedItem) {
   if (item.image) return item.image
   const yt = item.media && youtubeId(item.media.media_url)
-  if (yt) return `https://i.ytimg.com/vi/${yt}/hqdefault.jpg`
-  const [type, key] = item.og_key.split('/') as ['book' | 'dars', string]
-  return ogImage(type, key)
+  return yt ? `https://i.ytimg.com/vi/${yt}/hqdefault.jpg` : null
 }
 
 function itemXml(item: FeedItem) {
   const url = absoluteUrl(item.path)
   const image = itemImage(item)
   const html = [
-    `<p><img src="${xml(image)}" alt="${xml(item.title)}" /></p>`,
+    image ? `<p><img src="${xml(image)}" alt="${xml(item.title)}" /></p>` : '',
     item.title_ar ? `<p lang="ar" dir="rtl"><strong>${xml(item.title_ar)}</strong></p>` : '',
     item.author ? `<p>${xml(item.author)}</p>` : '',
     item.summary ? `<p>${xml(item.summary)}</p>` : '',
@@ -44,7 +41,7 @@ function itemXml(item: FeedItem) {
     item.category ? `<category>${xml(item.category)}</category>` : '',
     `<description>${xml(item.summary ?? [item.title_ar, item.author].filter(Boolean).join(' — '))}</description>`,
     `<content:encoded>${cdata(html)}</content:encoded>`,
-    `<media:thumbnail url="${xml(image)}" />`,
+    image ? `<media:thumbnail url="${xml(image)}" />` : '',
     '</item>',
   ].join('')
 }

@@ -1,4 +1,5 @@
 import { createMiddleware, createStart } from '@tanstack/react-start'
+import { hasSessionCookie } from '@/lib/site'
 
 /** Pages rendered with the visitor's reader settings (theme, mode, fonts) from their cookie. */
 const PERSONAL_PAGES = /^\/(books\/[^/]+\/read\/|durus\/[^/]+\/\d+|settings|my-library|admin|login|register|forgot-password|reset-password|verify-email)/
@@ -25,8 +26,9 @@ const canonicalHost = createMiddleware({ type: 'request' }).server(async ({ requ
 })
 
 /**
- * Server-rendered HTML is the same for every visitor (it is fetched without their session), so public pages
- * can sit in a CDN for a few minutes. Pages drawn from the visitor's settings cookie, and account pages, can't.
+ * Server-rendered HTML for guests is the same for every visitor, so public pages can sit in a CDN for a few minutes.
+ * Pages drawn from the visitor's settings cookie, account pages, and anything rendered for a signed-in visitor
+ * (their session cookie is forwarded to the API during SSR) can't.
  */
 const cacheHeaders = createMiddleware({ type: 'request' }).server(async ({ request, next, pathname }) => {
   const result = await next()
@@ -36,7 +38,7 @@ const cacheHeaders = createMiddleware({ type: 'request' }).server(async ({ reque
 
   response.headers.set(
     'Cache-Control',
-    response.status !== 200 || PERSONAL_PAGES.test(pathname) ? 'private, no-cache' : 'public, max-age=0, s-maxage=300, stale-while-revalidate=3600',
+    response.status !== 200 || PERSONAL_PAGES.test(pathname) || hasSessionCookie(request.headers.get('cookie')) ? 'private, no-cache' : 'public, max-age=0, s-maxage=300, stale-while-revalidate=3600',
   )
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')

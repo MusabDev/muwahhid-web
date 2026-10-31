@@ -18,7 +18,7 @@ import { api } from '@/lib/api'
 import { darsLink } from '@/lib/links'
 import { podcastEpisodes, podcastPath } from '@/lib/podcast'
 import { orNotFound, seriesQuery } from '@/lib/queries'
-import { breadcrumbLd, isoDuration, ogImage, personLd, seo } from '@/lib/seo'
+import { breadcrumbLd, isoDuration, personLd, seo } from '@/lib/seo'
 import { absoluteUrl } from '@/lib/site'
 import { bnNum, formatTime, stripMarkdown } from '@/lib/text'
 import type { Dars, DarsSeries } from '@/lib/types'
@@ -43,8 +43,6 @@ export const Route = createFileRoute('/_site/durus/$slug/')({
       title: `${series.title_bn}${series.author ? ` — ${series.author.name_bn}` : ''} | দারস সিরিজ`,
       description: series.about_md ?? `${series.title_ar} (${series.title_bn}): ${bnNum(durus.length)}টি দারস, আরবি ও বাংলা সাবটাইটেল এবং পূর্ণ ট্রান্সক্রিপ্টসহ।`,
       path,
-      image: ogImage('series', series.slug),
-      imageAlt: `${series.title_bn} — ${series.title_ar}`,
       jsonLd: [
         {
           '@type': 'CreativeWorkSeries',

@@ -11,7 +11,7 @@ import { SeriesCard } from '@/components/series-card'
 import { CenterSpinner, EmptyState } from '@/components/states'
 import { deathLabel } from '@/lib/author'
 import { authorQuery, orNotFound } from '@/lib/queries'
-import { breadcrumbLd, ogImage, personLd, seo } from '@/lib/seo'
+import { breadcrumbLd, personLd, seo } from '@/lib/seo'
 import { absoluteUrl, SITE_NAME } from '@/lib/site'
 import { bnNum } from '@/lib/text'
 import type { Author } from '@/lib/types'
@@ -28,8 +28,6 @@ export const Route = createFileRoute('/_site/authors/$slug')({
       description: author.about_md ?? `${author.name_bn}-এর কিতাব ও দারস, আরবি মূলপাঠ ও বাংলা অনুবাদে।`,
       path,
       type: 'profile',
-      image: ogImage('author', author.slug),
-      imageAlt: author.name_bn,
       jsonLd: [
         {
           '@type': 'ProfilePage',
@@ -68,7 +66,7 @@ function AuthorPage() {
 
   return (
     <>
-      <section className="relative overflow-hidden border-b">
+      <section className="relative overflow-hidden">
         <PatternBackdrop opacity={0.2} />
         <div className="relative mx-auto flex max-w-4xl flex-col items-center px-4 pt-12 pb-10 text-center md:pt-16 md:pb-12">
           <Link to="/authors" className="flex items-center gap-1.5 text-sm font-medium text-gold transition-colors hover:text-primary">

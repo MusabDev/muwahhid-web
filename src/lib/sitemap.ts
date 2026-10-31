@@ -1,5 +1,4 @@
 import { youtubeId } from '@/hooks/use-media-player'
-import { ogImage } from './seo'
 import { latest, type SitemapData } from './seo-data'
 import { absoluteUrl } from './site'
 import { xml } from './xml'
@@ -71,24 +70,24 @@ export function bookUrls(data: SitemapData): Url[] {
   return data.books.map((b) => ({
     path: `/books/${b.slug}`,
     lastmod: latest(b.updated_at),
-    extra: [b.cover_url && image(b.cover_url, b.title_bn), image(ogImage('book', b.slug), `${b.title_bn} — ${b.title_ar}`)].filter(Boolean).join(''),
+    ...(b.cover_url ? { extra: image(b.cover_url, b.title_bn) } : {}),
   }))
 }
 
 export function authorUrls(data: SitemapData): Url[] {
-  return data.authors.map((a) => ({ path: `/authors/${a.slug}`, lastmod: latest(a.updated_at), extra: image(ogImage('author', a.slug), a.name_bn) }))
+  return data.authors.map((a) => ({ path: `/authors/${a.slug}`, lastmod: latest(a.updated_at) }))
 }
 
 export function durusUrls(data: SitemapData): Url[] {
   return data.series.flatMap((s) => [
-    { path: `/durus/${s.slug}`, lastmod: latest(s.updated_at, ...s.durus.map((d) => d.updated_at)), extra: image(ogImage('series', s.slug), s.title_bn) },
+    { path: `/durus/${s.slug}`, lastmod: latest(s.updated_at, ...s.durus.map((d) => d.updated_at)) },
     ...s.durus.map((d) => {
       const yt = youtubeId(d.media_url)
       const title = `${d.title_bn} — ${s.title_bn}`
       const video =
         d.media_type === 'video' && yt
           ? `<video:video><video:thumbnail_loc>${xml(`https://i.ytimg.com/vi/${yt}/hqdefault.jpg`)}</video:thumbnail_loc><video:title>${xml(title)}</video:title><video:description>${xml((s.about ?? `${s.title_bn}${s.author ? `, ${s.author}` : ''}: আরবি ও বাংলা সাবটাইটেলসহ দারস।`).slice(0, 2000))}</video:description><video:player_loc>${xml(`https://www.youtube.com/embed/${yt}`)}</video:player_loc>${d.duration_seconds ? `<video:duration>${Math.min(28800, Math.round(d.duration_seconds))}</video:duration>` : ''}${d.created_at ? `<video:publication_date>${d.created_at}</video:publication_date>` : ''}<video:family_friendly>yes</video:family_friendly></video:video>`
-          : image(ogImage('dars', `${s.slug}-${d.number}`), title)
+          : undefined
       return { path: `/durus/${s.slug}/${d.number}`, lastmod: latest(d.updated_at), extra: video }
     }),
   ])

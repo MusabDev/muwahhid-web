@@ -1,10 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { createIsomorphicFn } from '@tanstack/react-start'
+import { getRequestHeader } from '@tanstack/react-start/server'
 import { api, ApiError } from './api'
 import { syncGuestData } from './guest'
+import { hasSessionCookie } from './site'
 import type { AccountSession, User } from './types'
 
-export function useUser() {
-  return useQuery({
+export const userQuery = () =>
+  queryOptions({
     queryKey: ['user'],
     queryFn: async () => {
       try {
@@ -17,7 +20,22 @@ export function useUser() {
     staleTime: Infinity,
     retry: false,
   })
+
+export function useUser() {
+  return useQuery(userQuery())
 }
+
+/**
+ * Loads the signed-in user during SSR, so the page is rendered for them instead of switching from the guest view
+ * after hydration. Without a session cookie, or when the lookup fails, the browser checks as before.
+ */
+export const preloadUser = createIsomorphicFn()
+  .server(async (queryClient: QueryClient) => {
+    if (!hasSessionCookie(getRequestHeader('cookie'))) return
+    const user = await queryClient.fetchQuery(userQuery()).catch(() => null)
+    if (!user) queryClient.removeQueries({ queryKey: userQuery().queryKey, exact: true })
+  })
+  .client(async (_queryClient: QueryClient) => {})
 
 /** Only same-origin paths are allowed as post-login destinations (no `//host` or `https://` open redirects). */
 export function safeRedirect(path: string | undefined, fallback = '/my-library') {

@@ -3,8 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowDownAZ, BookOpen, Check, Clock, Headphones, Loader2, RotateCcw, Search, SlidersHorizontal, Tags, UserRound, X, type LucideIcon } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { AuthorAvatar } from '@/components/author-avatar'
-import { BookCard, ShelfPlank } from '@/components/book-card'
-import { chunk, useGridColumns } from '@/hooks/use-grid-columns'
+import { BookCard } from '@/components/book-card'
 import { Ornament } from '@/components/brand'
 import { PatternBackdrop } from '@/components/pattern'
 import { SeriesCard } from '@/components/series-card'
@@ -489,12 +488,10 @@ function LoadMore({ search, nextPage, loading, onClick }: { search: LibrarySearc
   )
 }
 
-/** Column count of the book grid at the current width, matching its sm/md/lg breakpoints. */
 /** Books stand in rows on wooden shelves, one plank per grid row. */
 function BookResults({ search }: { search: LibrarySearch }) {
   const query = useLibraryList<Book>('books', search)
   const books = query.items
-  const columns = useGridColumns()
 
   return (
     <>
@@ -502,16 +499,9 @@ function BookResults({ search }: { search: LibrarySearch }) {
       {query.isLoading ? (
         <BookGridSkeleton count={10} />
       ) : books.length ? (
-        <div className="space-y-12">
-          {chunk(books, columns).map((row) => (
-            <div key={row[0].id}>
-              <div className="grid grid-cols-2 gap-x-5 px-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7">
-                {row.map((book) => (
-                  <BookCard key={book.id} book={book} />
-                ))}
-              </div>
-              <ShelfPlank />
-            </div>
+        <div className="book-shelves">
+          {books.map((book) => (
+            <BookCard key={book.id} book={book} />
           ))}
         </div>
       ) : (

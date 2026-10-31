@@ -193,6 +193,66 @@
         linear-gradient(180deg, oklch(1 0 0 / 0.06), oklch(0 0 0 / 0.18));
 }
 
+/*
+ * Book grid on wooden shelves (2 / sm:3 / md:4 / lg:5 columns): the first book of each row carries
+ * one plank spanning the row, so rows follow the breakpoints in CSS and the server never needs the width.
+ */
+@utility book-shelves {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: --spacing(5);
+    row-gap: --spacing(12);
+    padding-inline: --spacing(2);
+    container-type: inline-size;
+
+    & > * {
+        position: relative;
+        padding-bottom: --spacing(6);
+    }
+    & > *::after {
+        @apply wood-panel;
+        content: none;
+        position: absolute;
+        bottom: 0;
+        inset-inline-start: calc(--spacing(-2));
+        width: calc(100cqw + --spacing(4));
+        height: --spacing(3);
+        border-radius: var(--radius-sm);
+        box-shadow: 0 6px 10px -4px oklch(0.2 0.03 50 / 0.6);
+    }
+    & > :nth-child(2n + 1)::after {
+        content: '';
+    }
+    @variant sm {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        & > :nth-child(n)::after {
+            content: none;
+        }
+        & > :nth-child(3n + 1)::after {
+            content: '';
+        }
+    }
+    @variant md {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        & > :nth-child(n)::after {
+            content: none;
+        }
+        & > :nth-child(4n + 1)::after {
+            content: '';
+        }
+    }
+    @variant lg {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        column-gap: --spacing(7);
+        & > :nth-child(n)::after {
+            content: none;
+        }
+        & > :nth-child(5n + 1)::after {
+            content: '';
+        }
+    }
+}
+
 /* Footer: deeper walnut that darkens toward the base */
 @utility footer-panel {
     background-color: var(--wood);

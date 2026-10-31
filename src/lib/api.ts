@@ -1,4 +1,6 @@
-import { apiBase } from './site'
+import { createIsomorphicFn } from '@tanstack/react-start'
+import { getRequestHeader } from '@tanstack/react-start/server'
+import { apiBase, SITE_URL } from './site'
 
 export class ApiError extends Error {
   status: number
@@ -17,6 +19,17 @@ function readCookie(name: string) {
   return match ? decodeURIComponent(match[1]) : null
 }
 
+/**
+ * During SSR the visitor's cookies are passed on, so the API sees their session; the Referer marks the call
+ * as coming from the site, which Sanctum needs before it reads the session cookie.
+ */
+const forwardedHeaders = createIsomorphicFn()
+  .server((): Record<string, string> => {
+    const cookie = getRequestHeader('cookie')
+    return cookie ? { Cookie: cookie, Referer: `${SITE_URL}/`, Origin: SITE_URL } : {}
+  })
+  .client((): Record<string, string> => ({}))
+
 let csrfPromise: Promise<void> | null = null
 
 async function ensureCsrf() {
@@ -32,7 +45,7 @@ type Body = Record<string, unknown> | unknown[] | FormData | undefined
 
 export async function api<T>(path: string, options: { method?: string; body?: Body; query?: Record<string, unknown>; retried?: boolean; keepalive?: boolean } = {}): Promise<T> {
   const method = options.method ?? 'GET'
-  const headers: Record<string, string> = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+  const headers: Record<string, string> = { ...forwardedHeaders(), Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
 
   if (method !== 'GET') {
     await ensureCsrf()

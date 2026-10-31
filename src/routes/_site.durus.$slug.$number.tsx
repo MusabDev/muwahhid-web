@@ -22,7 +22,7 @@ import { PortalContainer } from '@/lib/portal'
 import { useUser } from '@/lib/auth'
 import { darsPath } from '@/lib/links'
 import { darsByNumberQuery, orNotFound, seriesQuery } from '@/lib/queries'
-import { breadcrumbLd, isoDuration, ogImage, personLd, seo } from '@/lib/seo'
+import { breadcrumbLd, isoDuration, personLd, seo } from '@/lib/seo'
 import { absoluteUrl } from '@/lib/site'
 import type { TextTarget } from '@/lib/selection'
 import { arNum, bnNum, formatTime, parseTime, stripMarkdown, truncate } from '@/lib/text'
@@ -50,14 +50,11 @@ export const Route = createFileRoute('/_site/durus/$slug/$number')({
     const ytId = youtubeId(dars.media_url)
     const duration = dars.duration_seconds ?? Math.max(0, ...(dars.segments ?? []).map((s) => s.end_time ?? s.start_time))
     const description = transcript || series.about_md || `${series.title_bn} সিরিজের ${label}: আরবি ও বাংলা সাবটাইটেলসহ।`
-    const thumbnail = ytId ? `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg` : ogImage('dars', `${series.slug}-${dars.number}`)
     return seo({
       title: `${dars.title_bn} — ${series.title_bn}, ${label}${series.author ? ` | ${series.author.name_bn}` : ''}`,
       description,
       path,
       type: dars.media_type === 'video' ? 'video.other' : 'article',
-      image: ogImage('dars', `${series.slug}-${dars.number}`),
-      imageAlt: `${dars.title_bn} — ${series.title_bn}`,
       prev: dars.prev_number ? `/durus/${series.slug}/${dars.prev_number}` : null,
       next: dars.next_number ? `/durus/${series.slug}/${dars.next_number}` : null,
       jsonLd: [
@@ -69,7 +66,7 @@ export const Route = createFileRoute('/_site/durus/$slug/$number')({
           description: truncate(stripMarkdown(description), 500),
           url: absoluteUrl(path),
           inLanguage: 'ar',
-          thumbnailUrl: [thumbnail],
+          ...(ytId ? { thumbnailUrl: [`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`] } : {}),
           ...(ytId ? { embedUrl: `https://www.youtube.com/embed/${ytId}` } : { contentUrl: dars.media_url }),
           ...(isoDuration(duration) ? { duration: isoDuration(duration) } : {}),
           ...((dars.created_at ?? series.created_at) ? { uploadDate: dars.created_at ?? series.created_at } : {}),

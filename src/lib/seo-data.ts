@@ -29,7 +29,6 @@ export interface FeedItem {
   author: string | null
   category: string | null
   image: string | null
-  og_key: string
   media?: SitemapDars
   published_at: string | null
   updated_at: string | null

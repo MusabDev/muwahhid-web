@@ -23,7 +23,7 @@ import { bnNum } from '@/lib/text'
 import type { Author, Book } from '@/lib/types'
 import { useAnnotations, useBookmarks, useLibraryEntry } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
-import { bookLd, breadcrumbLd, ogImage, seo } from '@/lib/seo'
+import { bookLd, breadcrumbLd, seo } from '@/lib/seo'
 import { PatternBackdrop } from '@/components/pattern'
 import { SITE_URL } from '@/lib/site'
 
@@ -43,8 +43,6 @@ export const Route = createFileRoute('/_site/books/$slug/')({
       description: book.about_md ?? `${book.title_ar} (${book.title_bn})${byline ? `, ${byline}` : ''}। আরবি মূলপাঠ ও বাংলা অনুবাদ পাশাপাশি, বাক্য ধরে ধরে পড়ুন বা পিডিএফ নামান।`,
       path,
       type: 'book',
-      image: ogImage('book', book.slug),
-      imageAlt: `${book.title_bn} — ${book.title_ar}`,
       meta: [
         ...(book.author ? [{ property: 'book:author', content: `${SITE_URL}/authors/${book.author.slug}` }] : []),
         ...(book.updated_at ? [{ property: 'book:release_date', content: book.created_at ?? book.updated_at }] : []),

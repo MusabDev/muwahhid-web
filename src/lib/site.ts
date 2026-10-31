@@ -27,3 +27,8 @@ export const apiBase = createIsomorphicFn()
 /** Public API origin, for <link rel=preconnect> and API-hosted images (OG cards). */
 export const API_PUBLIC_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api').replace(/\/+$/, '')
 export const API_ORIGIN = new URL(API_PUBLIC_URL, SITE_URL).origin
+
+/** Whether a Cookie header carries Laravel's session cookie (`<app>-session`), i.e. the visitor may be signed in. */
+export function hasSessionCookie(cookie: string | null | undefined) {
+  return !!cookie && /(?:^|;\s*)[\w.-]+[-_]session=/.test(cookie)
+}

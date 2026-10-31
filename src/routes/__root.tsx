@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { DirectionProvider } from '@/components/ui/direction'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { preloadUser } from '@/lib/auth'
 import { seo } from '@/lib/seo'
 import { readSettingsCookie } from '@/lib/settings-cookie'
 import { API_ORIGIN, SITE_NAME, SITE_URL } from '@/lib/site'
@@ -23,6 +24,7 @@ interface RouterContext {
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   beforeLoad: () => ({ settingsCookie: readSettingsCookie() }),
+  loader: ({ context }) => preloadUser(context.queryClient),
   head: () => {
     const base = seo()
     return {

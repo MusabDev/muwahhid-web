@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowRight, BookMarked, BookOpen, CheckCircle2, CloudOff, Headphones, NotebookPen, Search, X } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
-import { BookCard, ProgressBar, ShelfPlank } from '@/components/book-card'
-import { chunk, useGridColumns } from '@/hooks/use-grid-columns'
+import { BookCard, ProgressBar } from '@/components/book-card'
 import { BookJournal } from '@/components/book-journal'
 import { ContinueListeningCard, DarsShelf, type DarsShelfEntry, inProgressDurus } from '@/components/dars-shelf'
 import { ContinueCard, inProgressEntries, ResumeLink, type ShelfEntry, StatusChip } from '@/components/continue-card'
@@ -48,7 +47,6 @@ function LibraryPage() {
   const { entries: darsEntries, isLoading: durusLoading } = useDarsLibrary()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<Sort>('recent')
-  const columns = useGridColumns()
 
   const shelf = useMemo(() => entries.filter((e): e is ShelfEntry => !!e.book && !!(e.status || e.last_page)), [entries])
   const count = (status: BookStatus) => shelf.filter((e) => e.status === status).length
@@ -251,16 +249,9 @@ function LibraryPage() {
         ) : isLoading ? (
           <BookGridSkeleton />
         ) : visible.length ? (
-          <div className="space-y-12">
-            {chunk(visible, columns).map((row) => (
-              <div key={row[0].book_id}>
-                <div className="grid grid-cols-2 gap-x-5 px-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7">
-                  {row.map((entry) => (
-                    <BookCard key={entry.book_id} book={entry.book} footer={<EntryFooter entry={entry} />} />
-                  ))}
-                </div>
-                <ShelfPlank />
-              </div>
+          <div className="book-shelves">
+            {visible.map((entry) => (
+              <BookCard key={entry.book_id} book={entry.book} footer={<EntryFooter entry={entry} />} />
             ))}
           </div>
         ) : query ? (
