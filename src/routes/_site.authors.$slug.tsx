@@ -10,15 +10,48 @@ import { PatternBackdrop } from '@/components/pattern'
 import { SeriesCard } from '@/components/series-card'
 import { CenterSpinner, EmptyState } from '@/components/states'
 import { deathLabel } from '@/lib/author'
-import { pageTitle } from '@/lib/head'
-import { authorQuery } from '@/lib/queries'
+import { authorQuery, orNotFound } from '@/lib/queries'
+import { breadcrumbLd, ogImage, personLd, seo } from '@/lib/seo'
+import { absoluteUrl, SITE_NAME } from '@/lib/site'
 import { bnNum } from '@/lib/text'
 import type { Author } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/_site/authors/$slug')({
-  loader: ({ context, params }) => context.queryClient.ensureQueryData(authorQuery(params.slug)),
-  head: ({ loaderData }) => pageTitle(loaderData?.name_bn, loaderData?.about_md),
+  loader: ({ context, params }) => orNotFound(context.queryClient.ensureQueryData(authorQuery(params.slug))),
+  head: ({ loaderData: author }) => {
+    if (!author) return {}
+    const path = `/authors/${author.slug}`
+    const works = [...(author.books ?? []), ...(author.explained_books ?? [])]
+    const head = seo({
+      title: `${author.name_bn} (${author.name_ar}) — জীবনী, কিতাব ও দারস`,
+      description: author.about_md ?? `${author.name_bn}-এর কিতাব ও দারস, আরবি মূলপাঠ ও বাংলা অনুবাদে।`,
+      path,
+      type: 'profile',
+      image: ogImage('author', author.slug),
+      imageAlt: author.name_bn,
+      jsonLd: [
+        {
+          '@type': 'ProfilePage',
+          '@id': absoluteUrl(path),
+          url: absoluteUrl(path),
+          name: author.name_bn,
+          inLanguage: 'bn',
+          mainEntity: {
+            ...personLd(author),
+            ...(works.length ? { workExample: works.map((b) => ({ '@type': 'Book', name: b.title_bn, alternateName: b.title_ar, url: absoluteUrl(`/books/${b.slug}`) })) } : {}),
+          },
+        },
+        breadcrumbLd([
+          ['মূল পাতা', '/'],
+          ['আহলুল ইলম', '/authors'],
+          [author.name_bn, path],
+        ]),
+      ],
+    })
+    // each scholar has a feed of their newly added books and durus
+    return { ...head, links: [...head.links, { rel: 'alternate', type: 'application/rss+xml', title: `${author.name_bn} — ${SITE_NAME}`, href: absoluteUrl(`${path}/rss.xml`) }] }
+  },
   pendingComponent: CenterSpinner,
   component: AuthorPage,
 })

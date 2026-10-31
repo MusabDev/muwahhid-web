@@ -6,6 +6,6 @@ export const Route = createFileRoute('/_site/durus/')({
     category: typeof search.category === 'string' && search.category ? search.category : undefined,
   }),
   beforeLoad: ({ search }) => {
-    throw redirect({ to: '/library', search: { type: 'durus', category: search.category }, replace: true })
+    throw redirect({ to: '/library', search: { type: 'durus', category: search.category }, replace: true, statusCode: 301 })
   },
 })

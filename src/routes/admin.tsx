@@ -7,10 +7,10 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { useUser } from '@/lib/auth'
-import { pageTitle } from '@/lib/head'
+import { seo } from '@/lib/seo'
 
 export const Route = createFileRoute('/admin')({
-  head: () => pageTitle('অ্যাডমিন'),
+  head: () => seo({ title: 'অ্যাডমিন', noindex: true }),
   component: AdminLayout,
 })
 

@@ -8,10 +8,10 @@ import { AuthField } from '@/components/auth-field'
 import { Button } from '@/components/ui/button'
 import { useAuthActions } from '@/lib/auth'
 import { authError, validEmail } from '@/lib/auth-form'
-import { pageTitle } from '@/lib/head'
+import { seo } from '@/lib/seo'
 
 export const Route = createFileRoute('/_site/forgot-password')({
-  head: () => pageTitle('পাসওয়ার্ড ভুলে গেছেন'),
+  head: () => seo({ title: 'পাসওয়ার্ড ভুলে গেছেন', noindex: true }),
   validateSearch: (search: Record<string, unknown>): { email?: string } => ({
     email: typeof search.email === 'string' ? search.email : undefined,
   }),

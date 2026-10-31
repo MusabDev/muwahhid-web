@@ -10,10 +10,10 @@ import { EmptyState, Spinner } from '@/components/states'
 import { Button } from '@/components/ui/button'
 import { searchQuery } from '@/lib/queries'
 import { bnNum, formatTime } from '@/lib/text'
-import { pageTitle } from '@/lib/head'
+import { seo } from '@/lib/seo'
 
 export const Route = createFileRoute('/_site/search')({
-  head: () => pageTitle('অনুসন্ধান'),
+  head: () => seo({ title: 'অনুসন্ধান', noindex: true }),
   validateSearch: (search: Record<string, unknown>): { q: string } => ({ q: typeof search.q === 'string' ? search.q : '' }),
   component: SearchPage,
 })
@@ -28,7 +28,10 @@ function SearchPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
+      <h1 className="sr-only">{q.trim() ? `“${q.trim()}” খুঁজে পাওয়া ফলাফল` : 'অনুসন্ধান'}</h1>
       <form
+        role="search"
+        action="/search"
         onSubmit={(e) => {
           e.preventDefault()
           navigate({ search: { q: input.trim() } })
@@ -38,6 +41,9 @@ function SearchPage() {
         <Search className="ms-3 size-5 text-muted-foreground" />
         <input
           autoFocus
+          name="q"
+          type="search"
+          aria-label="অনুসন্ধান"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="কিতাব, লেখক বা আরবি/বাংলা বাক্য লিখুন…"
@@ -136,8 +142,8 @@ function SearchPage() {
                     {data.segments.map((hit) => (
                       <Link
                         key={hit.segment_id}
-                        to="/durus/$id"
-                        params={{ id: String(hit.dars_id) }}
+                        to="/durus/$slug/$number"
+                        params={{ slug: hit.series_slug, number: String(hit.dars_number) }}
                         search={{ t: formatTime(hit.start_time) }}
                         className="flex gap-4 rounded-xl border bg-card p-4 hover:border-gold/60"
                       >

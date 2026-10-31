@@ -100,3 +100,25 @@ export function timeAgo(iso: string | null) {
   }
   return null
 }
+
+/** Plain text from inline/block markdown: drops footnote refs, link targets, emphasis marks and heading/list markers. */
+export function stripMarkdown(md: string | null | undefined) {
+  if (!md) return ''
+  return md
+    .replace(/\[\^[^\]]+\](:.*)?/g, '')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '')
+    .replace(/(\*\*|__|\*|_|~~|`)(.+?)\1/g, '$2')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Shorten to `max` characters at a word boundary, adding an ellipsis when cut. */
+export function truncate(text: string, max = 155) {
+  if (text.length <= max) return text
+  const cut = text.slice(0, max - 1)
+  const space = cut.lastIndexOf(' ')
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:।،-]+$/, '')}…`
+}

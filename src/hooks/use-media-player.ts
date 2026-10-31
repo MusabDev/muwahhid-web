@@ -59,7 +59,8 @@ function loadYouTubeApi() {
  * current time (polled ~4×/s on YouTube), duration, buffered end, play state, volume and speed.
  * YouTube's own controls, captions, cards and keyboard handling are switched off.
  */
-export function useMediaPlayer(url: string, startAt: number | null) {
+/** `enabled` holds back creating the player (and loading native media) until the start time is known. */
+export function useMediaPlayer(url: string, startAt: number | null, enabled = true) {
   const ytId = youtubeId(url)
   const ytHost = useRef<HTMLDivElement>(null)
   const mediaRef = useRef<HTMLVideoElement & HTMLAudioElement>(null)
@@ -80,7 +81,7 @@ export function useMediaPlayer(url: string, startAt: number | null) {
   const wantMuted = useRef(false)
 
   useEffect(() => {
-    if (!ytId || !ytHost.current) return
+    if (!enabled || !ytId || !ytHost.current) return
     let cancelled = false
     let poll: number | undefined
     const host = document.createElement('div')
@@ -158,7 +159,7 @@ export function useMediaPlayer(url: string, startAt: number | null) {
       setReady(false)
     }
     // startAt is only applied when the player is created
-  }, [ytId])
+  }, [ytId, enabled])
 
   /** Start YouTube with sound unless the listener muted it; called from a click or key, so the browser allows it. */
   const playYouTube = useCallback(() => {

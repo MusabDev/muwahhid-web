@@ -1,3 +1,5 @@
+import { apiBase } from './site'
+
 export class ApiError extends Error {
   status: number
   errors: Record<string, string[]>
@@ -10,6 +12,7 @@ export class ApiError extends Error {
 }
 
 function readCookie(name: string) {
+  if (typeof document === 'undefined') return null
   const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
   return match ? decodeURIComponent(match[1]) : null
 }
@@ -18,7 +21,8 @@ let csrfPromise: Promise<void> | null = null
 
 async function ensureCsrf() {
   if (readCookie('XSRF-TOKEN')) return
-  csrfPromise ??= fetch('/sanctum/csrf-cookie', { credentials: 'include' }).then(() => {
+  // Sanctum's cookie route sits beside /api on the API origin
+  csrfPromise ??= fetch(`${apiBase().replace(/\/api$/, '')}/sanctum/csrf-cookie`, { credentials: 'include' }).then(() => {
     csrfPromise = null
   })
   await csrfPromise
@@ -44,7 +48,7 @@ export async function api<T>(path: string, options: { method?: string; body?: Bo
     body = JSON.stringify(options.body)
   }
 
-  let url = `/api${path}`
+  let url = `${apiBase()}${path}`
   if (options.query) {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(options.query)) {

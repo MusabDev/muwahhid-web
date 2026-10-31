@@ -11,12 +11,12 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { firstError } from '@/lib/api'
 import { useAccountActions, useAccountSessions, useUser } from '@/lib/auth'
-import { pageTitle } from '@/lib/head'
+import { seo } from '@/lib/seo'
 import type { AccountSession, User } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/_site/settings')({
-  head: () => pageTitle('সেটিংস'),
+  head: () => seo({ title: 'সেটিংস', noindex: true }),
   component: SettingsPage,
 })
 

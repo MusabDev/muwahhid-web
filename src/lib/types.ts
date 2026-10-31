@@ -51,6 +51,8 @@ export interface Author {
   books?: Book[]
   explained_books?: Book[]
   dars_series?: DarsSeries[]
+  created_at?: string
+  updated_at?: string
 }
 
 export interface TocEntry {
@@ -136,6 +138,8 @@ export interface DarsSeries {
   author?: Author
   book?: Book | null
   durus?: Dars[]
+  created_at?: string
+  updated_at?: string
 }
 
 export interface Segment {
@@ -161,6 +165,10 @@ export interface Dars {
   segments?: Segment[]
   prev_id?: number | null
   next_id?: number | null
+  prev_number?: number | null
+  next_number?: number | null
+  created_at?: string
+  updated_at?: string
 }
 
 export interface LibraryEntry {

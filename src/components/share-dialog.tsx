@@ -45,8 +45,8 @@ const MIN_HEIGHT = 540
 const MAX_HEIGHT = 2600
 
 /* the site's eight-pointed star, as drawn by StarMark */
-const STAR_OUTER = new Path2D('M20 3 25 15 37 20 25 25 20 37 15 25 3 20 15 15Z')
-const STAR_INNER = new Path2D('M8 8 20 13 32 8 27 20 32 32 20 27 8 32 13 20Z')
+const STAR_OUTER = 'M20 3 25 15 37 20 25 25 20 37 15 25 3 20 15 15Z'
+const STAR_INNER = 'M8 8 20 13 32 8 27 20 32 32 20 27 8 32 13 20Z'
 
 /** Wrap each paragraph to the width; a paragraph's first line is flagged so a gap can go above it. */
 function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
@@ -86,8 +86,9 @@ function drawMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
   ctx.fillStyle = color
   ctx.lineWidth = 2
   ctx.lineJoin = 'round'
-  ctx.stroke(STAR_OUTER)
-  ctx.stroke(STAR_INNER)
+  // Path2D is browser-only, so the paths are built when drawing rather than at import
+  ctx.stroke(new Path2D(STAR_OUTER))
+  ctx.stroke(new Path2D(STAR_INNER))
   ctx.beginPath()
   ctx.arc(20, 20, 3.4, 0, Math.PI * 2)
   ctx.fill()

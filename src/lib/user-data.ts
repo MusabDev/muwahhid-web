@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRouteContext } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { api } from './api'
 import { useUser } from './auth'
 import { GUEST_KEYS, guestId, type GuestDurus, type GuestLibrary } from './guest'
+import { writeSettingsCookie } from './settings-cookie'
 import { useLocal } from './storage'
 import type { Annotation, AnnotationTarget, Book, Bookmark, BookStatus, Dars, DarsEntry, DarsSeries, Lang, LibraryEntry } from './types'
 
@@ -615,12 +617,15 @@ export const DARS_SETTING_KEYS = ['subtitles', 'subtitle', 'theater', 'playbackR
 /** Settings live in localStorage for everyone and are mirrored to the account when signed in. */
 export function useReaderSettings() {
   const { data: user } = useUser()
-  const [stored, setStored] = useLocal<Partial<ReaderSettings>>(GUEST_KEYS.settings, {})
+  const { settingsCookie } = useRouteContext({ from: '__root__' })
+  const [stored, setStored] = useLocal<Partial<ReaderSettings>>(GUEST_KEYS.settings, {}, settingsCookie as Partial<ReaderSettings>)
   // subtitle style is nested, so options added later still get their defaults
   const settings = useMemo(() => ({ ...DEFAULT_SETTINGS, ...stored, subtitle: { ...DEFAULT_SETTINGS.subtitle, ...stored.subtitle } }), [stored])
   const timer = useRef<number | undefined>(undefined)
   const pulled = useRef<number | null>(null)
   const pending = useRef<Partial<ReaderSettings>>({})
+
+  useEffect(() => writeSettingsCookie(stored), [stored])
 
   useEffect(() => {
     if (!user || pulled.current === user.id) return

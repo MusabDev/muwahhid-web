@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { ProgressBar } from '@/components/book-card'
 import { EmptyState } from '@/components/states'
 import { bnNum, formatTime, stripDiacritics } from '@/lib/text'
+import { darsLink } from '@/lib/links'
 import type { Dars, DarsEntry } from '@/lib/types'
 import { DARS_COMPLETED_AT, useDarsLibrary } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
@@ -26,7 +27,7 @@ export function episodeNumber(n: number) {
  * The episodes of a series as boxed rows. `currentId` marks the dars being played;
  * `compact` is the player sidebar's plainer row list.
  */
-export function EpisodeList({ durus, currentId, compact, searchable }: { durus: Dars[]; currentId?: number; compact?: boolean; searchable?: boolean }) {
+export function EpisodeList({ durus, seriesSlug, currentId, compact, searchable }: { durus: Dars[]; seriesSlug?: string; currentId?: number; compact?: boolean; searchable?: boolean }) {
   const [query, setQuery] = useState('')
   const { entries } = useDarsLibrary()
   const listened = useMemo(() => new Map(entries.map((e) => [e.dars_id, e])), [entries])
@@ -68,9 +69,9 @@ export function EpisodeList({ durus, currentId, compact, searchable }: { durus: 
           {shown.map((dars) => (
             <li key={dars.id}>
               {compact ? (
-                <EpisodeRow dars={dars} entry={listened.get(dars.id)} current={dars.id === currentId} />
+                <EpisodeRow dars={dars} seriesSlug={seriesSlug} entry={listened.get(dars.id)} current={dars.id === currentId} />
               ) : (
-                <EpisodeCard dars={dars} entry={listened.get(dars.id)} />
+                <EpisodeCard dars={dars} seriesSlug={seriesSlug} entry={listened.get(dars.id)} />
               )}
             </li>
           ))}
@@ -90,12 +91,11 @@ function listenState(entry?: DarsEntry) {
 }
 
 /** A dars as a boxed row: framed number, titles, a quiet meta line and a play mark. */
-function EpisodeCard({ dars, entry }: { dars: Dars; entry?: DarsEntry }) {
+function EpisodeCard({ dars, seriesSlug, entry }: { dars: Dars; seriesSlug?: string; entry?: DarsEntry }) {
   const { finished, started } = listenState(entry)
   return (
     <Link
-      to="/durus/$id"
-      params={{ id: String(dars.id) }}
+      {...darsLink(dars, seriesSlug)}
       className={cn(
         'group relative flex h-full items-center gap-4 overflow-hidden rounded-xl border bg-card p-4 shadow-xs transition duration-200 hover:-translate-y-px hover:border-gold/60 hover:shadow-[0_10px_24px_-14px_oklch(0.3_0.05_50/0.45)]',
         started && 'border-gold/45',
@@ -165,12 +165,11 @@ function EpisodeCard({ dars, entry }: { dars: Dars; entry?: DarsEntry }) {
 }
 
 /** The player sidebar's row: number, title, a quiet meta line and a play mark. */
-function EpisodeRow({ dars, entry, current }: { dars: Dars; entry?: DarsEntry; current?: boolean }) {
+function EpisodeRow({ dars, seriesSlug, entry, current }: { dars: Dars; seriesSlug?: string; entry?: DarsEntry; current?: boolean }) {
   const { finished, started } = listenState(entry)
   return (
     <Link
-      to="/durus/$id"
-      params={{ id: String(dars.id) }}
+      {...darsLink(dars, seriesSlug)}
       aria-current={current ? 'page' : undefined}
       className={cn('group relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50', current && 'bg-gold/10 hover:bg-gold/15')}
     >

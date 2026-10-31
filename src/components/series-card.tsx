@@ -10,7 +10,7 @@ export function SeriesCard({ series }: { series: DarsSeries }) {
 
   return (
     <Link
-      to="/durus/series/$slug"
+      to="/durus/$slug"
       params={{ slug: series.slug }}
       className="group relative isolate flex h-full min-h-60 flex-col overflow-hidden rounded-2xl border bg-card p-5 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-[0_14px_30px_-14px_oklch(0.3_0.05_50/0.45)]"
     >

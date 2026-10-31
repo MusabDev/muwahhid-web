@@ -11,6 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SiteRouteImport } from './routes/_site'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
+import { Route as ManifestDotwebmanifestRouteImport } from './routes/manifest[.]webmanifest'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as RssDotxmlRouteImport } from './routes/rss[.]xml'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SiteIndexRouteImport } from './routes/_site.index'
 import { Route as SiteForgotPasswordRouteImport } from './routes/_site.forgot-password'
 import { Route as SiteLibraryRouteImport } from './routes/_site.library'
@@ -25,18 +30,24 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAuthorsRouteImport } from './routes/admin.authors'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as FeedsFileRouteImport } from './routes/feeds.$file'
+import { Route as SitemapsFileRouteImport } from './routes/sitemaps.$file'
 import { Route as SiteAuthorsIndexRouteImport } from './routes/_site.authors.index'
 import { Route as SiteAuthorsSlugRouteImport } from './routes/_site.authors.$slug'
 import { Route as SiteBooksIndexRouteImport } from './routes/_site.books.index'
 import { Route as SiteDurusIndexRouteImport } from './routes/_site.durus.index'
-import { Route as SiteDurusIdRouteImport } from './routes/_site.durus.$id'
 import { Route as AdminBooksIndexRouteImport } from './routes/admin.books.index'
 import { Route as AdminBooksIdRouteImport } from './routes/admin.books.$id'
 import { Route as AdminDurusIdRouteImport } from './routes/admin.durus.$id'
 import { Route as AdminPagesIdRouteImport } from './routes/admin.pages.$id'
 import { Route as AdminSeriesIndexRouteImport } from './routes/admin.series.index'
 import { Route as AdminSeriesIdRouteImport } from './routes/admin.series.$id'
+import { Route as AuthorsSlugRssDotxmlRouteImport } from './routes/authors.$slug.rss[.]xml'
+import { Route as FeedsPodcastFileRouteImport } from './routes/feeds.podcast.$file'
+import { Route as SitemapsPagesFileRouteImport } from './routes/sitemaps.pages.$file'
 import { Route as SiteBooksSlugIndexRouteImport } from './routes/_site.books.$slug.index'
+import { Route as SiteDurusSlugIndexRouteImport } from './routes/_site.durus.$slug.index'
+import { Route as SiteDurusSlugNumberRouteImport } from './routes/_site.durus.$slug.$number'
 import { Route as SiteDurusSeriesSlugRouteImport } from './routes/_site.durus.series.$slug'
 import { Route as BooksSlugReadPageRouteImport } from './routes/books.$slug.read.$page'
 
@@ -47,6 +58,31 @@ const SiteRoute = SiteRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
+  id: '/llms.txt',
+  path: '/llms.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManifestDotwebmanifestRoute = ManifestDotwebmanifestRouteImport.update({
+  id: '/manifest.webmanifest',
+  path: '/manifest.webmanifest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RssDotxmlRoute = RssDotxmlRouteImport.update({
+  id: '/rss.xml',
+  path: '/rss.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SiteIndexRoute = SiteIndexRouteImport.update({
@@ -119,6 +155,16 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const FeedsFileRoute = FeedsFileRouteImport.update({
+  id: '/feeds/$file',
+  path: '/feeds/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapsFileRoute = SitemapsFileRouteImport.update({
+  id: '/sitemaps/$file',
+  path: '/sitemaps/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SiteAuthorsIndexRoute = SiteAuthorsIndexRouteImport.update({
   id: '/authors/',
   path: '/authors/',
@@ -137,11 +183,6 @@ const SiteBooksIndexRoute = SiteBooksIndexRouteImport.update({
 const SiteDurusIndexRoute = SiteDurusIndexRouteImport.update({
   id: '/durus/',
   path: '/durus/',
-  getParentRoute: () => SiteRoute,
-} as any)
-const SiteDurusIdRoute = SiteDurusIdRouteImport.update({
-  id: '/durus/$id',
-  path: '/durus/$id',
   getParentRoute: () => SiteRoute,
 } as any)
 const AdminBooksIndexRoute = AdminBooksIndexRouteImport.update({
@@ -174,9 +215,34 @@ const AdminSeriesIdRoute = AdminSeriesIdRouteImport.update({
   path: '/series/$id',
   getParentRoute: () => AdminRoute,
 } as any)
+const AuthorsSlugRssDotxmlRoute = AuthorsSlugRssDotxmlRouteImport.update({
+  id: '/authors/$slug/rss.xml',
+  path: '/authors/$slug/rss.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedsPodcastFileRoute = FeedsPodcastFileRouteImport.update({
+  id: '/feeds/podcast/$file',
+  path: '/feeds/podcast/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapsPagesFileRoute = SitemapsPagesFileRouteImport.update({
+  id: '/sitemaps/pages/$file',
+  path: '/sitemaps/pages/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SiteBooksSlugIndexRoute = SiteBooksSlugIndexRouteImport.update({
   id: '/books/$slug/',
   path: '/books/$slug/',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteDurusSlugIndexRoute = SiteDurusSlugIndexRouteImport.update({
+  id: '/durus/$slug/',
+  path: '/durus/$slug/',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteDurusSlugNumberRoute = SiteDurusSlugNumberRouteImport.update({
+  id: '/durus/$slug/$number',
+  path: '/durus/$slug/$number',
   getParentRoute: () => SiteRoute,
 } as any)
 const SiteDurusSeriesSlugRoute = SiteDurusSeriesSlugRouteImport.update({
@@ -193,6 +259,11 @@ const BooksSlugReadPageRoute = BooksSlugReadPageRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof SiteIndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/rss.xml': typeof RssDotxmlRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/forgot-password': typeof SiteForgotPasswordRoute
   '/library': typeof SiteLibraryRoute
   '/login': typeof SiteLoginRoute
@@ -205,23 +276,34 @@ export interface FileRoutesByFullPath {
   '/admin/authors': typeof AdminAuthorsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/feeds/$file': typeof FeedsFileRoute
+  '/sitemaps/$file': typeof SitemapsFileRoute
   '/admin/': typeof AdminIndexRoute
   '/authors/$slug': typeof SiteAuthorsSlugRoute
-  '/durus/$id': typeof SiteDurusIdRoute
   '/admin/books/$id': typeof AdminBooksIdRoute
   '/admin/durus/$id': typeof AdminDurusIdRoute
   '/admin/pages/$id': typeof AdminPagesIdRoute
   '/admin/series/$id': typeof AdminSeriesIdRoute
+  '/authors/$slug/rss.xml': typeof AuthorsSlugRssDotxmlRoute
+  '/feeds/podcast/$file': typeof FeedsPodcastFileRoute
+  '/sitemaps/pages/$file': typeof SitemapsPagesFileRoute
   '/authors/': typeof SiteAuthorsIndexRoute
   '/books/': typeof SiteBooksIndexRoute
   '/durus/': typeof SiteDurusIndexRoute
   '/admin/books/': typeof AdminBooksIndexRoute
   '/admin/series/': typeof AdminSeriesIndexRoute
+  '/durus/$slug/$number': typeof SiteDurusSlugNumberRoute
   '/durus/series/$slug': typeof SiteDurusSeriesSlugRoute
   '/books/$slug/read/$page': typeof BooksSlugReadPageRoute
   '/books/$slug/': typeof SiteBooksSlugIndexRoute
+  '/durus/$slug/': typeof SiteDurusSlugIndexRoute
 }
 export interface FileRoutesByTo {
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/rss.xml': typeof RssDotxmlRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/forgot-password': typeof SiteForgotPasswordRoute
   '/library': typeof SiteLibraryRoute
   '/login': typeof SiteLoginRoute
@@ -234,27 +316,38 @@ export interface FileRoutesByTo {
   '/admin/authors': typeof AdminAuthorsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/feeds/$file': typeof FeedsFileRoute
+  '/sitemaps/$file': typeof SitemapsFileRoute
   '/': typeof SiteIndexRoute
   '/admin': typeof AdminIndexRoute
   '/authors/$slug': typeof SiteAuthorsSlugRoute
-  '/durus/$id': typeof SiteDurusIdRoute
   '/admin/books/$id': typeof AdminBooksIdRoute
   '/admin/durus/$id': typeof AdminDurusIdRoute
   '/admin/pages/$id': typeof AdminPagesIdRoute
   '/admin/series/$id': typeof AdminSeriesIdRoute
+  '/authors/$slug/rss.xml': typeof AuthorsSlugRssDotxmlRoute
+  '/feeds/podcast/$file': typeof FeedsPodcastFileRoute
+  '/sitemaps/pages/$file': typeof SitemapsPagesFileRoute
   '/authors': typeof SiteAuthorsIndexRoute
   '/books': typeof SiteBooksIndexRoute
   '/durus': typeof SiteDurusIndexRoute
   '/admin/books': typeof AdminBooksIndexRoute
   '/admin/series': typeof AdminSeriesIndexRoute
+  '/durus/$slug/$number': typeof SiteDurusSlugNumberRoute
   '/durus/series/$slug': typeof SiteDurusSeriesSlugRoute
   '/books/$slug/read/$page': typeof BooksSlugReadPageRoute
   '/books/$slug': typeof SiteBooksSlugIndexRoute
+  '/durus/$slug': typeof SiteDurusSlugIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_site': typeof SiteRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/rss.xml': typeof RssDotxmlRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_site/forgot-password': typeof SiteForgotPasswordRoute
   '/_site/library': typeof SiteLibraryRoute
   '/_site/login': typeof SiteLoginRoute
@@ -267,28 +360,39 @@ export interface FileRoutesById {
   '/admin/authors': typeof AdminAuthorsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/feeds/$file': typeof FeedsFileRoute
+  '/sitemaps/$file': typeof SitemapsFileRoute
   '/_site/': typeof SiteIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/_site/authors/$slug': typeof SiteAuthorsSlugRoute
-  '/_site/durus/$id': typeof SiteDurusIdRoute
   '/admin/books/$id': typeof AdminBooksIdRoute
   '/admin/durus/$id': typeof AdminDurusIdRoute
   '/admin/pages/$id': typeof AdminPagesIdRoute
   '/admin/series/$id': typeof AdminSeriesIdRoute
+  '/authors/$slug/rss.xml': typeof AuthorsSlugRssDotxmlRoute
+  '/feeds/podcast/$file': typeof FeedsPodcastFileRoute
+  '/sitemaps/pages/$file': typeof SitemapsPagesFileRoute
   '/_site/authors/': typeof SiteAuthorsIndexRoute
   '/_site/books/': typeof SiteBooksIndexRoute
   '/_site/durus/': typeof SiteDurusIndexRoute
   '/admin/books/': typeof AdminBooksIndexRoute
   '/admin/series/': typeof AdminSeriesIndexRoute
+  '/_site/durus/$slug/$number': typeof SiteDurusSlugNumberRoute
   '/_site/durus/series/$slug': typeof SiteDurusSeriesSlugRoute
   '/books/$slug/read/$page': typeof BooksSlugReadPageRoute
   '/_site/books/$slug/': typeof SiteBooksSlugIndexRoute
+  '/_site/durus/$slug/': typeof SiteDurusSlugIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
+    | '/llms.txt'
+    | '/manifest.webmanifest'
+    | '/robots.txt'
+    | '/rss.xml'
+    | '/sitemap.xml'
     | '/forgot-password'
     | '/library'
     | '/login'
@@ -301,23 +405,34 @@ export interface FileRouteTypes {
     | '/admin/authors'
     | '/admin/categories'
     | '/admin/users'
+    | '/feeds/$file'
+    | '/sitemaps/$file'
     | '/admin/'
     | '/authors/$slug'
-    | '/durus/$id'
     | '/admin/books/$id'
     | '/admin/durus/$id'
     | '/admin/pages/$id'
     | '/admin/series/$id'
+    | '/authors/$slug/rss.xml'
+    | '/feeds/podcast/$file'
+    | '/sitemaps/pages/$file'
     | '/authors/'
     | '/books/'
     | '/durus/'
     | '/admin/books/'
     | '/admin/series/'
+    | '/durus/$slug/$number'
     | '/durus/series/$slug'
     | '/books/$slug/read/$page'
     | '/books/$slug/'
+    | '/durus/$slug/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/llms.txt'
+    | '/manifest.webmanifest'
+    | '/robots.txt'
+    | '/rss.xml'
+    | '/sitemap.xml'
     | '/forgot-password'
     | '/library'
     | '/login'
@@ -330,26 +445,37 @@ export interface FileRouteTypes {
     | '/admin/authors'
     | '/admin/categories'
     | '/admin/users'
+    | '/feeds/$file'
+    | '/sitemaps/$file'
     | '/'
     | '/admin'
     | '/authors/$slug'
-    | '/durus/$id'
     | '/admin/books/$id'
     | '/admin/durus/$id'
     | '/admin/pages/$id'
     | '/admin/series/$id'
+    | '/authors/$slug/rss.xml'
+    | '/feeds/podcast/$file'
+    | '/sitemaps/pages/$file'
     | '/authors'
     | '/books'
     | '/durus'
     | '/admin/books'
     | '/admin/series'
+    | '/durus/$slug/$number'
     | '/durus/series/$slug'
     | '/books/$slug/read/$page'
     | '/books/$slug'
+    | '/durus/$slug'
   id:
     | '__root__'
     | '/_site'
     | '/admin'
+    | '/llms.txt'
+    | '/manifest.webmanifest'
+    | '/robots.txt'
+    | '/rss.xml'
+    | '/sitemap.xml'
     | '/_site/forgot-password'
     | '/_site/library'
     | '/_site/login'
@@ -362,27 +488,43 @@ export interface FileRouteTypes {
     | '/admin/authors'
     | '/admin/categories'
     | '/admin/users'
+    | '/feeds/$file'
+    | '/sitemaps/$file'
     | '/_site/'
     | '/admin/'
     | '/_site/authors/$slug'
-    | '/_site/durus/$id'
     | '/admin/books/$id'
     | '/admin/durus/$id'
     | '/admin/pages/$id'
     | '/admin/series/$id'
+    | '/authors/$slug/rss.xml'
+    | '/feeds/podcast/$file'
+    | '/sitemaps/pages/$file'
     | '/_site/authors/'
     | '/_site/books/'
     | '/_site/durus/'
     | '/admin/books/'
     | '/admin/series/'
+    | '/_site/durus/$slug/$number'
     | '/_site/durus/series/$slug'
     | '/books/$slug/read/$page'
     | '/_site/books/$slug/'
+    | '/_site/durus/$slug/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   SiteRoute: typeof SiteRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
+  LlmsDottxtRoute: typeof LlmsDottxtRoute
+  ManifestDotwebmanifestRoute: typeof ManifestDotwebmanifestRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  RssDotxmlRoute: typeof RssDotxmlRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  FeedsFileRoute: typeof FeedsFileRoute
+  SitemapsFileRoute: typeof SitemapsFileRoute
+  AuthorsSlugRssDotxmlRoute: typeof AuthorsSlugRssDotxmlRoute
+  FeedsPodcastFileRoute: typeof FeedsPodcastFileRoute
+  SitemapsPagesFileRoute: typeof SitemapsPagesFileRoute
   BooksSlugReadPageRoute: typeof BooksSlugReadPageRoute
 }
 
@@ -400,6 +542,41 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/llms.txt': {
+      id: '/llms.txt'
+      path: '/llms.txt'
+      fullPath: '/llms.txt'
+      preLoaderRoute: typeof LlmsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manifest.webmanifest': {
+      id: '/manifest.webmanifest'
+      path: '/manifest.webmanifest'
+      fullPath: '/manifest.webmanifest'
+      preLoaderRoute: typeof ManifestDotwebmanifestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rss.xml': {
+      id: '/rss.xml'
+      path: '/rss.xml'
+      fullPath: '/rss.xml'
+      preLoaderRoute: typeof RssDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_site/': {
@@ -500,6 +677,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/feeds/$file': {
+      id: '/feeds/$file'
+      path: '/feeds/$file'
+      fullPath: '/feeds/$file'
+      preLoaderRoute: typeof FeedsFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemaps/$file': {
+      id: '/sitemaps/$file'
+      path: '/sitemaps/$file'
+      fullPath: '/sitemaps/$file'
+      preLoaderRoute: typeof SitemapsFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_site/authors/': {
       id: '/_site/authors/'
       path: '/authors'
@@ -526,13 +717,6 @@ declare module '@tanstack/react-router' {
       path: '/durus'
       fullPath: '/durus/'
       preLoaderRoute: typeof SiteDurusIndexRouteImport
-      parentRoute: typeof SiteRoute
-    }
-    '/_site/durus/$id': {
-      id: '/_site/durus/$id'
-      path: '/durus/$id'
-      fullPath: '/durus/$id'
-      preLoaderRoute: typeof SiteDurusIdRouteImport
       parentRoute: typeof SiteRoute
     }
     '/admin/books/': {
@@ -577,11 +761,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSeriesIdRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/authors/$slug/rss.xml': {
+      id: '/authors/$slug/rss.xml'
+      path: '/authors/$slug/rss.xml'
+      fullPath: '/authors/$slug/rss.xml'
+      preLoaderRoute: typeof AuthorsSlugRssDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feeds/podcast/$file': {
+      id: '/feeds/podcast/$file'
+      path: '/feeds/podcast/$file'
+      fullPath: '/feeds/podcast/$file'
+      preLoaderRoute: typeof FeedsPodcastFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemaps/pages/$file': {
+      id: '/sitemaps/pages/$file'
+      path: '/sitemaps/pages/$file'
+      fullPath: '/sitemaps/pages/$file'
+      preLoaderRoute: typeof SitemapsPagesFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_site/books/$slug/': {
       id: '/_site/books/$slug/'
       path: '/books/$slug'
       fullPath: '/books/$slug/'
       preLoaderRoute: typeof SiteBooksSlugIndexRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/durus/$slug/': {
+      id: '/_site/durus/$slug/'
+      path: '/durus/$slug'
+      fullPath: '/durus/$slug/'
+      preLoaderRoute: typeof SiteDurusSlugIndexRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/durus/$slug/$number': {
+      id: '/_site/durus/$slug/$number'
+      path: '/durus/$slug/$number'
+      fullPath: '/durus/$slug/$number'
+      preLoaderRoute: typeof SiteDurusSlugNumberRouteImport
       parentRoute: typeof SiteRoute
     }
     '/_site/durus/series/$slug': {
@@ -613,12 +832,13 @@ interface SiteRouteChildren {
   SiteVerifyEmailRoute: typeof SiteVerifyEmailRoute
   SiteIndexRoute: typeof SiteIndexRoute
   SiteAuthorsSlugRoute: typeof SiteAuthorsSlugRoute
-  SiteDurusIdRoute: typeof SiteDurusIdRoute
   SiteAuthorsIndexRoute: typeof SiteAuthorsIndexRoute
   SiteBooksIndexRoute: typeof SiteBooksIndexRoute
   SiteDurusIndexRoute: typeof SiteDurusIndexRoute
+  SiteDurusSlugNumberRoute: typeof SiteDurusSlugNumberRoute
   SiteDurusSeriesSlugRoute: typeof SiteDurusSeriesSlugRoute
   SiteBooksSlugIndexRoute: typeof SiteBooksSlugIndexRoute
+  SiteDurusSlugIndexRoute: typeof SiteDurusSlugIndexRoute
 }
 
 const SiteRouteChildren: SiteRouteChildren = {
@@ -633,12 +853,13 @@ const SiteRouteChildren: SiteRouteChildren = {
   SiteVerifyEmailRoute: SiteVerifyEmailRoute,
   SiteIndexRoute: SiteIndexRoute,
   SiteAuthorsSlugRoute: SiteAuthorsSlugRoute,
-  SiteDurusIdRoute: SiteDurusIdRoute,
   SiteAuthorsIndexRoute: SiteAuthorsIndexRoute,
   SiteBooksIndexRoute: SiteBooksIndexRoute,
   SiteDurusIndexRoute: SiteDurusIndexRoute,
+  SiteDurusSlugNumberRoute: SiteDurusSlugNumberRoute,
   SiteDurusSeriesSlugRoute: SiteDurusSeriesSlugRoute,
   SiteBooksSlugIndexRoute: SiteBooksSlugIndexRoute,
+  SiteDurusSlugIndexRoute: SiteDurusSlugIndexRoute,
 }
 
 const SiteRouteWithChildren = SiteRoute._addFileChildren(SiteRouteChildren)
@@ -674,8 +895,28 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   SiteRoute: SiteRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
+  LlmsDottxtRoute: LlmsDottxtRoute,
+  ManifestDotwebmanifestRoute: ManifestDotwebmanifestRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  RssDotxmlRoute: RssDotxmlRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  FeedsFileRoute: FeedsFileRoute,
+  SitemapsFileRoute: SitemapsFileRoute,
+  AuthorsSlugRssDotxmlRoute: AuthorsSlugRssDotxmlRoute,
+  FeedsPodcastFileRoute: FeedsPodcastFileRoute,
+  SitemapsPagesFileRoute: SitemapsPagesFileRoute,
   BooksSlugReadPageRoute: BooksSlugReadPageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

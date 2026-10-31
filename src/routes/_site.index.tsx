@@ -13,10 +13,18 @@ import { Button } from '@/components/ui/button'
 import { authorsQuery, booksQuery, seriesListQuery, statsQuery } from '@/lib/queries'
 import { bnNum } from '@/lib/text'
 import { useLibrary } from '@/lib/user-data'
-import { pageTitle } from '@/lib/head'
+import { organizationLd, seo, websiteLd } from '@/lib/seo'
 
 export const Route = createFileRoute('/_site/')({
-  head: () => pageTitle(),
+  // prefetch (not ensure) so one failing shelf doesn't take the whole home page down
+  loader: ({ context: { queryClient } }) =>
+    Promise.all([
+      queryClient.prefetchQuery(statsQuery()),
+      queryClient.prefetchQuery(booksQuery({ per_page: 12 })),
+      queryClient.prefetchQuery(seriesListQuery()),
+      queryClient.prefetchQuery(authorsQuery()),
+    ]),
+  head: () => seo({ path: '/', jsonLd: [websiteLd(), organizationLd()] }),
   component: Home,
 })
 

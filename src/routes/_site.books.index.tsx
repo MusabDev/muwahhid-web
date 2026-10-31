@@ -7,6 +7,6 @@ export const Route = createFileRoute('/_site/books/')({
     sort: search.sort === 'title' ? 'title' : undefined,
   }),
   beforeLoad: ({ search }) => {
-    throw redirect({ to: '/library', search: { category: search.category, sort: search.sort }, replace: true })
+    throw redirect({ to: '/library', search: { category: search.category, sort: search.sort }, replace: true, statusCode: 301 })
   },
 })

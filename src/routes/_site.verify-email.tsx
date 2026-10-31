@@ -4,14 +4,14 @@ import { useEffect, useRef } from 'react'
 import { CenterSpinner, EmptyState } from '@/components/states'
 import { Button } from '@/components/ui/button'
 import { useUser, useVerifyEmail } from '@/lib/auth'
-import { pageTitle } from '@/lib/head'
+import { seo } from '@/lib/seo'
 
 type VerifySearch = { id?: string; hash?: string; expires?: string; signature?: string }
 
 const str = (value: unknown) => (typeof value === 'string' || typeof value === 'number' ? String(value) : undefined)
 
 export const Route = createFileRoute('/_site/verify-email')({
-  head: () => pageTitle('ইমেইল যাচাই'),
+  head: () => seo({ title: 'ইমেইল যাচাই', noindex: true }),
   validateSearch: (search: Record<string, unknown>): VerifySearch => ({
     id: str(search.id),
     hash: str(search.hash),

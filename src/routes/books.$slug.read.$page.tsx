@@ -19,19 +19,76 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { loadFont, readerFontVars } from '@/lib/fonts'
-import { bookQuery, pageQuery } from '@/lib/queries'
+import { bookQuery, orNotFound, pageQuery } from '@/lib/queries'
+import { bookId, breadcrumbLd, ogImage, seo } from '@/lib/seo'
+import { absoluteUrl } from '@/lib/site'
 import type { TextTarget } from '@/lib/selection'
 import { arNum, bnNum } from '@/lib/text'
-import { pageTitle } from '@/lib/head'
-import type { Annotation } from '@/lib/types'
+import type { Annotation, Book, TocEntry } from '@/lib/types'
 import { annotationGroup, useAnnotations, useBookmarks, useLibraryEntry, useReaderSettings } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/books/$slug/read/$page')({
-  loader: ({ context, params }) => context.queryClient.ensureQueryData(bookQuery(params.slug)),
-  head: ({ loaderData, params }) => pageTitle(loaderData && [loaderData.title_bn, loaderData.author?.name_bn, `পৃষ্ঠা ${bnNum(params.page)}`].filter(Boolean).join(' - ')),
+  loader: async ({ context: { queryClient }, params }) => {
+    // the page text is fetched here, not only in the component, so it is in the server-rendered HTML
+    const [book, page] = await Promise.all([
+      orNotFound(queryClient.ensureQueryData(bookQuery(params.slug))),
+      orNotFound(queryClient.ensureQueryData(pageQuery(params.slug, Number(params.page) || 1))),
+    ])
+    return { book, page }
+  },
+  head: ({ loaderData }) => {
+    if (!loaderData) return {}
+    const { book, page } = loaderData
+    const path = `/books/${book.slug}/read/${page.number}`
+    const chapter = chapterAt(book, page.number)
+    const pageLabel = `পৃষ্ঠা ${bnNum(page.number)}`
+    const text = page.sentences.map((s) => s.text_bn_plain).join(' ')
+    return seo({
+      title: [book.title_bn, chapter?.title_bn, pageLabel].filter(Boolean).join(' — '),
+      description: text || `${book.title_bn} (${book.title_ar}), ${pageLabel}: আরবি মূলপাঠ ও বাংলা অনুবাদ।`,
+      path,
+      type: 'article',
+      image: ogImage('book', book.slug),
+      imageAlt: `${book.title_bn} — ${book.title_ar}`,
+      prev: page.prev_page ? `/books/${book.slug}/read/${page.prev_page}` : null,
+      next: page.next_page ? `/books/${book.slug}/read/${page.next_page}` : null,
+      jsonLd: [
+        {
+          '@type': 'WebPage',
+          '@id': absoluteUrl(path),
+          url: absoluteUrl(path),
+          name: `${book.title_bn} — ${pageLabel}`,
+          inLanguage: ['ar', 'bn'],
+          isPartOf: { '@type': 'Book', '@id': bookId(book.slug), name: book.title_bn, url: absoluteUrl(`/books/${book.slug}`) },
+          ...(chapter ? { about: { '@type': 'Chapter', name: chapter.title_bn, alternateName: chapter.title_ar } } : {}),
+          ...(book.updated_at ? { dateModified: book.updated_at } : {}),
+        },
+        breadcrumbLd([
+          ['লাইব্রেরি', '/library'],
+          [book.title_bn, `/books/${book.slug}`],
+          ...(chapter ? [[chapter.title_bn, `/books/${book.slug}/read/${chapter.page_number}`] as [string, string]] : []),
+          [pageLabel, path],
+        ]),
+      ],
+    })
+  },
   component: Reader,
 })
+
+/** The deepest table-of-contents entry that starts on or before this page. */
+function chapterAt(book: Book, pageNumber: number) {
+  let found: TocEntry | undefined
+  const walk = (entries: TocEntry[] = []) => {
+    for (const entry of entries) {
+      if (entry.page_number > pageNumber) return
+      found = entry
+      walk(entry.children)
+    }
+  }
+  walk(book.toc)
+  return found
+}
 
 /* below this the top bar slims down and the bottom dock carries the controls */
 const ROOMY = '(min-width: 640px)'
@@ -354,6 +411,11 @@ function Reader() {
 
       <div>
         <main ref={containerRef} {...swipeHandlers} className={cn('@container relative [touch-action:pan-y_pinch-zoom]', fullscreen.on ? 'pb-28' : 'sm:px-6 sm:py-10')}>
+          {book && (
+            <h1 className="sr-only">
+              {book.title_bn} ({book.title_ar}) — পৃষ্ঠা {bnNum(pageNumber)}
+            </h1>
+          )}
           <div ref={swipeRef}>
             <ReaderContext.Provider value={ctx}>
               {isLoading || !book ? (
@@ -395,13 +457,13 @@ function Reader() {
                   <span aria-hidden className="h-6 w-px bg-white/15 sm:hidden" />
                 </>
               )}
-              <DockButton label="আগের পৃষ্ঠা" disabled={!page.prev_page} onClick={() => goTo(page.prev_page)}>
+              <PageTurn slug={slug} page={page.prev_page} label="আগের পৃষ্ঠা" rel="prev">
                 <ChevronLeft />
-              </DockButton>
+              </PageTurn>
               <PageJump current={page.number} last={last} onGo={goTo} />
-              <DockButton label="পরের পৃষ্ঠা" disabled={!page.next_page} onClick={() => goTo(page.next_page)}>
+              <PageTurn slug={slug} page={page.next_page} label="পরের পৃষ্ঠা" rel="next">
                 <ChevronRight />
-              </DockButton>
+              </PageTurn>
               {!fullscreen.on && (
                 <>
                   <span aria-hidden className="h-6 w-px bg-white/15 sm:hidden" />
@@ -464,11 +526,13 @@ function Desk() {
   )
 }
 
+/** Starts true (the wide layout, with both languages in the HTML) on the server and first render, then follows the window. */
 function useMediaQuery(query: string) {
-  const [matches, setMatches] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches)
+  const [matches, setMatches] = useState(true)
   useEffect(() => {
     const media = window.matchMedia(query)
     const onChange = () => setMatches(media.matches)
+    onChange()
     media.addEventListener('change', onChange)
     return () => media.removeEventListener('change', onChange)
   }, [query])
@@ -623,6 +687,24 @@ function usePageSwipe({ prev, next, onTurn, pageKey }: { prev?: number | null; n
 const EMPTY: HighlightRange[] = []
 
 const DOCK = 'wood-panel flex w-fit items-center gap-1 rounded-full border border-gold/30 p-1 shadow-[0_12px_30px_-10px_oklch(0.15_0.03_50/0.6)]'
+
+/** Previous/next page as a real link, so crawlers can walk the book page by page. */
+function PageTurn({ slug, page, label, rel, children }: { slug: string; page: number | null; label: string; rel: 'prev' | 'next'; children: React.ReactNode }) {
+  if (!page) {
+    return (
+      <DockButton label={label} disabled>
+        {children}
+      </DockButton>
+    )
+  }
+  return (
+    <DockButton label={label} asChild>
+      <Link to="/books/$slug/read/$page" params={{ slug, page: String(page) }} rel={rel}>
+        {children}
+      </Link>
+    </DockButton>
+  )
+}
 
 function DockButton({ label, shortcut, children, className, active, ...props }: React.ComponentProps<typeof Button> & { label: string; shortcut?: string; active?: boolean }) {
   return (

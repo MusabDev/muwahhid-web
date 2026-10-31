@@ -40,7 +40,7 @@ function AdminSeries() {
         action={
           <div className="flex gap-2">
             <Button variant="outline" asChild>
-              <Link to="/durus/series/$slug" params={{ slug: series.slug }} target="_blank">
+              <Link to="/durus/$slug" params={{ slug: series.slug }} target="_blank">
                 <ExternalLink /> সাইটে দেখুন
               </Link>
             </Button>

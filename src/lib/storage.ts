@@ -38,7 +38,8 @@ export function setLocal<T>(key: string, value: T) {
   listeners.get(key)?.forEach((listener) => listener())
 }
 
-export function useLocal<T>(key: string, fallback: T): [T, (value: T | ((prev: T) => T)) => void] {
+/** `serverValue` is what the server renders (and hydration starts from) before localStorage is read. */
+export function useLocal<T>(key: string, fallback: T, serverValue: T = fallback): [T, (value: T | ((prev: T) => T)) => void] {
   const subscribe = useCallback(
     (listener: () => void) => {
       if (!listeners.has(key)) listeners.set(key, new Set())
@@ -52,7 +53,7 @@ export function useLocal<T>(key: string, fallback: T): [T, (value: T | ((prev: T
     },
     [key],
   )
-  const value = useSyncExternalStore(subscribe, () => read(key, fallback), () => fallback)
+  const value = useSyncExternalStore(subscribe, () => read(key, fallback), () => serverValue)
   const set = useCallback(
     (next: T | ((prev: T) => T)) => {
       const resolved = typeof next === 'function' ? (next as (prev: T) => T)(read(key, fallback)) : next

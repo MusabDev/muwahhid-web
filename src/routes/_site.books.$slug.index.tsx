@@ -18,17 +18,48 @@ import { StatusMenu } from '@/components/status-menu'
 import { TocSection } from '@/components/toc-list'
 import { Button } from '@/components/ui/button'
 import { isSharh } from '@/lib/book'
-import { authorQuery, bookQuery } from '@/lib/queries'
+import { authorQuery, bookQuery, orNotFound } from '@/lib/queries'
 import { bnNum } from '@/lib/text'
 import type { Author, Book } from '@/lib/types'
 import { useAnnotations, useBookmarks, useLibraryEntry } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
-import { pageTitle } from '@/lib/head'
+import { bookLd, breadcrumbLd, ogImage, seo } from '@/lib/seo'
 import { PatternBackdrop } from '@/components/pattern'
+import { SITE_URL } from '@/lib/site'
 
 export const Route = createFileRoute('/_site/books/$slug/')({
-  loader: ({ context, params }) => context.queryClient.ensureQueryData(bookQuery(params.slug)),
-  head: ({ loaderData }) => pageTitle(loaderData && [loaderData.title_bn, loaderData.author?.name_bn].filter(Boolean).join(' - '), loaderData?.about_md),
+  loader: async ({ context, params }) => {
+    const book = await orNotFound(context.queryClient.ensureQueryData(bookQuery(params.slug)))
+    // the "more by this author" shelf is part of the page, so render it on the server too
+    if (book.author) await context.queryClient.prefetchQuery(authorQuery(book.author.slug))
+    return book
+  },
+  head: ({ loaderData: book }) => {
+    if (!book) return {}
+    const path = `/books/${book.slug}`
+    const byline = [book.author?.name_bn, isSharh(book) ? book.explainer?.name_bn : null].filter(Boolean).join(' ও ')
+    return seo({
+      title: `${book.title_bn}${byline ? ` — ${byline}` : ''}`,
+      description: book.about_md ?? `${book.title_ar} (${book.title_bn})${byline ? `, ${byline}` : ''}। আরবি মূলপাঠ ও বাংলা অনুবাদ পাশাপাশি, বাক্য ধরে ধরে পড়ুন বা পিডিএফ নামান।`,
+      path,
+      type: 'book',
+      image: ogImage('book', book.slug),
+      imageAlt: `${book.title_bn} — ${book.title_ar}`,
+      meta: [
+        ...(book.author ? [{ property: 'book:author', content: `${SITE_URL}/authors/${book.author.slug}` }] : []),
+        ...(book.updated_at ? [{ property: 'book:release_date', content: book.created_at ?? book.updated_at }] : []),
+        ...(book.category ? [{ property: 'book:tag', content: book.category.name_bn }] : []),
+      ],
+      jsonLd: [
+        bookLd(book),
+        breadcrumbLd([
+          ['লাইব্রেরি', '/library'],
+          ...(book.category ? [[book.category.name_bn, `/library?category=${book.category.slug}`] as [string, string]] : []),
+          [book.title_bn, path],
+        ]),
+      ],
+    })
+  },
   pendingComponent: CenterSpinner,
   component: BookPage,
 })
@@ -54,7 +85,7 @@ function BookPage() {
           <div className="mt-8 grid gap-10 md:grid-cols-[260px_1fr] md:gap-12">
             <div className="relative mx-auto w-48 md:w-full">
               <div aria-hidden className="absolute inset-x-[8%] -bottom-4 h-8 rounded-[50%] bg-black/25 blur-xl dark:bg-black/50" />
-              <BookCover book={book} className="relative shadow-[0_24px_40px_-12px_oklch(0.2_0.03_50/0.6)]" />
+              <BookCover book={book} priority className="relative shadow-[0_24px_40px_-12px_oklch(0.2_0.03_50/0.6)]" />
             </div>
 
             <div className="flex min-w-0 flex-col items-center text-center md:items-start md:text-left">

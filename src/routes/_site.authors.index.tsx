@@ -10,11 +10,25 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { type Era, groupByEra } from '@/lib/author'
 import { authorsQuery } from '@/lib/queries'
 import { bnNum, stripDiacritics } from '@/lib/text'
-import { pageTitle } from '@/lib/head'
+import { breadcrumbLd, itemListLd, seo } from '@/lib/seo'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/_site/authors/')({
-  head: () => pageTitle('আহলুল ইলম'),
+  loader: ({ context }) => context.queryClient.ensureQueryData(authorsQuery(1, 500)),
+  head: ({ loaderData }) =>
+    seo({
+      title: 'আহলুল ইলম — আলেমগণের পরিচিতি',
+      description: 'সালাফ থেকে সমকালীন আহলুল ইলম: যাঁদের কিতাব ও দারস আরবি মূলপাঠ ও বাংলা অনুবাদে পড়া ও শোনা যায়, তাঁদের পরিচিতি ও রচনাবলি।',
+      path: '/authors',
+      jsonLd: [
+        { '@type': 'CollectionPage', name: 'আহলুল ইলম', url: '/authors' },
+        itemListLd((loaderData?.data ?? []).map((a) => ({ path: `/authors/${a.slug}`, name: a.name_bn }))),
+        breadcrumbLd([
+          ['মূল পাতা', '/'],
+          ['আহলুল ইলম', '/authors'],
+        ]),
+      ],
+    }),
   component: AuthorsPage,
 })
 

@@ -10,10 +10,10 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { safeRedirect, useAuthActions, useUser } from '@/lib/auth'
 import { authError, required, validEmail } from '@/lib/auth-form'
-import { pageTitle } from '@/lib/head'
+import { seo } from '@/lib/seo'
 
 export const Route = createFileRoute('/_site/login')({
-  head: () => pageTitle('লগইন'),
+  head: () => seo({ title: 'লগইন', noindex: true }),
   validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({
     redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
   }),

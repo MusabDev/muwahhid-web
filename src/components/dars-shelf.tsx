@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { darsLink } from '@/lib/links'
 import { ArrowRight, AudioLines, Headphones, Play, Video } from 'lucide-react'
 import { ProgressBar } from '@/components/book-card'
 import { StatusChip } from '@/components/continue-card'
@@ -29,8 +30,7 @@ export function ContinueListeningCard({ entry }: { entry: DarsShelfEntry }) {
 
   return (
     <Link
-      to="/durus/$id"
-      params={{ id: String(dars.id) }}
+      {...darsLink(dars)}
       className="group relative isolate flex items-center gap-3.5 overflow-hidden rounded-xl border bg-card p-3 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-[0_14px_30px_-14px_oklch(0.3_0.05_50/0.45)]"
     >
       <div aria-hidden className="pattern-tile pointer-events-none absolute inset-0 -z-10 opacity-[0.14] dark:hidden" />
@@ -77,8 +77,7 @@ function DarsCard({ entry }: { entry: DarsShelfEntry }) {
 
   return (
     <Link
-      to="/durus/$id"
-      params={{ id: String(dars.id) }}
+      {...darsLink(dars)}
       className="group relative isolate flex h-full flex-col overflow-hidden rounded-2xl border bg-card p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-[0_14px_30px_-14px_oklch(0.3_0.05_50/0.45)]"
     >
       {/* background: rosette pattern, then a veil so the text stays crisp */}

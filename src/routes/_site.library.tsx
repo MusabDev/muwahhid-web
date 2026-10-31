@@ -1,5 +1,5 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { infiniteQueryOptions, useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowDownAZ, BookOpen, Check, Clock, Headphones, Loader2, RotateCcw, Search, SlidersHorizontal, Tags, UserRound, X, type LucideIcon } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { AuthorAvatar } from '@/components/author-avatar'
@@ -13,8 +13,8 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
-import { pageTitle } from '@/lib/head'
 import { authorsQuery, categoriesQuery, statsQuery } from '@/lib/queries'
+import { breadcrumbLd, itemListLd, seo } from '@/lib/seo'
 import { bnNum, stripDiacritics } from '@/lib/text'
 import type { Author, Book, Category, DarsSeries, Paginated } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -27,17 +27,81 @@ interface LibrarySearch {
   category?: string
   author?: string
   sort?: 'title'
+  /** First page of results shown; "load more" appends after it. Gives every page of the catalogue its own URL. */
+  page?: number
 }
 
 export const Route = createFileRoute('/_site/library')({
-  head: () => pageTitle('লাইব্রেরি'),
-  validateSearch: (search: Record<string, unknown>): LibrarySearch => ({
-    type: search.type === 'durus' ? 'durus' : undefined,
-    q: typeof search.q === 'string' && search.q.trim() ? search.q : undefined,
-    category: typeof search.category === 'string' && search.category ? search.category : undefined,
-    author: typeof search.author === 'string' && search.author ? search.author : undefined,
-    sort: search.sort === 'title' ? 'title' : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): LibrarySearch => {
+    const page = Number(search.page)
+    return {
+      type: search.type === 'durus' ? 'durus' : undefined,
+      q: typeof search.q === 'string' && search.q.trim() ? search.q : undefined,
+      category: typeof search.category === 'string' && search.category ? search.category : undefined,
+      author: typeof search.author === 'string' && search.author ? search.author : undefined,
+      sort: search.sort === 'title' ? 'title' : undefined,
+      page: Number.isInteger(page) && page > 1 ? page : undefined,
+    }
+  },
+  loaderDeps: ({ search }) => search,
+  loader: async ({ context: { queryClient }, deps: search }) => {
+    const type: LibraryType = search.type ?? 'books'
+    const [list, categories] = await Promise.all([
+      queryClient.ensureInfiniteQueryData(libraryListQuery(type, search)),
+      queryClient.ensureQueryData(categoriesQuery()).catch(() => []),
+      queryClient.prefetchQuery(statsQuery()),
+      queryClient.prefetchQuery({ ...authorsQuery(1, 500), staleTime: 10 * 60 * 1000 }),
+    ])
+    const first = list.pages[0]
+    return {
+      type,
+      category: categories.find((c) => c.slug === search.category),
+      items: first.data.map((item) => ({ slug: item.slug, title: item.title_bn })),
+      currentPage: first.meta.current_page,
+      lastPage: first.meta.last_page,
+    }
+  },
+  head: ({ loaderData, match }) => {
+    if (!loaderData) return {}
+    const search = match.search
+    const { type, category, currentPage, lastPage } = loaderData
+    const noun = type === 'durus' ? 'দারস সিরিজ' : 'কিতাব'
+    const base = type === 'durus' ? '/durus' : '/books'
+    // sort is only an ordering of the same list, so it shares the canonical of the unsorted page
+    const urlFor = (page?: number) => {
+      const params = new URLSearchParams()
+      if (search.type) params.set('type', search.type)
+      if (search.category) params.set('category', search.category)
+      if (search.author) params.set('author', search.author)
+      if (page && page > 1) params.set('page', String(page))
+      const qs = params.toString()
+      return `/library${qs ? `?${qs}` : ''}`
+    }
+    const path = urlFor(currentPage)
+    const title = [category?.name_bn, type === 'durus' ? 'দারস' : 'কিতাব', 'লাইব্রেরি'].filter(Boolean).join(' — ') + (currentPage > 1 ? ` (পৃষ্ঠা ${bnNum(currentPage)})` : '')
+    return seo({
+      title,
+      description: category
+        ? `${category.name_bn} বিষয়ের ${noun}: আরবি মূলপাঠ ও বাংলা অনুবাদ${type === 'durus' ? ', সাবটাইটেল ও ট্রান্সক্রিপ্টসহ' : ''}।`
+        : type === 'durus'
+          ? 'আহলুল ইলমের দারস সিরিজ: আরবি ও বাংলা সাবটাইটেল, পূর্ণ ট্রান্সক্রিপ্ট আর সময় ধরে লিংক।'
+          : 'আহলুল ইলমের কিতাবসমূহ: আরবি মূলপাঠ ও বাংলা অনুবাদ পাশাপাশি, বাক্য ধরে ধরে পড়ুন বা পিডিএফ নামান।',
+      path,
+      // searches are endless near-duplicates; keep them out of the index but let their links be followed
+      noindex: !!search.q,
+      prev: currentPage > 1 ? urlFor(currentPage - 1) : null,
+      next: currentPage < lastPage ? urlFor(currentPage + 1) : null,
+      jsonLd: [
+        { '@type': 'CollectionPage', name: title, url: path },
+        itemListLd(loaderData.items.map((item) => ({ path: `${base}/${item.slug}`, name: item.title }))),
+        breadcrumbLd([
+          ['লাইব্রেরি', '/library'],
+          ...(type === 'durus' ? [['দারস', '/library?type=durus'] as [string, string]] : []),
+          ...(category ? [[category.name_bn, urlFor()] as [string, string]] : []),
+        ]),
+      ],
+    })
+  },
   component: LibraryPage,
 })
 
@@ -56,13 +120,13 @@ function LibraryPage() {
   useEffect(() => {
     const term = input.trim() || undefined
     if (term === search.q) return
-    const timer = window.setTimeout(() => navigate({ search: (prev) => ({ ...prev, q: term }), replace: true }), 300)
+    const timer = window.setTimeout(() => navigate({ search: (prev) => ({ ...prev, q: term, page: undefined }), replace: true }), 300)
     return () => window.clearTimeout(timer)
   }, [input, search.q, navigate])
 
   // Category and author counts differ per type, so switching type starts the filters afresh
   const setType = (next: LibraryType) => navigate({ search: { type: next === 'durus' ? 'durus' : undefined, q: search.q, sort: search.sort } })
-  const applyFilters = (patch: FilterPatch) => navigate({ search: (prev) => ({ ...prev, ...patch }) })
+  const applyFilters = (patch: FilterPatch) => navigate({ search: (prev) => ({ ...prev, ...patch, page: undefined }) })
 
   return (
     <>
@@ -356,14 +420,20 @@ function ActiveFilters({ type, search, onChange }: { type: LibraryType; search: 
 
 /* ------------------------------------------------------------------ Results */
 
-function useLibraryList<T>(path: '/books' | '/dars-series', key: LibraryType, search: LibrarySearch) {
-  return useInfiniteQuery({
-    queryKey: ['library', key, { q: search.q, category: search.category, author: search.author, sort: search.sort }],
+function libraryListQuery(key: LibraryType, search: LibrarySearch) {
+  const path = key === 'durus' ? '/dars-series' : '/books'
+  return infiniteQueryOptions({
+    queryKey: ['library', key, { q: search.q, category: search.category, author: search.author, sort: search.sort, page: search.page }],
     queryFn: ({ pageParam }) =>
-      api<Paginated<T>>(path, { query: { q: search.q, category: search.category, author: search.author, sort: search.sort, page: pageParam, per_page: PER_PAGE[key] } }),
-    initialPageParam: 1,
+      api<Paginated<Book | DarsSeries>>(path, { query: { q: search.q, category: search.category, author: search.author, sort: search.sort, page: pageParam, per_page: PER_PAGE[key] } }),
+    initialPageParam: search.page ?? 1,
     getNextPageParam: (last) => (last.meta.current_page < last.meta.last_page ? last.meta.current_page + 1 : undefined),
   })
+}
+
+function useLibraryList<T>(key: LibraryType, search: LibrarySearch) {
+  const query = useInfiniteQuery(libraryListQuery(key, search))
+  return { ...query, items: (query.data?.pages.flatMap((page) => page.data) ?? []) as T[] }
 }
 
 function ResultsHeader({ total, noun, query }: { total?: number; noun: string; query?: string }) {
@@ -383,13 +453,38 @@ function ResultsHeader({ total, noun, query }: { total?: number; noun: string; q
   )
 }
 
-function LoadMore({ hasMore, loading, onClick }: { hasMore: boolean; loading: boolean; onClick: () => void }) {
-  if (!hasMore) return null
+/**
+ * Appends the next page in place, but is a real link to ?page=N so crawlers (and new tabs) reach every page of the catalogue.
+ * Pages before a deep-linked start are offered the same way.
+ */
+function LoadMore({ search, nextPage, loading, onClick }: { search: LibrarySearch; nextPage?: number; loading: boolean; onClick: () => void }) {
+  const firstPage = search.page ?? 1
+  if (!nextPage && firstPage === 1) return null
   return (
-    <div className="mt-12 flex justify-center">
-      <Button variant="outline" size="lg" className="h-11 rounded-full px-8" onClick={onClick} disabled={loading}>
-        {loading && <Loader2 className="animate-spin" />} আরও দেখুন
-      </Button>
+    <div className="mt-12 flex flex-wrap justify-center gap-3">
+      {firstPage > 1 && (
+        <Button variant="ghost" size="lg" className="h-11 rounded-full px-6" asChild>
+          <Link to="/library" search={{ ...search, page: firstPage > 2 ? firstPage - 1 : undefined }} rel="prev">
+            আগের পৃষ্ঠা
+          </Link>
+        </Button>
+      )}
+      {nextPage && (
+        <Button variant="outline" size="lg" className="h-11 rounded-full px-8" disabled={loading} asChild>
+          <Link
+            to="/library"
+            search={{ ...search, page: nextPage }}
+            rel="next"
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+              e.preventDefault()
+              onClick()
+            }}
+          >
+            {loading && <Loader2 className="animate-spin" />} আরও দেখুন
+          </Link>
+        </Button>
+      )}
     </div>
   )
 }
@@ -397,8 +492,8 @@ function LoadMore({ hasMore, loading, onClick }: { hasMore: boolean; loading: bo
 /** Column count of the book grid at the current width, matching its sm/md/lg breakpoints. */
 /** Books stand in rows on wooden shelves, one plank per grid row. */
 function BookResults({ search }: { search: LibrarySearch }) {
-  const query = useLibraryList<Book>('/books', 'books', search)
-  const books = query.data?.pages.flatMap((page) => page.data) ?? []
+  const query = useLibraryList<Book>('books', search)
+  const books = query.items
   const columns = useGridColumns()
 
   return (
@@ -424,14 +519,14 @@ function BookResults({ search }: { search: LibrarySearch }) {
           অন্য নাম দিয়ে খুঁজুন বা ফিল্টার বদলে দেখুন।
         </EmptyState>
       )}
-      <LoadMore hasMore={!!query.hasNextPage} loading={query.isFetchingNextPage} onClick={() => query.fetchNextPage()} />
+      <LoadMore search={search} nextPage={query.hasNextPage ? (query.data?.pages.at(-1)?.meta.current_page ?? 0) + 1 : undefined} loading={query.isFetchingNextPage} onClick={() => query.fetchNextPage()} />
     </>
   )
 }
 
 function DurusResults({ search }: { search: LibrarySearch }) {
-  const query = useLibraryList<DarsSeries>('/dars-series', 'durus', search)
-  const series = query.data?.pages.flatMap((page) => page.data) ?? []
+  const query = useLibraryList<DarsSeries>('durus', search)
+  const series = query.items
 
   return (
     <>
@@ -453,7 +548,7 @@ function DurusResults({ search }: { search: LibrarySearch }) {
           অন্য নাম দিয়ে খুঁজুন বা ফিল্টার বদলে দেখুন।
         </EmptyState>
       )}
-      <LoadMore hasMore={!!query.hasNextPage} loading={query.isFetchingNextPage} onClick={() => query.fetchNextPage()} />
+      <LoadMore search={search} nextPage={query.hasNextPage ? (query.data?.pages.at(-1)?.meta.current_page ?? 0) + 1 : undefined} loading={query.isFetchingNextPage} onClick={() => query.fetchNextPage()} />
     </>
   )
 }

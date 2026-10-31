@@ -8,10 +8,10 @@ import { CenterSpinner } from '@/components/states'
 import { Button } from '@/components/ui/button'
 import { safeRedirect, useAuthActions, useUser } from '@/lib/auth'
 import { authError, matchesPassword, newPassword, required, validEmail } from '@/lib/auth-form'
-import { pageTitle } from '@/lib/head'
+import { seo } from '@/lib/seo'
 
 export const Route = createFileRoute('/_site/register')({
-  head: () => pageTitle('রেজিস্টার'),
+  head: () => seo({ title: 'রেজিস্টার', noindex: true }),
   validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({
     redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
   }),

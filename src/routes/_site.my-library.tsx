@@ -12,7 +12,7 @@ import { BookGridSkeleton, EmptyState } from '@/components/states'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useUser } from '@/lib/auth'
-import { pageTitle } from '@/lib/head'
+import { seo } from '@/lib/seo'
 import { bnNum, DARS_STATUS_LABELS, STATUS_LABELS, STATUS_ORDER } from '@/lib/text'
 import type { Book, BookStatus } from '@/lib/types'
 import { groupAnnotations, useBookmarks, useDarsLibrary, useLibrary, useNotes } from '@/lib/user-data'
@@ -24,7 +24,7 @@ type Sort = 'recent' | 'title' | 'progress'
 const isStatus = (value: unknown): value is BookStatus => STATUS_ORDER.includes(value as BookStatus)
 
 export const Route = createFileRoute('/_site/my-library')({
-  head: () => pageTitle('আমার লাইব্রেরি'),
+  head: () => seo({ title: 'আমার লাইব্রেরি', noindex: true }),
   validateSearch: (search: Record<string, unknown>): { view?: Exclude<View, 'books'>; status?: BookStatus } => ({
     view: search.view === 'durus' || search.view === 'notes' ? search.view : undefined,
     status: isStatus(search.status) ? search.status : undefined,

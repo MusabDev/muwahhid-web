@@ -9,10 +9,10 @@ import { EmptyState } from '@/components/states'
 import { Button } from '@/components/ui/button'
 import { useAuthActions } from '@/lib/auth'
 import { authError, matchesPassword, newPassword, validEmail } from '@/lib/auth-form'
-import { pageTitle } from '@/lib/head'
+import { seo } from '@/lib/seo'
 
 export const Route = createFileRoute('/_site/reset-password')({
-  head: () => pageTitle('নতুন পাসওয়ার্ড'),
+  head: () => seo({ title: 'নতুন পাসওয়ার্ড', noindex: true }),
   validateSearch: (search: Record<string, unknown>): { token?: string; email?: string } => ({
     token: typeof search.token === 'string' ? search.token : undefined,
     email: typeof search.email === 'string' ? search.email : undefined,

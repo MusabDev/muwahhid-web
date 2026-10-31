@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { darsLink } from '@/lib/links'
 import { api } from '@/lib/api'
 import { bnNum, formatTime, parseTime } from '@/lib/text'
 import type { Dars, Segment } from '@/lib/types'
@@ -50,7 +51,7 @@ function AdminDars() {
         action={
           <div className="flex gap-2">
             <Button variant="outline" asChild>
-              <Link to="/durus/$id" params={{ id: String(dars.id) }} search={{}} target="_blank">
+              <Link {...darsLink(dars)} search={{}} target="_blank">
                 <ExternalLink /> সাইটে দেখুন
               </Link>
             </Button>

@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
-import { api } from './api'
+import { notFound } from '@tanstack/react-router'
+import { api, ApiError } from './api'
 import type { Author, Book, BookPage, Category, Dars, DarsSeries, GlobalSearchResult, Paginated, Sentence } from './types'
 
 export const booksQuery = (params: { author?: string; category?: string; sort?: string; page?: number; per_page?: number } = {}) =>
@@ -51,6 +52,12 @@ export const darsQuery = (id: number) =>
     queryFn: () => api<Dars>(`/durus/${id}`),
   })
 
+export const darsByNumberQuery = (seriesSlug: string, number: number) =>
+  queryOptions({
+    queryKey: ['dars', seriesSlug, number],
+    queryFn: () => api<Dars>(`/dars-series/${seriesSlug}/durus/${number}`),
+  })
+
 export const categoriesQuery = () =>
   queryOptions({
     queryKey: ['categories'],
@@ -77,3 +84,13 @@ export const sentenceQuery = (id: number) =>
     queryKey: ['sentence', id],
     queryFn: () => api<{ sentence: Sentence; book_slug: string; page_number: number }>(`/sentences/${id}`),
   })
+
+/** Await a loader fetch and turn an API 404 into the router's not-found page (a real 404 status under SSR). */
+export async function orNotFound<T>(promise: Promise<T>): Promise<T> {
+  try {
+    return await promise
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) throw notFound()
+    throw error
+  }
+}

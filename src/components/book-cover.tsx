@@ -34,13 +34,23 @@ function banglaSize(title: string) {
 
 type CoverBook = Pick<Book, 'title_ar' | 'title_bn' | 'cover_url' | 'author' | 'is_sharh' | 'explainer'>
 
-export function BookCover({ book, className }: { book: CoverBook; className?: string }) {
+/** `priority` is for the page's hero cover: loaded eagerly and first, as it is usually the largest paint. */
+export function BookCover({ book, className, priority }: { book: CoverBook; className?: string; priority?: boolean }) {
   const frame = cn('group/cover relative aspect-[2/3] overflow-hidden rounded-r-[5px] rounded-l-[2px] shadow-[0_10px_22px_-8px_oklch(0.2_0.03_50/0.6)]', className)
 
   if (book.cover_url) {
     return (
       <div className={frame}>
-        <img src={book.cover_url} alt={book.title_bn} className="size-full object-cover" loading="lazy" />
+        <img
+          src={book.cover_url}
+          alt={`${book.title_bn} — প্রচ্ছদ`}
+          width={400}
+          height={600}
+          className="size-full object-cover"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
+          decoding="async"
+        />
         <div className="pointer-events-none absolute inset-y-0 left-0 w-[5%] bg-linear-to-r from-black/35 via-white/10 to-transparent" />
       </div>
     )
