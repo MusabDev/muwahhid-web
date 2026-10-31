@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { toast } from 'sonner'
 import { StarMark } from '@/components/brand'
 import type { HighlightRange } from '@/components/markdown'
+import { groupBlocks } from '@/components/reader/blocks'
 import { BookView } from '@/components/reader/book-view'
 import { ReaderContext, type ReaderContextValue } from '@/components/reader/reader-context'
 import { SearchPanel } from '@/components/reader/search-panel'
@@ -147,6 +148,8 @@ function Reader() {
   const { ref: swipeRef, handlers: swipeHandlers } = usePageSwipe({ prev: page?.prev_page, next: page?.next_page, onTurn: goTo, pageKey: page?.number })
 
   const sentenceMap = useMemo(() => new Map(page?.sentences.map((s) => [s.id, s]) ?? []), [page])
+  /* sentences that open a new paragraph, heading or list item, as the reader lays them out */
+  const blockStarts = useMemo(() => new Set(groupBlocks(page?.sentences ?? []).map((b) => b.sentences[0].id)), [page])
 
   const highlightMap = useMemo(() => {
     const map = new Map<string, HighlightRange[]>()
@@ -172,6 +175,7 @@ function Reader() {
     fontBn: settings.fontBn,
     /* everything selected here is on this page */
     annotations: { list: annotations, create: (parts, replaces) => create(parts.map((part) => ({ ...part, page_number: pageNumber })), replaces), update: updateAnnotation, remove },
+    startsBlock: (t) => blockStarts.has(t.id),
     linkFor: (t) => `${window.location.origin}/books/${slug}/read/${pageNumber}#s-${t.id}`,
     sourceFor: (lang) => {
       /* a sharh is quoted under its explainer, whose words fill its pages */

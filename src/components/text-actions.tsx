@@ -35,6 +35,8 @@ interface Options {
   /** The book or dars the text is from, worded in the given language. */
   sourceFor: (lang: Lang) => ShareSource
   linkFor: (target: TextTarget) => string
+  /** Whether the text starts a new paragraph; quoted text breaks the line there. */
+  startsBlock?: (target: TextTarget) => boolean
   annotations: {
     list: Annotation[]
     /** Saves parts as given, in place of the exact existing parts in `replaces`. */
@@ -142,7 +144,15 @@ export function useTextActions(options: Options) {
   /* a clicked highlight stands for every sentence it spans */
   const parts = menu?.kind === 'mark' ? annotationGroup(options.annotations.list, menu.annotation) : []
   const partTargets: TextTarget[] = menu?.kind === 'mark' ? parts.map((a) => ({ type: a.target_type, id: a.target_id, lang: a.lang })) : (menu?.segments.map((seg) => seg.target) ?? [])
-  const quote = menu?.kind === 'mark' ? parts.map((a) => a.quote).join(' ') : menu?.segments.length === 1 ? menu.segments[0].text : (menu?.text ?? '')
+  /* built from each sentence's plain text, so footnote markers stay out; sentences are spaced, paragraphs put on new lines */
+  const joinParts = (texts: { target: TextTarget; text: string }[]) =>
+    texts.map(({ target, text }, i) => (i === 0 ? '' : options.startsBlock?.(target) ? '\n' : ' ') + text).join('')
+  const quote =
+    menu?.kind === 'mark'
+      ? joinParts(parts.map((a) => ({ target: { type: a.target_type, id: a.target_id, lang: a.lang }, text: a.quote })))
+      : menu?.segments.length
+        ? joinParts(menu.segments)
+        : (menu?.text ?? '')
   /* the language of the quoted text: its sentences' own, or guessed from the script when they mix */
   const quoteLang: Lang = partTargets.length && partTargets.every((t) => t.lang === partTargets[0].lang) ? partTargets[0].lang : /[\u0600-\u06FF]/.test(quote) ? 'ar' : 'bn'
   /* link and bookmark point at the sentence the text starts in */

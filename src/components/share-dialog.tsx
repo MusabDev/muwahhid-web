@@ -48,18 +48,24 @@ const MAX_HEIGHT = 2600
 const STAR_OUTER = new Path2D('M20 3 25 15 37 20 25 25 20 37 15 25 3 20 15 15Z')
 const STAR_INNER = new Path2D('M8 8 20 13 32 8 27 20 32 32 20 27 8 32 13 20Z')
 
+/** Wrap each paragraph to the width; a paragraph's first line is flagged so a gap can go above it. */
 function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
-  const lines: string[] = []
+  const lines: { text: string; gap: boolean }[] = []
   for (const paragraph of text.split(/\n+/)) {
     let line = ''
+    let first = lines.length > 0
+    const push = () => {
+      lines.push({ text: line, gap: first })
+      first = false
+    }
     for (const word of paragraph.split(/\s+/).filter(Boolean)) {
       const test = line ? `${line} ${word}` : word
       if (ctx.measureText(test).width > maxWidth && line) {
-        lines.push(line)
+        push()
         line = word
       } else line = test
     }
-    if (line) lines.push(line)
+    if (line) push()
   }
   return lines
 }
@@ -118,16 +124,19 @@ export function ShareDialog({ quote, open, onOpenChange, fontAr, fontBn }: { quo
       // Lay out the passage, shrinking it only when it would make the image too tall
       let size: number = rtl ? TEXT_SIZES[textSize] : Math.round(TEXT_SIZES[textSize] * 0.82)
       const lineHeight = rtl ? 1.95 : 1.7
-      let lines: string[] = []
+      let lines: ReturnType<typeof wrapLines> = []
+      /* extra space above each paragraph after the first */
+      const gapOf = (px: number) => px * 0.6
+      const heightOf = (px: number) => lines.reduce((sum, line) => sum + px * lineHeight + (line.gap ? gapOf(px) : 0), 0)
       const footerHeight = 210
       for (let i = 0; i < 20; i++) {
         ctx.font = `${size}px "${fam}"`
         ctx.direction = rtl ? 'rtl' : 'ltr'
         lines = wrapLines(ctx, quote.text, textWidth)
-        if (PAD + lines.length * size * lineHeight + footerHeight <= MAX_HEIGHT || size <= 28) break
+        if (PAD + heightOf(size) + footerHeight <= MAX_HEIGHT || size <= 28) break
         size = Math.round(size * 0.92)
       }
-      const textHeight = lines.length * size * lineHeight
+      const textHeight = heightOf(size)
       const h = Math.max(MIN_HEIGHT, Math.round(PAD + textHeight + footerHeight))
       canvas.width = WIDTH
       canvas.height = h
@@ -147,7 +156,8 @@ export function ShareDialog({ quote, open, onOpenChange, fontAr, fontBn }: { quo
       ctx.fillStyle = c.ink
       ctx.font = `${size}px "${fam}"`
       for (const line of lines) {
-        ctx.fillText(line, start, y + (size * lineHeight) / 2)
+        if (line.gap) y += gapOf(size)
+        ctx.fillText(line.text, start, y + (size * lineHeight) / 2)
         y += size * lineHeight
       }
 
