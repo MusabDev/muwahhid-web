@@ -11,9 +11,9 @@ import { cn } from '@/lib/utils'
 
 const MIN_QUERY = 2
 
-export function SearchPanel({ slug, active, onNavigate }: { slug: string; active: boolean; onNavigate: () => void }) {
-  const [input, setInput] = useState('')
-  const [q, setQ] = useState('')
+/** The box's text is owned by the caller, so a search survives the panel closing. */
+export function SearchPanel({ slug, input, onInput: setInput, onNavigate }: { slug: string; input: string; onInput: (value: string) => void; onNavigate: () => void }) {
+  const [q, setQ] = useState(input.trim())
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -21,10 +21,11 @@ export function SearchPanel({ slug, active, onNavigate }: { slug: string; active
     return () => window.clearTimeout(t)
   }, [input])
 
-  /* the panel is kept while hidden, so focus the box each time it is shown */
+  /* the panel mounts each time search opens */
   useEffect(() => {
-    if (active) inputRef.current?.focus({ preventScroll: true })
-  }, [active])
+    inputRef.current?.focus({ preventScroll: true })
+    inputRef.current?.select()
+  }, [])
 
   const { data, isFetching } = useQuery({
     queryKey: ['book', slug, 'search', q],
@@ -45,14 +46,6 @@ export function SearchPanel({ slug, active, onNavigate }: { slug: string; active
             type="search"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              /* Escape clears the box first, and only closes the panel once it is empty */
-              if (e.key === 'Escape' && input) {
-                e.stopPropagation()
-                e.nativeEvent.stopImmediatePropagation()
-                setInput('')
-              }
-            }}
             placeholder="এই কিতাবে সার্চ করুন…"
             className="h-11 w-full rounded-xl border bg-background ps-9 pe-10 text-[15px] outline-none transition-colors placeholder:text-muted-foreground/80 focus:border-gold focus:ring-3 focus:ring-gold/15 [&::-webkit-search-cancel-button]:hidden"
           />

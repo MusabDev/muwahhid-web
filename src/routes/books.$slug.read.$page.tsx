@@ -1,21 +1,18 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { ArrowRight, Bookmark, BookOpen, ChevronLeft, ChevronRight, ListTree, NotebookPen, Rows3, Search, Settings2, Type } from 'lucide-react'
+import { ArrowRight, Bookmark, BookOpen, ChevronLeft, ChevronRight, Rows3, Search, Settings2, Type } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { StarMark } from '@/components/brand'
 import type { HighlightRange } from '@/components/markdown'
 import { BookView } from '@/components/reader/book-view'
-import { Companion, type CompanionTab } from '@/components/reader/companion'
-import { HighlightsPanel } from '@/components/reader/notes-panel'
 import { ReaderContext, type ReaderContextValue } from '@/components/reader/reader-context'
 import { SearchPanel } from '@/components/reader/search-panel'
 import { SentenceView } from '@/components/reader/sentence-view'
 import { clampFontSize, Kbd, LEADING, SettingsPanel } from '@/components/reader/settings-panel'
 import { PatternTint } from '@/components/pattern'
-import { EmptyState, Spinner } from '@/components/states'
+import { Spinner } from '@/components/states'
 import { useTextActions } from '@/components/text-actions'
-import { TocList } from '@/components/toc-list'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -26,7 +23,7 @@ import type { TextTarget } from '@/lib/selection'
 import { bnNum } from '@/lib/text'
 import { pageTitle } from '@/lib/head'
 import type { Annotation } from '@/lib/types'
-import { annotationGroup, groupAnnotations, useAnnotations, useBookmarks, useLibraryEntry, useReaderSettings } from '@/lib/user-data'
+import { annotationGroup, useAnnotations, useBookmarks, useLibraryEntry, useReaderSettings } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/books/$slug/read/$page')({
@@ -35,7 +32,6 @@ export const Route = createFileRoute('/books/$slug/read/$page')({
   component: Reader,
 })
 
-const WIDE = '(min-width: 1280px)'
 /* below this the top bar slims down and the bottom dock carries the controls */
 const ROOMY = '(min-width: 640px)'
 
@@ -63,15 +59,19 @@ function Reader() {
   }
   const { saveProgress } = useLibraryEntry(book)
 
-  const [panel, setPanel] = useState<CompanionTab | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  /* kept here so a search survives closing it to read a result */
+  const [searchInput, setSearchInput] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const docked = useMediaQuery(WIDE)
   const roomy = useMediaQuery(ROOMY)
-  const chromeHidden = useAutoHide(!panel && !settingsOpen)
-  const togglePanel = (tab: CompanionTab) => setPanel((current) => (current === tab ? null : tab))
-  const closePanel = useCallback(() => setPanel(null), [])
-  /* when docked beside the page the companion stays open while the reader moves around */
-  const afterNavigate = () => !docked && setPanel(null)
+  const chromeHidden = useAutoHide(!searchOpen && !settingsOpen)
+  const closeSearch = useCallback(() => setSearchOpen(false), [])
+  /* Escape clears the box first, and only closes search once it is empty */
+  const onSearchEscape = (e: KeyboardEvent) => {
+    if (!searchInput) return
+    e.preventDefault()
+    setSearchInput('')
+  }
   const [flashId, setFlashId] = useState<number | null>(null)
 
   /* Fonts load lazily when chosen */
@@ -237,9 +237,7 @@ function Reader() {
     keyActions.current = {
       ArrowRight: () => goTo(page?.next_page),
       ArrowLeft: () => goTo(page?.prev_page),
-      t: () => togglePanel('toc'),
-      '/': () => setPanel('search'),
-      n: () => togglePanel('notes'),
+      '/': () => setSearchOpen(true),
       b: () => void togglePageBookmark(),
       m: () => update({ mode: settings.mode === 'book' ? 'sentence' : 'book' }),
       /* both → Arabic only → Bangla only → both */
@@ -273,12 +271,28 @@ function Reader() {
                 <ArrowRight className="rotate-180" />
               </Link>
             </BarButton>
-            <BarButton label="সূচিপত্র" shortcut="T" active={panel === 'toc'} onClick={() => togglePanel('toc')} className="max-sm:hidden">
-              <ListTree />
-            </BarButton>
-            <BarButton label="কিতাবে সার্চ করুন" shortcut="/" active={panel === 'search'} onClick={() => togglePanel('search')} className="max-sm:hidden">
-              <Search />
-            </BarButton>
+            <Popover open={searchOpen && roomy} onOpenChange={setSearchOpen}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="কিতাবে সার্চ করুন" className="text-wood-foreground hover:bg-white/10 hover:text-wood-foreground data-[state=open]:bg-white/15 data-[state=open]:text-gold max-sm:hidden">
+                      <Search />
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  কিতাবে সার্চ করুন <Kbd>/</Kbd>
+                </TooltipContent>
+              </Tooltip>
+              <PopoverContent
+                align="start"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                onEscapeKeyDown={onSearchEscape}
+                className="max-h-[min(calc(100svh-5rem),40rem)] w-[26rem] max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain bg-card p-3 scrollbar-thin"
+              >
+                <SearchPanel slug={slug} input={searchInput} onInput={setSearchInput} onNavigate={closeSearch} />
+              </PopoverContent>
+            </Popover>
 
             <div className="mx-1 flex min-w-0 flex-1 flex-col items-center text-center">
               <span className="max-w-full truncate font-heading text-sm font-semibold text-wood-foreground sm:text-base">
@@ -294,9 +308,6 @@ function Reader() {
 
             <BarButton label={pageBookmark ? 'বুকমার্ক সরান' : 'এই পাতা বুকমার্ক করুন'} shortcut="B" active={!!pageBookmark} onClick={togglePageBookmark}>
               <Bookmark className={cn(pageBookmark && 'fill-gold text-gold')} />
-            </BarButton>
-            <BarButton label="হাইলাইট ও নোট" shortcut="N" active={panel === 'notes'} onClick={() => togglePanel('notes')} className="max-sm:hidden">
-              <NotebookPen />
             </BarButton>
             <BarButton label={settings.mode === 'book' ? 'বাক্য মোড' : 'কিতাব মোড'} shortcut="M" onClick={() => update({ mode: settings.mode === 'book' ? 'sentence' : 'book' })} className="max-md:hidden">
               {settings.mode === 'book' ? <Rows3 /> : <BookOpen />}
@@ -327,8 +338,7 @@ function Reader() {
         </div>
       </header>
 
-      {/* Page — on wide screens it makes room for the docked companion */}
-      <div className={cn('transition-[padding] duration-300 ease-out', panel && 'xl:ps-[404px]')}>
+      <div>
         <main ref={containerRef} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} className="@container relative sm:px-6 sm:py-10">
           <ReaderContext.Provider value={ctx}>
             {isLoading || !book ? (
@@ -357,8 +367,8 @@ function Reader() {
           >
             <div className={DOCK}>
               {/* on phones the dock carries the tools the slim top bar leaves out, within thumb reach */}
-              <DockButton label="সূচি, সার্চ ও নোট" active={!!panel} onClick={() => setPanel((p) => (p ? null : 'toc'))} className="sm:hidden">
-                <ListTree />
+              <DockButton label="কিতাবে সার্চ করুন" active={searchOpen} onClick={() => setSearchOpen(true)} className="sm:hidden">
+                <Search />
               </DockButton>
               <span aria-hidden className="h-6 w-px bg-white/15 sm:hidden" />
               <DockButton label="আগের পৃষ্ঠা" disabled={!page.prev_page} onClick={() => goTo(page.prev_page)}>
@@ -392,18 +402,23 @@ function Reader() {
         </SheetContent>
       </Sheet>
 
-      <Companion
-        tab={panel}
-        onTab={setPanel}
-        onClose={closePanel}
-        counts={{ notes: groupAnnotations(annotations).length }}
-        book={book && { title: book.title_bn, page: pageNumber, lastPage: book.last_page }}
-        panels={{
-          toc: book && (book.toc?.length ? <TocList slug={slug} entries={book.toc} currentPage={pageNumber} onNavigate={afterNavigate} /> : <EmptyState icon={ListTree} title="সূচিপত্র নেই" />),
-          search: <SearchPanel slug={slug} active={panel === 'search'} onNavigate={afterNavigate} />,
-          notes: book && <HighlightsPanel book={book} annotations={annotations} onRemoveAnnotation={remove} onNavigate={afterNavigate} />,
-        }}
-      />
+      {/* phones get search as a bottom sheet instead of the top bar popover */}
+      <Sheet open={searchOpen && !roomy} onOpenChange={setSearchOpen}>
+        <SheetContent
+          side="bottom"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onEscapeKeyDown={onSearchEscape}
+          className="h-[85svh] gap-0 rounded-t-2xl bg-card"
+        >
+          <div aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-border" />
+          <SheetHeader className="pb-1">
+            <SheetTitle>কিতাবে সার্চ করুন</SheetTitle>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] scrollbar-thin">
+            <SearchPanel slug={slug} input={searchInput} onInput={setSearchInput} onNavigate={closeSearch} />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

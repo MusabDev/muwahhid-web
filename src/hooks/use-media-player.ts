@@ -9,8 +9,10 @@ interface YTPlayer {
   pauseVideo(): void
   getPlayerState(): number
   setVolume(volume: number): void
+  getVolume(): number
   mute(): void
   unMute(): void
+  isMuted(): boolean
   setPlaybackRate(rate: number): void
   unloadModule?(name: string): void
   setOption?(module: string, option: string, value: unknown): void
@@ -73,6 +75,9 @@ export function useMediaPlayer(url: string, startAt: number | null) {
   const [rate, setRateState] = useState(1)
   // YouTube doesn't say when an ad runs; a clock that stands still while "playing" is the tell
   const [ad, setAd] = useState(false)
+  // whether the listener muted it; YouTube also mutes on its own (a mute remembered from youtube.com,
+  // or a start the browser wouldn't allow with sound), and that is undone
+  const wantMuted = useRef(false)
 
   useEffect(() => {
     if (!ytId || !ytHost.current) return
@@ -106,6 +111,7 @@ export function useMediaPlayer(url: string, startAt: number | null) {
           onReady: () => {
             setReady(true)
             hideCaptions()
+            if (!wantMuted.current && ytPlayer.current?.isMuted()) ytPlayer.current.unMute()
             let last = -1
             let still = 0
             poll = window.setInterval(() => {
@@ -120,6 +126,9 @@ export function useMediaPlayer(url: string, startAt: number | null) {
               setBuffered((p.getVideoLoadedFraction() ?? 0) * d)
               setPlaying(state === YT_PLAYING)
               setWaiting(state === YT_BUFFERING)
+              // the embed's own sound state, so the controls never claim sound that isn't there
+              setMuted(p.isMuted())
+              setVolumeState(p.getVolume())
               still = state === YT_PLAYING && Math.abs(t - last) < 0.01 ? still + 1 : 0
               last = t
               setAd(still >= AD_STALL_POLLS)
@@ -151,10 +160,18 @@ export function useMediaPlayer(url: string, startAt: number | null) {
     // startAt is only applied when the player is created
   }, [ytId])
 
+  /** Start YouTube with sound unless the listener muted it; called from a click or key, so the browser allows it. */
+  const playYouTube = useCallback(() => {
+    const p = ytPlayer.current
+    if (!p) return
+    if (!wantMuted.current && p.isMuted()) p.unMute()
+    p.playVideo()
+  }, [])
+
   const play = useCallback(() => {
-    if (ytId) ytPlayer.current?.playVideo()
+    if (ytId) playYouTube()
     else mediaRef.current?.play().catch(() => {})
-  }, [ytId])
+  }, [ytId, playYouTube])
 
   const pause = useCallback(() => {
     if (ytId) ytPlayer.current?.pauseVideo()
@@ -174,20 +191,21 @@ export function useMediaPlayer(url: string, startAt: number | null) {
       const to = Math.max(0, duration ? Math.min(seconds, duration) : seconds)
       if (ytId) {
         ytPlayer.current?.seekTo(to, true)
-        if (play) ytPlayer.current?.playVideo()
+        if (play) playYouTube()
       } else if (mediaRef.current) {
         mediaRef.current.currentTime = to
         if (play) mediaRef.current.play().catch(() => {})
       }
       setTime(to)
     },
-    [ytId, duration],
+    [ytId, duration, playYouTube],
   )
 
   /** 0–100 */
   const setVolume = useCallback(
     (v: number) => {
       const next = Math.max(0, Math.min(100, Math.round(v)))
+      wantMuted.current = next === 0
       if (ytId) {
         ytPlayer.current?.setVolume(next)
         if (next > 0) ytPlayer.current?.unMute()
@@ -202,6 +220,7 @@ export function useMediaPlayer(url: string, startAt: number | null) {
   )
 
   const toggleMute = useCallback(() => {
+    wantMuted.current = !muted
     if (ytId) {
       if (muted) ytPlayer.current?.unMute()
       else ytPlayer.current?.mute()

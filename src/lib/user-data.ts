@@ -523,13 +523,18 @@ export interface SubtitleStyle {
   strokeWidth: number
   strokeColor: string
   shadow: boolean
-  /** One box around the cue, a strip behind each line of text, or none. */
-  shape: 'box' | 'lines' | 'none'
+  /**
+   * One box around the cue, the same with feathered edges, a strip behind each line of text,
+   * a shade rising from the bottom of the video, or none.
+   */
+  shape: 'box' | 'soft' | 'lines' | 'fade' | 'none'
   backgroundColor: string
   /** 0–100 */
   backgroundOpacity: number
   /** Blur behind the background, in px. */
   backgroundBlur: number
+  /** How far the bottom shade reaches above the text, in percent of the text block's own height. */
+  fadeHeight: number
   /** Distance from the bottom of the video, in percent of its height. */
   position: number
   align: 'center' | 'left' | 'right'
@@ -569,25 +574,27 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   showArabic: true,
   showBangla: true,
   diacritics: true,
-  subtitles: 'both',
+  subtitles: 'bn',
+  // the "outline" preset, a little larger and near the bottom
   subtitle: {
-    fontAr: 'amiri',
-    fontBn: 'noto-serif-bengali',
-    sizeAr: 100,
-    sizeBn: 100,
-    colorAr: '#f2dca6',
+    fontAr: 'noto-naskh-arabic',
+    fontBn: 'hind-siliguri',
+    sizeAr: 130,
+    sizeBn: 130,
+    colorAr: '#ffffff',
     colorBn: '#ffffff',
-    bold: false,
+    bold: true,
     order: 'ar',
-    stroke: false,
-    strokeWidth: 2,
+    stroke: true,
+    strokeWidth: 1.5,
     strokeColor: '#000000',
     shadow: true,
-    shape: 'box',
+    shape: 'none',
     backgroundColor: '#000000',
     backgroundOpacity: 55,
-    backgroundBlur: 4,
-    position: 10,
+    backgroundBlur: 0,
+    fadeHeight: 120,
+    position: 5,
     align: 'center',
     lineHeight: 100,
     width: 90,

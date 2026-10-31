@@ -1,5 +1,5 @@
-import { AlignCenter, AlignLeft, AlignRight, ArrowDownUp, RotateCcw } from 'lucide-react'
-import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { AlignCenter, AlignLeft, AlignRight, Check, RotateCcw, SlidersHorizontal } from 'lucide-react'
+import { useEffect, useLayoutEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Kbd, Section } from '@/components/reader/settings-panel'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -7,7 +7,7 @@ import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { ARABIC_FONTS, BANGLA_FONTS, readerFontVars } from '@/lib/fonts'
+import { ARABIC_FONTS, arabicFamily, banglaFamily, loadFont, readerFontVars, SUBTITLE_BANGLA_FONTS } from '@/lib/fonts'
 import { bnNum } from '@/lib/text'
 import type { Segment } from '@/lib/types'
 import { DEFAULT_SETTINGS, type ReaderSettings, type SubtitleStyle } from '@/lib/user-data'
@@ -26,6 +26,7 @@ const TEXT_COLORS = [
   { value: '#f2dca6', label: 'সোনালি' },
   { value: '#ffe14d', label: 'হলুদ' },
   { value: '#7fe3ff', label: 'আসমানি' },
+  { value: '#6b4a12', label: 'গাঢ় সোনালি' },
   { value: '#9be37a', label: 'সবুজ' },
   { value: '#000000', label: 'কালো' },
 ]
@@ -42,37 +43,62 @@ const BACKGROUND_COLORS = [
   { value: '#241a10', label: 'বাদামি' },
   { value: '#1f2937', label: 'ধূসর' },
   { value: '#fdfbf5', label: 'কাগজ' },
+  { value: '#ffffff', label: 'সাদা' },
 ]
 
-type Look = Pick<SubtitleStyle, 'colorAr' | 'colorBn' | 'bold' | 'stroke' | 'strokeWidth' | 'strokeColor' | 'shadow' | 'shape' | 'backgroundColor' | 'backgroundOpacity' | 'backgroundBlur'>
+type Look = Pick<
+  SubtitleStyle,
+  'fontAr' | 'fontBn' | 'colorAr' | 'colorBn' | 'bold' | 'stroke' | 'strokeWidth' | 'strokeColor' | 'shadow' | 'shape' | 'backgroundColor' | 'backgroundOpacity' | 'backgroundBlur'
+>
 
-/** One-tap looks; picking one only touches colors, edges and background, never fonts, sizes or layout. */
+/** One-tap looks; picking one sets fonts, colors, edges and background, never sizes or layout. */
 const PRESETS: { key: string; label: string; look: Look }[] = [
   {
     key: 'classic',
     label: 'ক্লাসিক',
-    look: { colorAr: '#f2dca6', colorBn: '#ffffff', bold: false, stroke: false, strokeWidth: 2, strokeColor: '#000000', shadow: true, shape: 'box', backgroundColor: '#000000', backgroundOpacity: 55, backgroundBlur: 4 },
+    look: { fontAr: 'amiri', fontBn: 'noto-serif-bengali', colorAr: '#f2dca6', colorBn: '#ffffff', bold: false, stroke: false, strokeWidth: 2, strokeColor: '#000000', shadow: true, shape: 'box', backgroundColor: '#000000', backgroundOpacity: 55, backgroundBlur: 4 },
   },
   {
-    key: 'cinema',
-    label: 'সিনেমা',
-    look: { colorAr: '#ffffff', colorBn: '#ffffff', bold: true, stroke: true, strokeWidth: 1.5, strokeColor: '#000000', shadow: true, shape: 'none', backgroundColor: '#000000', backgroundOpacity: 55, backgroundBlur: 0 },
+    // a dark pill with soft edges and bold sans text, as on dubbed lecture clips
+    key: 'soft',
+    label: 'নরম',
+    look: { fontAr: 'noto-naskh-arabic', fontBn: 'hind-siliguri', colorAr: '#ffffff', colorBn: '#ffffff', bold: true, stroke: false, strokeWidth: 2, strokeColor: '#000000', shadow: false, shape: 'soft', backgroundColor: '#0b1220', backgroundOpacity: 70, backgroundBlur: 6 },
+  },
+  {
+    // white letters with a thick black edge and no background, as in films and anime
+    key: 'outline',
+    label: 'আউটলাইন',
+    look: { fontAr: 'noto-naskh-arabic', fontBn: 'hind-siliguri', colorAr: '#ffffff', colorBn: '#ffffff', bold: true, stroke: true, strokeWidth: 1.5, strokeColor: '#000000', shadow: true, shape: 'none', backgroundColor: '#000000', backgroundOpacity: 55, backgroundBlur: 0 },
+  },
+  {
+    key: 'fade',
+    label: 'ফেড',
+    look: { fontAr: 'amiri', fontBn: 'hind-siliguri', colorAr: '#f2dca6', colorBn: '#ffffff', bold: true, stroke: false, strokeWidth: 2, strokeColor: '#000000', shadow: true, shape: 'fade', backgroundColor: '#000000', backgroundOpacity: 80, backgroundBlur: 0 },
+  },
+  {
+    // the same rising shade in white, with dark text, for light or busy footage
+    key: 'fade-light',
+    label: 'সাদা ফেড',
+    look: { fontAr: 'amiri', fontBn: 'hind-siliguri', colorAr: '#6b4a12', colorBn: '#16130f', bold: true, stroke: false, strokeWidth: 2, strokeColor: '#000000', shadow: false, shape: 'fade', backgroundColor: '#ffffff', backgroundOpacity: 85, backgroundBlur: 0 },
   },
   {
     key: 'bright',
     label: 'উজ্জ্বল',
-    look: { colorAr: '#ffe14d', colorBn: '#ffe14d', bold: true, stroke: false, strokeWidth: 2, strokeColor: '#000000', shadow: false, shape: 'lines', backgroundColor: '#000000', backgroundOpacity: 100, backgroundBlur: 0 },
-  },
-  {
-    key: 'minimal',
-    label: 'মিনিমাল',
-    look: { colorAr: '#ffffff', colorBn: '#e5e5e5', bold: false, stroke: false, strokeWidth: 2, strokeColor: '#000000', shadow: true, shape: 'none', backgroundColor: '#000000', backgroundOpacity: 55, backgroundBlur: 0 },
+    look: { fontAr: 'noto-naskh-arabic', fontBn: 'hind-siliguri', colorAr: '#ffe14d', colorBn: '#ffe14d', bold: true, stroke: false, strokeWidth: 2, strokeColor: '#000000', shadow: false, shape: 'lines', backgroundColor: '#000000', backgroundOpacity: 100, backgroundBlur: 0 },
   },
   {
     key: 'paper',
     label: 'কাগজ',
-    look: { colorAr: '#2a2118', colorBn: '#4a3d30', bold: false, stroke: false, strokeWidth: 2, strokeColor: '#000000', shadow: false, shape: 'box', backgroundColor: '#fdfbf5', backgroundOpacity: 90, backgroundBlur: 0 },
+    look: { fontAr: 'amiri', fontBn: 'noto-serif-bengali', colorAr: '#2a2118', colorBn: '#4a3d30', bold: false, stroke: false, strokeWidth: 2, strokeColor: '#000000', shadow: false, shape: 'box', backgroundColor: '#fdfbf5', backgroundOpacity: 92, backgroundBlur: 0 },
   },
+]
+
+const SHAPES: { key: SubtitleStyle['shape']; label: string }[] = [
+  { key: 'box', label: 'বক্স' },
+  { key: 'soft', label: 'নরম' },
+  { key: 'lines', label: 'লাইন' },
+  { key: 'fade', label: 'ফেড' },
+  { key: 'none', label: 'নেই' },
 ]
 
 export const SUBTITLE_SHORTCUTS: { keys: string[]; label: string }[] = [
@@ -87,13 +113,37 @@ export const SUBTITLE_SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ['F'], label: 'ফুলস্ক্রিন' },
 ]
 
+/** Room the overlaid controls take at the bottom of the video; a raised cue stays above it. */
+const CONTROLS_HEIGHT = 60
+
 const BASE = {
   ar: { size: 'clamp(1.05rem, 3.1cqw, 3.25rem)', leading: 1.6 },
   bn: { size: 'clamp(0.9rem, 2.4cqw, 2.5rem)', leading: 1.5 },
 }
 
-const fill = (s: SubtitleStyle) => `color-mix(in srgb, ${s.backgroundColor} ${s.backgroundOpacity}%, transparent)`
-const blur = (s: SubtitleStyle) => (s.backgroundBlur ? `blur(${s.backgroundBlur}px)` : undefined)
+type Backdrop = Pick<SubtitleStyle, 'backgroundColor' | 'backgroundOpacity' | 'backgroundBlur'>
+
+const fill = (s: Backdrop) => `color-mix(in srgb, ${s.backgroundColor} ${s.backgroundOpacity}%, transparent)`
+const blur = (s: Backdrop) => (s.backgroundBlur ? `blur(${s.backgroundBlur}px)` : undefined)
+/** Opacity along an eased fade (position 0–1, alpha), so the shade melts away without a visible edge. */
+const EASE = [[0, 1], [0.19, 0.738], [0.34, 0.541], [0.47, 0.382], [0.565, 0.278], [0.65, 0.194], [0.73, 0.126], [0.802, 0.075], [0.861, 0.042], [0.91, 0.021], [0.952, 0.008], [0.982, 0.002], [1, 0]]
+
+/** A mask rising from the bottom: solid up to `from`, then easing out to nothing at `to` (in `unit`). */
+const easedMask = (from: number, to: number, unit: string) =>
+  `linear-gradient(to top, black ${from}${unit}, ${EASE.map(([p, a]) => `rgb(0 0 0 / ${a}) ${from + (to - from) * p}${unit}`).join(', ')})`
+
+const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`
+
+/** The shade behind the text for the box shapes; "soft" spreads it past the edges with a shadow of the same color. */
+const boxFill = (s: Backdrop & Pick<SubtitleStyle, 'shape'>, feather: string): CSSProperties =>
+  s.shape === 'box' || s.shape === 'soft'
+    ? {
+        background: fill(s),
+        backdropFilter: blur(s),
+        WebkitBackdropFilter: blur(s),
+        boxShadow: s.shape === 'soft' ? `0 0 ${feather} calc(${feather} / 2) ${fill(s)}` : undefined,
+      }
+    : {}
 
 function textOf(segment: Segment, mode: SubtitleMode, order: Lang): { lang: Lang; text: string }[] {
   const lines: { lang: Lang; text: string }[] = []
@@ -115,14 +165,15 @@ function Line({ lang, text, s, dim }: { lang: Lang; text: string; s: SubtitleSty
     // the stroke is painted under the fill, so only its outer half shows
     WebkitTextStroke: s.stroke ? `${s.strokeWidth * 2}px ${s.strokeColor}` : undefined,
     paintOrder: s.stroke ? 'stroke fill' : undefined,
-    textShadow: s.shadow ? '0 1px 2px rgb(0 0 0 / 0.8), 0 2px 8px rgb(0 0 0 / 0.5)' : undefined,
+    // a tight dark edge on every side, then a soft glow, so light text holds up on bright footage
+    textShadow: s.shadow ? '0 0 2px rgb(0 0 0 / 0.9), 0 1px 3px rgb(0 0 0 / 0.8), 0 2px 10px rgb(0 0 0 / 0.5)' : undefined,
   }
   const strip: CSSProperties | undefined =
     s.shape === 'lines'
       ? { background: fill(s), backdropFilter: blur(s), WebkitBackdropFilter: blur(s), boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone', padding: '0.05em 0.35em', borderRadius: '0.2em' }
       : undefined
   return (
-    <p lang={lang} dir={lang === 'ar' ? 'rtl' : 'ltr'} style={style} className="w-full text-balance">
+    <p lang={lang} dir={lang === 'ar' ? 'rtl' : 'ltr'} style={style} className={cn('w-full', lang === 'ar' ? 'text-balance' : 'text-pretty')}>
       {strip ? <span style={strip}>{text}</span> : text}
     </p>
   )
@@ -131,7 +182,7 @@ function Line({ lang, text, s, dim }: { lang: Lang; text: string; s: SubtitleSty
 /**
  * One subtitle cue. `overlay` sits over a video frame and can be dragged up or down (reported via `onMove`);
  * otherwise it flows inside its box (the audio panel). Sizes follow the width of the nearest `@container`,
- * so the text grows with theater view and fullscreen.
+ * so the text grows with theater view and fullscreen. `raised` keeps an overlaid cue clear of the controls while they show.
  */
 export function SubtitleCue({
   segment,
@@ -139,7 +190,7 @@ export function SubtitleCue({
   mode,
   style: s,
   overlay,
-  lift = 0,
+  raised,
   onMove,
 }: {
   segment: Segment | null
@@ -147,11 +198,11 @@ export function SubtitleCue({
   mode: SubtitleMode
   style: SubtitleStyle
   overlay?: boolean
-  /** Extra room at the bottom, in rem, while the player's controls show. */
-  lift?: number
+  raised?: boolean
   onMove?: (position: number) => void
 }) {
   const [drag, setDrag] = useState<{ startY: number; startPos: number; height: number; pos: number } | null>(null)
+  const { attach: measureShade, text: textHeight, frame: frameHeight } = useFadeShade(!!overlay && s.shape === 'fade' && !!segment && mode !== 'off')
   if (!segment || mode === 'off') return null
   const lines = textOf(segment, mode, s.order)
   if (!lines.length) return null
@@ -179,244 +230,381 @@ export function SubtitleCue({
   const box: CSSProperties = {
     maxWidth: `${s.width}%`,
     alignItems: { center: 'center', left: 'flex-start', right: 'flex-end' }[s.align],
-    ...(s.shape === 'box' ? { background: fill(s), backdropFilter: blur(s), WebkitBackdropFilter: blur(s) } : {}),
+    ...boxFill(s, '0.9em'),
   }
+  const pos = drag?.pos ?? s.position
+  const lift = raised && !drag ? CONTROLS_HEIGHT : 0
+  const bottom = lift ? `max(${pos}%, ${lift}px)` : `${pos}%`
+  // the shade is sized from the measured text block, so it hugs one line or four alike
+  const textBottom = Math.max((frameHeight * pos) / 100, lift)
+  const textTop = textBottom + textHeight
+  const shadeTop = textTop + (textHeight * s.fadeHeight) / 100
+  // full strength only below the text; through and above it the shade thins out, so the picture shows through
+  const solidTo = textBottom
 
   return (
-    <div
-      style={{ ...readerFontVars(s.fontAr, s.fontBn), ...(overlay ? { bottom: `calc(${drag?.pos ?? s.position}% + ${lift}rem)` } : {}) }}
-      className={cn('pointer-events-none flex px-[4%]', { center: 'justify-center', left: 'justify-start', right: 'justify-end' }[s.align], overlay ? 'absolute inset-x-0 z-10' : 'w-full', overlay && !drag && 'transition-[bottom] duration-300')}
-    >
-      <div
-        style={box}
-        title={draggable ? 'উপরে-নিচে টেনে সরান' : undefined}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        className={cn(
-          'flex flex-col gap-[0.15em] rounded-lg px-[0.9em] py-[0.35em] select-none',
-          draggable && 'pointer-events-auto cursor-grab touch-none',
-          drag && 'cursor-grabbing ring-2 ring-gold/70',
-        )}
-      >
-        <div key={segment.id} className={cn('flex w-full flex-col gap-[0.15em]', s.fade && 'animate-in duration-300 fade-in-0')}>
-          {lines.map((l) => (
-            <Line key={l.lang} {...l} s={s} />
-          ))}
-          {upcoming.map((l) => (
-            <Line key={`next-${l.lang}`} {...l} s={s} dim />
-          ))}
+    <>
+      {/* the bottom shade only makes sense over a picture */}
+      {overlay && s.shape === 'fade' && textHeight > 0 && (
+        <div
+          aria-hidden
+          className={cn('pointer-events-none absolute inset-x-0 bottom-0 z-[6] animate-in duration-500 fade-in-0', !drag && 'transition-[height] duration-300')}
+          style={{
+            height: shadeTop,
+            background: fill(s),
+            backdropFilter: blur(s),
+            WebkitBackdropFilter: blur(s),
+            // a mask fades the color and the blur together
+            maskImage: easedMask(solidTo, shadeTop, 'px'),
+            WebkitMaskImage: easedMask(solidTo, shadeTop, 'px'),
+          }}
+        >
+          {/* a faint grain keeps a long dark gradient from showing bands */}
+          <div className="absolute inset-0 opacity-[0.07] mix-blend-overlay" style={{ backgroundImage: GRAIN }} />
         </div>
+      )}
+      <div
+        ref={measureShade}
+        style={{ ...readerFontVars(s.fontAr, s.fontBn), ...(overlay ? { bottom } : {}) }}
+        className={cn('pointer-events-none flex px-[4%]', { center: 'justify-center', left: 'justify-start', right: 'justify-end' }[s.align], overlay ? 'absolute inset-x-0 z-10' : 'w-full', overlay && !drag && 'transition-[bottom] duration-300')}
+      >
+        <div
+          style={box}
+          title={draggable ? 'উপরে-নিচে টেনে সরান' : undefined}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          className={cn(
+            'flex flex-col gap-[0.15em] px-[0.9em] py-[0.35em] select-none',
+            s.shape === 'soft' ? 'rounded-[0.8em]' : 'rounded-lg',
+            draggable && 'pointer-events-auto cursor-grab touch-none',
+            draggable && !drag && 'ring-white/30 hover:ring-1',
+            drag && 'cursor-grabbing ring-2 ring-gold/70',
+          )}
+        >
+          {/* keyed by the words, so a cue that stays the same doesn't fade in again */}
+          <div key={`${segment.text_ar}|${segment.text_bn}`} className={cn('flex w-full flex-col gap-[0.15em]', s.fade && 'animate-in duration-300 fade-in-0')}>
+            {lines.map((l) => (
+              <Line key={l.lang} {...l} s={s} />
+            ))}
+            {upcoming.map((l) => (
+              <Line key={`next-${l.lang}`} {...l} s={s} dim />
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+/**
+ * Heights (px) of the caption block and the video frame it sits in, kept current while `active`,
+ * so the bottom shade can reach just past the text however many lines it wraps to.
+ */
+function useFadeShade(active: boolean) {
+  const [wrap, setWrap] = useState<HTMLDivElement | null>(null)
+  const [size, setSize] = useState({ text: 0, frame: 0 })
+
+  useLayoutEffect(() => {
+    const frame = wrap?.parentElement
+    if (!active || !wrap || !frame) return
+    const measure = () => setSize({ text: wrap.offsetHeight, frame: frame.clientHeight })
+    const observer = new ResizeObserver(measure)
+    observer.observe(wrap)
+    observer.observe(frame)
+    return () => observer.disconnect()
+  }, [active, wrap])
+
+  return { attach: setWrap, ...size }
+}
+
+const MODES: { value: SubtitleMode; label: string }[] = [
+  { value: 'both', label: 'আরবি ও বাংলা' },
+  { value: 'ar', label: 'শুধু আরবি' },
+  { value: 'bn', label: 'শুধু বাংলা' },
+  { value: 'off', label: 'বন্ধ' },
+]
+
+export const subtitleModeLabel = (mode: SubtitleMode) => MODES.find((m) => m.value === mode)?.label ?? ''
+
+const presetOf = (s: SubtitleStyle) => PRESETS.find((p) => (Object.keys(p.look) as (keyof Look)[]).every((k) => p.look[k] === s[k]))
+
+/** The preset the style matches, or "custom" once something was changed by hand. */
+export const subtitleLookLabel = (s: SubtitleStyle) => presetOf(s)?.label ?? 'কাস্টম'
+
+interface SubtitlePageProps {
+  mode: SubtitleMode
+  style: SubtitleStyle
+  update: (patch: Partial<ReaderSettings>) => void
+}
+
+/** A menu row that is one of a set of choices, ticked when chosen. */
+export function CheckRow({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      role="menuitemradio"
+      aria-checked={selected}
+      onClick={onClick}
+      className={cn('flex items-center gap-2.5 rounded-md px-2 py-1.5 text-start text-sm tabular-nums transition hover:bg-muted', selected && 'font-semibold')}
+    >
+      <Check className={cn('size-4 shrink-0 text-gold', !selected && 'invisible')} />
+      {children}
+    </button>
+  )
+}
+
+export function SubtitleLanguagePage({ mode, style: s, update }: SubtitlePageProps) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      {MODES.map((m) => (
+        <CheckRow key={m.value} selected={mode === m.value} onClick={() => update({ subtitles: m.value })}>
+          {m.label}
+        </CheckRow>
+      ))}
+      {mode === 'both' && (
+        <div className="mt-1.5 border-t px-2 pt-3 pb-1">
+          <Section label="উপরে কোন লাইন">
+            <ToggleGroup type="single" variant="outline" size="sm" className="w-full" value={s.order} onValueChange={(v) => v && update({ subtitle: { ...s, order: v as Lang } })}>
+              <ToggleGroupItem value="ar" className="flex-1">
+                আরবি
+              </ToggleGroupItem>
+              <ToggleGroupItem value="bn" className="flex-1">
+                বাংলা
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </Section>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** The everyday choices: a ready-made look, the size, and (over a video) the height. The rest is behind `onCustomize`. */
+export function SubtitleStylePage({ style: s, hasVideo, update, onCustomize }: SubtitlePageProps & { hasVideo: boolean; onCustomize: () => void }) {
+  const set = (patch: Partial<SubtitleStyle>) => update({ subtitle: { ...s, ...patch } })
+  const isDefault = (Object.keys(DEFAULT_SETTINGS.subtitle) as (keyof SubtitleStyle)[]).every((k) => s[k] === DEFAULT_SETTINGS.subtitle[k])
+  const activePreset = presetOf(s)?.key
+  // one size for both scripts; moving it shifts both, like the + and − keys
+  const size = Math.round((s.sizeAr + s.sizeBn) / 2)
+  const resize = (v: number) => set({ sizeAr: clampSubtitleSize(s.sizeAr + v - size), sizeBn: clampSubtitleSize(s.sizeBn + v - size) })
+
+  // the preset previews are drawn in their own fonts
+  useEffect(() => {
+    for (const p of PRESETS) {
+      loadFont(p.look.fontAr)
+      loadFont(p.look.fontBn)
+    }
+  }, [])
+
+  return (
+    <div className="space-y-4 px-1.5 pb-1.5">
+      <div className="grid grid-cols-3 gap-2">
+        {PRESETS.map((p) => (
+          <Tile key={p.key} label={p.label} active={activePreset === p.key} onClick={() => set(p.look)}>
+            <MiniCaption look={p.look} />
+          </Tile>
+        ))}
+      </div>
+      <SliderRow label="লেখার আকার" display={`${bnNum(size)}%`} min={SUBTITLE_SIZE.min} max={SUBTITLE_SIZE.max} step={SUBTITLE_SIZE.step} value={size} onChange={resize} />
+      {hasVideo && (
+        <SliderRow
+          label="নিচ থেকে দূরত্ব"
+          hint="ভিডিওর উপর সাবটাইটেল টেনেও সরানো যায়"
+          display={`${bnNum(s.position)}%`}
+          min={SUBTITLE_POSITION.min}
+          max={SUBTITLE_POSITION.max}
+          step={1}
+          value={s.position}
+          onChange={(position) => set({ position })}
+        />
+      )}
+      <div className="flex items-center gap-2 border-t pt-3">
+        <Button variant="outline" size="sm" className="flex-1" onClick={onCustomize}>
+          <SlidersHorizontal /> কাস্টমাইজ
+        </Button>
+        <Button variant="ghost" size="sm" className="text-muted-foreground" disabled={isDefault} onClick={() => update({ subtitle: DEFAULT_SETTINGS.subtitle })}>
+          <RotateCcw /> রিসেট
+        </Button>
       </div>
     </div>
   )
 }
 
-/** `hasVideo` shows the controls that only mean something over a video frame. */
-export function SubtitleSettings({ mode, style: s, hasVideo, update }: { mode: SubtitleMode; style: SubtitleStyle; hasVideo: boolean; update: (patch: Partial<ReaderSettings>) => void }) {
+/** Every setting one by one, for fine-tuning a look. */
+export function SubtitleCustomizePage({ style: s, update }: SubtitlePageProps) {
   const [lang, setLang] = useState<Lang>('ar')
   const set = (patch: Partial<SubtitleStyle>) => update({ subtitle: { ...s, ...patch } })
-  const isDefault = mode === DEFAULT_SETTINGS.subtitles && (Object.keys(DEFAULT_SETTINGS.subtitle) as (keyof SubtitleStyle)[]).every((k) => s[k] === DEFAULT_SETTINGS.subtitle[k])
-  const activePreset = PRESETS.find((p) => (Object.keys(p.look) as (keyof Look)[]).every((k) => p.look[k] === s[k]))?.key
   const size = lang === 'ar' ? s.sizeAr : s.sizeBn
 
   return (
-    <div className="space-y-4">
-      <Section label="ভাষা">
-        <ToggleGroup type="single" variant="outline" size="sm" className="w-full" value={mode} onValueChange={(v) => v && update({ subtitles: v as SubtitleMode })}>
+    <Tabs defaultValue="text" className="px-1.5 pb-1.5">
+      <TabsList className="w-full">
+        <TabsTrigger value="text">লেখা</TabsTrigger>
+        <TabsTrigger value="edge">আউটলাইন</TabsTrigger>
+        <TabsTrigger value="box">পটভূমি</TabsTrigger>
+        <TabsTrigger value="layout">বিন্যাস</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="text" className="space-y-4 pt-2">
+        <ToggleGroup type="single" variant="outline" size="sm" className="w-full" value={lang} onValueChange={(v) => v && setLang(v as Lang)}>
           <ToggleGroupItem value="ar" className="flex-1">
-            আরবি
+            আরবি লাইন
           </ToggleGroupItem>
           <ToggleGroupItem value="bn" className="flex-1">
-            বাংলা
-          </ToggleGroupItem>
-          <ToggleGroupItem value="both" className="flex-1">
-            উভয়
-          </ToggleGroupItem>
-          <ToggleGroupItem value="off" className="flex-1">
-            বন্ধ
+            বাংলা লাইন
           </ToggleGroupItem>
         </ToggleGroup>
-      </Section>
-
-      <Section label="স্টাইল">
-        <div className="grid grid-cols-5 gap-1.5">
-          {PRESETS.map((p) => (
-            <button
-              key={p.key}
-              type="button"
-              aria-pressed={activePreset === p.key}
-              onClick={() => set(p.look)}
-              className={cn('flex flex-col items-center gap-1 rounded-lg border-2 p-1 text-[10px] transition', activePreset === p.key ? 'border-gold' : 'border-transparent hover:border-border')}
-            >
-              <PresetSwatch look={p.look} />
-              {p.label}
-            </button>
-          ))}
+        <Section label="ফন্ট">
+          {lang === 'ar' ? (
+            <FontSelect value={s.fontAr} fonts={ARABIC_FONTS} onChange={(fontAr) => set({ fontAr })} />
+          ) : (
+            <FontSelect value={s.fontBn} fonts={SUBTITLE_BANGLA_FONTS} onChange={(fontBn) => set({ fontBn })} />
+          )}
+        </Section>
+        <SliderRow
+          label="লেখার আকার"
+          display={`${bnNum(size)}%`}
+          min={SUBTITLE_SIZE.min}
+          max={SUBTITLE_SIZE.max}
+          step={SUBTITLE_SIZE.step}
+          value={size}
+          onChange={(v) => set(lang === 'ar' ? { sizeAr: v } : { sizeBn: v })}
+        />
+        <Section label="লেখার রং">
+          <Swatches value={lang === 'ar' ? s.colorAr : s.colorBn} options={TEXT_COLORS} onChange={(v) => set(lang === 'ar' ? { colorAr: v } : { colorBn: v })} />
+        </Section>
+        <div className="border-t pt-4">
+          <SwitchRow label="মোটা অক্ষর" hint="দুই ভাষাতেই" checked={s.bold} onChange={(bold) => set({ bold })} />
         </div>
-      </Section>
+      </TabsContent>
 
-      <Tabs defaultValue="text">
-        <TabsList className="w-full">
-          <TabsTrigger value="text">লেখা</TabsTrigger>
-          <TabsTrigger value="edge">আউটলাইন</TabsTrigger>
-          <TabsTrigger value="box">পটভূমি</TabsTrigger>
-          <TabsTrigger value="layout">বিন্যাস</TabsTrigger>
-        </TabsList>
+      <TabsContent value="edge" className="space-y-4 pt-2">
+        <SwitchRow label="আউটলাইন (স্ট্রোক)" checked={s.stroke} onChange={(stroke) => set({ stroke })} />
+        <SliderRow label="আউটলাইনের পুরুত্ব" display={`${bnNum(s.strokeWidth)}px`} min={0.5} max={6} step={0.5} value={s.strokeWidth} disabled={!s.stroke} onChange={(strokeWidth) => set({ strokeWidth })} />
+        <Section label="আউটলাইনের রং">
+          <Swatches value={s.strokeColor} options={EDGE_COLORS} disabled={!s.stroke} onChange={(strokeColor) => set({ strokeColor })} />
+        </Section>
+        <div className="border-t pt-4">
+          <SwitchRow label="ছায়া" hint="যেকোনো দৃশ্যের উপর লেখা পড়তে সহজ করে" checked={s.shadow} onChange={(shadow) => set({ shadow })} />
+        </div>
+      </TabsContent>
 
-        <TabsContent value="text" className="space-y-4 pt-2">
-          <ToggleGroup type="single" variant="outline" size="sm" className="w-full" value={lang} onValueChange={(v) => v && setLang(v as Lang)}>
-            <ToggleGroupItem value="ar" className="flex-1">
-              আরবি লাইন
+      <TabsContent value="box" className="space-y-4 pt-2">
+        <Section label="ধরন">
+          <div className="grid grid-cols-5 gap-1.5">
+            {SHAPES.map((shape) => (
+              <Tile key={shape.key} label={shape.label} active={s.shape === shape.key} onClick={() => set({ shape: shape.key })}>
+                <MiniCaption look={{ ...s, shape: shape.key }} short />
+              </Tile>
+            ))}
+          </div>
+        </Section>
+        {s.shape === 'fade' && (
+          <SliderRow
+            label="ফেডের উচ্চতা"
+            hint="লেখার উপরে কতদূর পর্যন্ত ছায়া উঠবে, লেখার উচ্চতার তুলনায়"
+            display={`${bnNum(s.fadeHeight)}%`}
+            min={0}
+            max={200}
+            step={10}
+            value={s.fadeHeight}
+            onChange={(fadeHeight) => set({ fadeHeight })}
+          />
+        )}
+        <Section label="পটভূমির রং">
+          <Swatches value={s.backgroundColor} options={BACKGROUND_COLORS} disabled={s.shape === 'none'} onChange={(backgroundColor) => set({ backgroundColor })} />
+        </Section>
+        <SliderRow label="অস্বচ্ছতা" display={`${bnNum(s.backgroundOpacity)}%`} min={0} max={100} step={5} value={s.backgroundOpacity} disabled={s.shape === 'none'} onChange={(backgroundOpacity) => set({ backgroundOpacity })} />
+        <SliderRow label="ব্লার" display={`${bnNum(s.backgroundBlur)}px`} min={0} max={20} step={1} value={s.backgroundBlur} disabled={s.shape === 'none'} onChange={(backgroundBlur) => set({ backgroundBlur })} />
+      </TabsContent>
+
+      <TabsContent value="layout" className="space-y-4 pt-2">
+        <Section label="সারিবদ্ধতা">
+          <ToggleGroup type="single" variant="outline" size="sm" className="w-full" value={s.align} onValueChange={(v) => v && set({ align: v as SubtitleStyle['align'] })}>
+            <ToggleGroupItem value="left" aria-label="বামে" className="flex-1">
+              <AlignLeft />
             </ToggleGroupItem>
-            <ToggleGroupItem value="bn" className="flex-1">
-              বাংলা লাইন
+            <ToggleGroupItem value="center" aria-label="মাঝে" className="flex-1">
+              <AlignCenter />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="right" aria-label="ডানে" className="flex-1">
+              <AlignRight />
             </ToggleGroupItem>
           </ToggleGroup>
-          <Section label="ফন্ট">
-            {lang === 'ar' ? (
-              <FontSelect value={s.fontAr} fonts={ARABIC_FONTS} onChange={(fontAr) => set({ fontAr })} />
-            ) : (
-              <FontSelect value={s.fontBn} fonts={BANGLA_FONTS} onChange={(fontBn) => set({ fontBn })} />
-            )}
-          </Section>
-          <SliderRow
-            label="লেখার আকার"
-            display={`${bnNum(size)}%`}
-            min={SUBTITLE_SIZE.min}
-            max={SUBTITLE_SIZE.max}
-            step={SUBTITLE_SIZE.step}
-            value={size}
-            onChange={(v) => set(lang === 'ar' ? { sizeAr: v } : { sizeBn: v })}
-          />
-          <Section label="লেখার রং">
-            <Swatches value={lang === 'ar' ? s.colorAr : s.colorBn} options={TEXT_COLORS} onChange={(v) => set(lang === 'ar' ? { colorAr: v } : { colorBn: v })} />
-          </Section>
-          <div className="border-t pt-4">
-            <SwitchRow label="মোটা অক্ষর" hint="দুই ভাষাতেই" checked={s.bold} onChange={(bold) => set({ bold })} />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="edge" className="space-y-4 pt-2">
-          <SwitchRow label="আউটলাইন (স্ট্রোক)" checked={s.stroke} onChange={(stroke) => set({ stroke })} />
-          <SliderRow label="আউটলাইনের পুরুত্ব" display={`${bnNum(s.strokeWidth)}px`} min={0.5} max={6} step={0.5} value={s.strokeWidth} disabled={!s.stroke} onChange={(strokeWidth) => set({ strokeWidth })} />
-          <Section label="আউটলাইনের রং">
-            <Swatches value={s.strokeColor} options={EDGE_COLORS} disabled={!s.stroke} onChange={(strokeColor) => set({ strokeColor })} />
-          </Section>
-          <div className="border-t pt-4">
-            <SwitchRow label="ছায়া" hint="যেকোনো দৃশ্যের উপর লেখা পড়তে সহজ করে" checked={s.shadow} onChange={(shadow) => set({ shadow })} />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="box" className="space-y-4 pt-2">
-          <Section label="ধরন">
-            <ToggleGroup type="single" variant="outline" size="sm" className="w-full" value={s.shape} onValueChange={(v) => v && set({ shape: v as SubtitleStyle['shape'] })}>
-              <ToggleGroupItem value="box" className="flex-1">
-                একটি বক্স
-              </ToggleGroupItem>
-              <ToggleGroupItem value="lines" className="flex-1">
-                প্রতি লাইনে
-              </ToggleGroupItem>
-              <ToggleGroupItem value="none" className="flex-1">
-                নেই
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </Section>
-          <Section label="পটভূমির রং">
-            <Swatches value={s.backgroundColor} options={BACKGROUND_COLORS} disabled={s.shape === 'none'} onChange={(backgroundColor) => set({ backgroundColor })} />
-          </Section>
-          <SliderRow label="অস্বচ্ছতা" display={`${bnNum(s.backgroundOpacity)}%`} min={0} max={100} step={5} value={s.backgroundOpacity} disabled={s.shape === 'none'} onChange={(backgroundOpacity) => set({ backgroundOpacity })} />
-          <SliderRow label="ব্লার" display={`${bnNum(s.backgroundBlur)}px`} min={0} max={20} step={1} value={s.backgroundBlur} disabled={s.shape === 'none'} onChange={(backgroundBlur) => set({ backgroundBlur })} />
-        </TabsContent>
-
-        <TabsContent value="layout" className="space-y-4 pt-2">
-          <div className="grid grid-cols-2 gap-3">
-            <Section label="সারিবদ্ধতা">
-              <ToggleGroup type="single" variant="outline" size="sm" className="w-full" value={s.align} onValueChange={(v) => v && set({ align: v as SubtitleStyle['align'] })}>
-                <ToggleGroupItem value="left" aria-label="বামে" className="flex-1">
-                  <AlignLeft />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="center" aria-label="মাঝে" className="flex-1">
-                  <AlignCenter />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="right" aria-label="ডানে" className="flex-1">
-                  <AlignRight />
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </Section>
-            <Section label="উপরে কোন লাইন">
-              <Button variant="outline" size="sm" className="w-full" disabled={mode !== 'both'} onClick={() => set({ order: s.order === 'ar' ? 'bn' : 'ar' })}>
-                <ArrowDownUp /> {s.order === 'ar' ? 'আরবি' : 'বাংলা'}
-              </Button>
-            </Section>
-          </div>
-          <SliderRow label="লাইনের ফাঁক" display={`${bnNum(s.lineHeight)}%`} min={70} max={160} step={10} value={s.lineHeight} onChange={(lineHeight) => set({ lineHeight })} />
-          <SliderRow label="সর্বোচ্চ প্রস্থ" display={`${bnNum(s.width)}%`} min={40} max={100} step={5} value={s.width} onChange={(width) => set({ width })} />
-          {hasVideo && (
-            <SliderRow
-              label="নিচ থেকে দূরত্ব"
-              hint="ভিডিওর উপর সাবটাইটেল টেনেও সরানো যায়"
-              display={`${bnNum(s.position)}%`}
-              min={SUBTITLE_POSITION.min}
-              max={SUBTITLE_POSITION.max}
-              step={1}
-              value={s.position}
-              onChange={(position) => set({ position })}
-            />
-          )}
-          <div className="space-y-3 border-t pt-4">
-            <SwitchRow label="পরের লাইন দেখান" hint="হালকা করে, বর্তমান লাইনের নিচে" checked={s.nextLine} onChange={(nextLine) => set({ nextLine })} />
-            <SwitchRow label="ফেড" hint="লাইন বদলের সময় আলতো করে আসে" checked={s.fade} onChange={(fade) => set({ fade })} />
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* keyboards are rare on phones, so the list only shows where there's room for one */}
-      <details className="group border-t pt-4 max-md:hidden">
-        <summary className="cursor-pointer list-none text-xs text-muted-foreground select-none hover:text-foreground">
-          কিবোর্ড শর্টকাট <span className="inline-block transition group-open:rotate-90">›</span>
-        </summary>
-        <dl className="mt-3 grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1.5 text-xs">
-          {SUBTITLE_SHORTCUTS.map((k) => (
-            <div key={k.label} className="contents">
-              <dt className="flex gap-1">
-                {k.keys.map((key) => (
-                  <Kbd key={key}>{key}</Kbd>
-                ))}
-              </dt>
-              <dd className="text-muted-foreground">{k.label}</dd>
-            </div>
-          ))}
-        </dl>
-      </details>
-
-      <Button variant="ghost" size="sm" className="w-full text-muted-foreground" disabled={isDefault} onClick={() => update({ subtitles: DEFAULT_SETTINGS.subtitles, subtitle: DEFAULT_SETTINGS.subtitle })}>
-        <RotateCcw /> আগের অবস্থায় ফিরিয়ে নিন
-      </Button>
-    </div>
+        </Section>
+        <SliderRow label="লাইনের ফাঁক" display={`${bnNum(s.lineHeight)}%`} min={70} max={160} step={10} value={s.lineHeight} onChange={(lineHeight) => set({ lineHeight })} />
+        <SliderRow label="সর্বোচ্চ প্রস্থ" display={`${bnNum(s.width)}%`} min={40} max={100} step={5} value={s.width} onChange={(width) => set({ width })} />
+        <div className="space-y-3 border-t pt-4">
+          <SwitchRow label="পরের লাইন দেখান" hint="হালকা করে, বর্তমান লাইনের নিচে" checked={s.nextLine} onChange={(nextLine) => set({ nextLine })} />
+          <SwitchRow label="ফেড" hint="লাইন বদলের সময় আলতো করে আসে" checked={s.fade} onChange={(fade) => set({ fade })} />
+        </div>
+      </TabsContent>
+    </Tabs>
   )
 }
 
-/** A small frame of video with both scripts drawn in the preset's look. */
-function PresetSwatch({ look }: { look: Look }) {
-  const bg = `color-mix(in srgb, ${look.backgroundColor} ${look.backgroundOpacity}%, transparent)`
+export function ShortcutList() {
+  return (
+    <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 px-2 pb-1.5 text-xs">
+      {SUBTITLE_SHORTCUTS.map((k) => (
+        <div key={k.label} className="contents">
+          <dt className="flex gap-1">
+            {k.keys.map((key) => (
+              <Kbd key={key}>{key}</Kbd>
+            ))}
+          </dt>
+          <dd className="text-muted-foreground">{k.label}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+function Tile({ label, active, onClick, children }: { label: string; active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        'group/tile flex flex-col items-center gap-1 rounded-lg p-0.5 text-[11px] transition',
+        active ? 'font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground',
+      )}
+    >
+      <span className={cn('block w-full overflow-hidden rounded-md ring-2 ring-offset-1 ring-offset-popover transition', active ? 'ring-gold' : 'ring-transparent group-hover/tile:ring-border')}>{children}</span>
+      {label}
+    </button>
+  )
+}
+
+/** A tiny video frame with a caption drawn in the given look, for picking presets and shapes. */
+function MiniCaption({ look, short }: { look: Look; short?: boolean }) {
   const text = (color: string): CSSProperties => ({
     color,
     fontWeight: look.bold ? 700 : undefined,
-    WebkitTextStroke: look.stroke ? `${look.strokeWidth}px ${look.strokeColor}` : undefined,
+    WebkitTextStroke: look.stroke ? `${Math.max(1, look.strokeWidth * 0.8)}px ${look.strokeColor}` : undefined,
     paintOrder: 'stroke fill',
     textShadow: look.shadow ? '0 1px 2px rgb(0 0 0 / 0.8)' : undefined,
-    background: look.shape === 'lines' ? bg : undefined,
+    ...(look.shape === 'lines' ? { background: fill(look), padding: '0 0.25em', borderRadius: '0.15em' } : {}),
   })
   return (
-    <span className="flex h-10 w-full flex-col items-center justify-end overflow-hidden rounded-md bg-gradient-to-br from-slate-500 to-stone-700 pb-1">
-      <span className="flex flex-col items-center rounded-sm px-1 leading-none" style={{ background: look.shape === 'box' ? bg : undefined }}>
-        <span className="font-arabic text-[11px] leading-tight" style={text(look.colorAr)}>
-          عربي
-        </span>
-        <span className="text-[8px] leading-tight" style={text(look.colorBn)}>
-          বাংলা
+    <span className="relative flex aspect-video w-full flex-col items-center justify-end bg-[radial-gradient(circle_at_70%_30%,#d8b27a_0,transparent_45%),radial-gradient(circle_at_25%_75%,#6d7f8f_0,transparent_55%),linear-gradient(160deg,#55606b,#2b2622)] pb-[9%]">
+      {look.shape === 'fade' && (
+        <span
+          className="absolute inset-x-0 bottom-0 h-3/4"
+          style={{ background: fill(look), maskImage: easedMask(10, 100, '%'), WebkitMaskImage: easedMask(10, 100, '%') }}
+        />
+      )}
+      <span className={cn('relative flex flex-col items-center gap-px px-1.5 py-0.5 leading-none', look.shape === 'soft' ? 'rounded-[5px]' : 'rounded-[3px]')} style={boxFill(look, '5px')}>
+        {!short && (
+          <span lang="ar" className="text-[12px] leading-tight" style={{ ...text(look.colorAr), fontFamily: `'${arabicFamily(look.fontAr)}', serif` }}>
+            بسم الله
+          </span>
+        )}
+        <span className="text-[9px] leading-tight" style={{ ...text(look.colorBn), fontFamily: `'${banglaFamily(look.fontBn)}', serif` }}>
+          {short ? 'বাংলা' : 'আল্লাহর নামে'}
         </span>
       </span>
     </span>

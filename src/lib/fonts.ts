@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 
-export type ArabicFont = 'amiri' | 'noto-naskh-arabic' | 'kfgqpc-uthmanic' | 'scheherazade-new'
+export type ArabicFont = 'amiri' | 'noto-naskh-arabic' | 'kfgqpc-uthmanic' | 'scheherazade-new' | 'readex-pro'
 export type BanglaFont = 'noto-serif-bengali' | 'hind-siliguri' | 'kalpurush' | 'solaimanlipi'
 
 export const ARABIC_FONTS: { key: ArabicFont; label: string; family: string }[] = [
@@ -8,6 +8,7 @@ export const ARABIC_FONTS: { key: ArabicFont; label: string; family: string }[] 
   { key: 'noto-naskh-arabic', label: 'Noto Naskh', family: 'Noto Naskh Arabic' },
   { key: 'kfgqpc-uthmanic', label: 'KFGQPC Uthmanic', family: 'KFGQPC Uthmanic Script' },
   { key: 'scheherazade-new', label: 'Scheherazade', family: 'Scheherazade New' },
+  { key: 'readex-pro', label: 'Readex Pro', family: 'Readex Pro' },
 ]
 
 export const BANGLA_FONTS: { key: BanglaFont; label: string; family: string }[] = [
@@ -17,6 +18,9 @@ export const BANGLA_FONTS: { key: BanglaFont; label: string; family: string }[] 
   { key: 'solaimanlipi', label: 'সোলায়মানলিপি', family: 'SolaimanLipi' },
 ]
 
+/** Bangla fonts offered only for dars subtitles; the reader's list also feeds the PDF export, which doesn't have these. */
+export const SUBTITLE_BANGLA_FONTS: { key: string; label: string; family: string }[] = [...BANGLA_FONTS, { key: 'ador-noirrit', label: 'আদর নৈঋত', family: 'Li Ador Noirrit' }]
+
 const loaded = new Set<string>()
 
 /** Fonts not on npm are served from /public/fonts and only fetched once used. */
@@ -24,6 +28,10 @@ const LOCAL_FONTS: Record<string, string> = {
   'kfgqpc-uthmanic': "@font-face{font-family:'KFGQPC Uthmanic Script';src:url('/fonts/KFGQPCUthmanicScriptHAFS.woff2') format('woff2'),url('/fonts/KFGQPCUthmanicScriptHAFS.otf') format('opentype');font-display:swap}",
   kalpurush: "@font-face{font-family:'Kalpurush';src:url('/fonts/kalpurush.woff2') format('woff2'),url('/fonts/kalpurush.ttf') format('truetype');font-display:swap}",
   solaimanlipi: "@font-face{font-family:'SolaimanLipi';src:url('/fonts/SolaimanLipi.woff2') format('woff2'),url('/fonts/SolaimanLipi.ttf') format('truetype');font-display:swap}",
+  'ador-noirrit': ['Regular:400', 'SemiBold:600', 'Bold:700']
+    .map((w) => w.split(':'))
+    .map(([name, weight]) => `@font-face{font-family:'Li Ador Noirrit';src:url('/fonts/AdorNoirrit-${name}.ttf') format('truetype');font-weight:${weight};font-display:swap}`)
+    .join(''),
 }
 
 /** Load a reader font's CSS on first use. Amiri, Noto Serif Bengali and Hind Siliguri ship with the UI. */
@@ -40,6 +48,8 @@ export async function loadFont(key: string) {
     await Promise.all([import('@fontsource/noto-naskh-arabic/400.css'), import('@fontsource/noto-naskh-arabic/700.css')])
   } else if (key === 'scheherazade-new') {
     await Promise.all([import('@fontsource/scheherazade-new/400.css'), import('@fontsource/scheherazade-new/700.css')])
+  } else if (key === 'readex-pro') {
+    await Promise.all([import('@fontsource/readex-pro/400.css'), import('@fontsource/readex-pro/600.css'), import('@fontsource/readex-pro/700.css')])
   }
 }
 
@@ -48,7 +58,7 @@ export function arabicFamily(key: string) {
 }
 
 export function banglaFamily(key: string) {
-  return BANGLA_FONTS.find((f) => f.key === key)?.family ?? 'Noto Serif Bengali'
+  return SUBTITLE_BANGLA_FONTS.find((f) => f.key === key)?.family ?? 'Noto Serif Bengali'
 }
 
 /** CSS variables the reader text reads its font families from. */

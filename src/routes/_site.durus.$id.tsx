@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight, Clock, Headphones, Link2, ListOrdered, ListVideo, Subtitles, Video } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, Headphones, Link2, ListOrdered, ListVideo, Video } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AuthorAvatar } from '@/components/author-avatar'
@@ -10,12 +10,11 @@ import { EpisodeList, episodeNumber } from '@/components/episode-list'
 import type { HighlightRange } from '@/components/markdown'
 import { PlainHighlight } from '@/components/plain-highlight'
 import { CenterSpinner, EmptyState } from '@/components/states'
-import { clampSubtitleSize, SUBTITLE_SIZE, SubtitleCue, SubtitleSettings } from '@/components/subtitles'
+import { clampSubtitleSize, SUBTITLE_SIZE, SubtitleCue } from '@/components/subtitles'
 import { useTextActions } from '@/components/text-actions'
 import { PlayerControls, PlayerSurface, SKIP_SECONDS, useAutoHide } from '@/components/player-controls'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useMediaPlayer } from '@/hooks/use-media-player'
 import { api } from '@/lib/api'
 import { loadFont } from '@/lib/fonts'
@@ -77,6 +76,18 @@ function activeIndex(segments: Segment[], time: number) {
   const seg = segments[found]
   if (seg.end_time != null && time > seg.end_time + 0.3) return -1
   return found
+}
+
+/** How long a line stays up after it ends when the next hasn't started, so short pauses don't blink. */
+const CUE_HOLD = 0.8
+
+/** The line to show as a subtitle: the active one, or the one that just ended if the gap is short. */
+function cueIndexAt(segments: Segment[], time: number) {
+  const found = lastStarted(segments, time)
+  if (found === -1) return -1
+  const seg = segments[found]
+  if (seg.end_time == null || time <= seg.end_time + CUE_HOLD) return found
+  return -1
 }
 
 function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number | null }) {
@@ -171,15 +182,15 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
   const theater = settings.theater
   const isVideo = player.kind === 'youtube' || dars.media_type === 'video'
   const [styling, setStyling] = useState(false)
-  // while the style panel is open, show a line even between cues so changes are visible
-  const cueIndex = index >= 0 ? index : styling && segments.length ? 0 : -1
+  const shownIndex = cueIndexAt(segments, player.time)
+  // while the settings are open, show a line even between cues so changes are visible
+  const cueIndex = shownIndex >= 0 ? shownIndex : styling && segments.length ? 0 : -1
   const cue = cueIndex >= 0 ? segments[cueIndex] : null
   const nextCue = cueIndex >= 0 ? (segments[cueIndex + 1] ?? null) : null
   const moveSubtitle = (position: number) => update({ subtitle: { ...settings.subtitle, position } })
   const { boxRef, fullscreenEl, canFullscreen, toggleFullscreen } = useFullscreen()
   const fullscreen = !!fullscreenEl
-  const [speedOpen, setSpeedOpen] = useState(false)
-  const controls = useAutoHide(player.playing && !styling && !speedOpen)
+  const controls = useAutoHide(player.playing && !styling)
   const subtitlesOn = subtitleMode !== 'off'
   const toggleSubtitles = () => update({ subtitles: subtitlesOn ? 'off' : shownMode.current })
   const toggleTheater = () => update({ theater: !theater })
@@ -245,11 +256,11 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
     segments,
     subtitlesOn,
     onToggleSubtitles: toggleSubtitles,
-    subtitleSettings: <SubtitleSettings mode={subtitleMode} style={settings.subtitle} hasVideo={isVideo} update={update} />,
+    settings,
+    update,
+    hasVideo: isVideo,
     settingsOpen: styling,
     onSettingsOpenChange: setStyling,
-    speedOpen,
-    onSpeedOpenChange: setSpeedOpen,
     onRate: setRate,
     theater,
     onTheater: toggleTheater,
@@ -298,7 +309,7 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
                   {!player.ad && (
                     <>
                       <PlayerSurface player={player} visible={controls.visible} onPoke={controls.poke} onFullscreen={canFullscreen ? toggleFullscreen : undefined} />
-                      <SubtitleCue segment={cue} next={nextCue} mode={subtitleMode} style={settings.subtitle} overlay lift={controls.visible ? 3.5 : 0} onMove={moveSubtitle} />
+                      <SubtitleCue segment={cue} next={nextCue} mode={subtitleMode} style={settings.subtitle} overlay raised={controls.visible} onMove={moveSubtitle} />
                       <PlayerControls {...controlProps()} overlay visible={controls.visible} />
                     </>
                   )}
@@ -319,22 +330,6 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
                 </div>
               )}
             </PortalContainer.Provider>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card px-3 py-2.5 shadow-xs">
-            <div className="flex items-center gap-2">
-              <Subtitles className="size-4 text-gold" />
-              <span className="hidden text-sm text-muted-foreground sm:inline">সাবটাইটেল</span>
-              <ToggleGroup type="single" variant="outline" size="sm" value={subtitleMode} onValueChange={(v) => v && update({ subtitles: v as typeof subtitleMode })}>
-                <ToggleGroupItem value="ar">আরবি</ToggleGroupItem>
-                <ToggleGroupItem value="bn">বাংলা</ToggleGroupItem>
-                <ToggleGroupItem value="both">উভয়</ToggleGroupItem>
-                <ToggleGroupItem value="off">বন্ধ</ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-            <Button variant="ghost" size="sm" onClick={copyTimestamp} className="ms-auto">
-              <Link2 className="text-gold" /> <span className="tabular-nums">{bnNum(formatTime(player.time))}</span> থেকে লিংক কপি
-            </Button>
           </div>
 
           {/* in theater view the details and the episode list share the width below the player */}
@@ -374,7 +369,10 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
                     <Clock className="size-4 text-gold" /> <span className="tabular-nums">{bnNum(formatTime(dars.duration_seconds))}</span>
                   </span>
                 )}
-                <span className="ms-auto">
+                <span className="ms-auto flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={copyTimestamp} title={`${bnNum(formatTime(player.time))} থেকে শোনার লিংক কপি করুন`}>
+                    <Link2 className="text-gold" /> <span className="tabular-nums">{bnNum(formatTime(player.time))}</span> থেকে লিংক
+                  </Button>
                   <DarsStatusMenu dars={dars} />
                 </span>
               </div>

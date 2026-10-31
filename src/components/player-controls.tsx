@@ -1,10 +1,12 @@
-import { Captions, CaptionsOff, Gauge, LoaderCircle, Maximize, Minimize, Pause, Play, RectangleHorizontal, RotateCcw, RotateCw, Settings2, Volume1, Volume2, VolumeX } from 'lucide-react'
+import { Captions, CaptionsOff, ChevronLeft, ChevronRight, Gauge, Keyboard, Languages, LoaderCircle, Maximize, Minimize, Palette, Pause, Play, RectangleHorizontal, RotateCcw, RotateCw, Settings, Volume1, Volume2, VolumeX } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ComponentProps, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { CheckRow, ShortcutList, SubtitleCustomizePage, SubtitleLanguagePage, SubtitleStylePage, subtitleLookLabel, subtitleModeLabel } from '@/components/subtitles'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Slider } from '@/components/ui/slider'
 import type { MediaPlayer } from '@/hooks/use-media-player'
 import { bnNum, formatTime } from '@/lib/text'
 import type { Segment } from '@/lib/types'
+import type { ReaderSettings } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
 export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -214,11 +216,12 @@ export interface PlayerControlsProps {
   visible?: boolean
   subtitlesOn: boolean
   onToggleSubtitles: () => void
-  subtitleSettings: ReactNode
+  /** What the settings menu reads and changes. */
+  settings: ReaderSettings
+  update: (patch: Partial<ReaderSettings>) => void
+  hasVideo: boolean
   settingsOpen: boolean
   onSettingsOpenChange: (open: boolean) => void
-  speedOpen: boolean
-  onSpeedOpenChange: (open: boolean) => void
   onRate: (rate: number) => void
   theater: boolean
   onTheater: () => void
@@ -234,11 +237,11 @@ export function PlayerControls({
   visible = true,
   subtitlesOn,
   onToggleSubtitles,
-  subtitleSettings,
+  settings,
+  update,
+  hasVideo,
   settingsOpen,
   onSettingsOpenChange,
-  speedOpen,
-  onSpeedOpenChange,
   onRate,
   theater,
   onTheater,
@@ -247,6 +250,7 @@ export function PlayerControls({
   onFullscreen,
 }: PlayerControlsProps) {
   const VolumeIcon = player.muted || player.volume === 0 ? VolumeX : player.volume < 50 ? Volume1 : Volume2
+  const [page, setPage] = useState<MenuPage>('main')
 
   return (
     <div
@@ -293,41 +297,25 @@ export function PlayerControls({
             {subtitlesOn && <span className="absolute inset-x-2.5 bottom-1 h-0.5 rounded-full bg-gold" />}
           </Icon>
 
-          <Popover open={speedOpen} onOpenChange={onSpeedOpenChange}>
+          <Popover
+            open={settingsOpen}
+            onOpenChange={(open) => {
+              // every opening starts from the top of the menu
+              if (open) setPage('main')
+              onSettingsOpenChange(open)
+            }}
+          >
             <PopoverTrigger asChild>
-              <button type="button" title="গতি" aria-label="গতি" className="flex h-9 shrink-0 items-center gap-1 rounded-full px-2 text-xs font-semibold text-white tabular-nums transition hover:bg-white/15 focus-visible:bg-white/15 focus-visible:outline-none">
-                <Gauge className="size-5 max-sm:hidden" />
-                {rateLabel(player.rate)}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent side="top" align="end" className="w-36 gap-0.5 p-1.5">
-              <p className="px-2 pt-1 pb-1.5 text-xs text-muted-foreground">গতি</p>
-              {PLAYBACK_RATES.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  aria-pressed={player.rate === r}
-                  onClick={() => {
-                    onRate(r)
-                    onSpeedOpenChange(false)
-                  }}
-                  className={cn('flex items-center justify-between rounded-md px-2 py-1.5 text-sm tabular-nums transition hover:bg-muted', player.rate === r && 'bg-gold/15 font-semibold')}
-                >
-                  {rateLabel(r)}
-                  {r === 1 && <span className="text-xs text-muted-foreground">সাধারণ</span>}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-
-          <Popover open={settingsOpen} onOpenChange={onSettingsOpenChange}>
-            <PopoverTrigger asChild>
-              <Icon label="সাবটাইটেল সেটিংস" active={settingsOpen}>
-                <Settings2 className={cn('transition-transform duration-300', settingsOpen && 'rotate-45')} />
+              <Icon label="সেটিংস" active={settingsOpen}>
+                <Settings className={cn('transition-transform duration-300', settingsOpen && 'rotate-45')} />
+                {/* a changed speed is easy to forget, so the gear shows it */}
+                {player.rate !== 1 && (
+                  <span className="absolute -top-0.5 -right-1 rounded bg-gold px-1 text-[9px] leading-3.5 font-bold text-gold-foreground tabular-nums">{rateLabel(player.rate)}</span>
+                )}
               </Icon>
             </PopoverTrigger>
-            <PopoverContent side="top" align="end" className="max-h-[min(36rem,var(--radix-popover-content-available-height))] w-80 overflow-y-auto p-4 scrollbar-thin">
-              {subtitleSettings}
+            <PopoverContent side="top" align="end" className="max-h-[min(36rem,var(--radix-popover-content-available-height))] w-80 gap-1 overflow-y-auto p-1.5 scrollbar-thin">
+              <SettingsMenu page={page} onPage={setPage} player={player} onRate={onRate} settings={settings} update={update} hasVideo={hasVideo} />
             </PopoverContent>
           </Popover>
 
@@ -344,5 +332,92 @@ export function PlayerControls({
         </div>
       </div>
     </div>
+  )
+}
+
+type MenuPage = 'main' | 'speed' | 'language' | 'style' | 'customize' | 'shortcuts'
+
+const PAGE_TITLES: Record<Exclude<MenuPage, 'main'>, string> = {
+  speed: 'গতি',
+  language: 'সাবটাইটেল',
+  style: 'সাবটাইটেলের স্টাইল',
+  customize: 'কাস্টমাইজ',
+  shortcuts: 'কিবোর্ড শর্টকাট',
+}
+
+/** The page each one goes back to. */
+const PARENT: Record<Exclude<MenuPage, 'main'>, MenuPage> = { speed: 'main', language: 'main', style: 'main', customize: 'style', shortcuts: 'main' }
+
+/** The gear menu: a short list of settings, each opening its own page, as in most video players. */
+function SettingsMenu({
+  page,
+  onPage,
+  player,
+  onRate,
+  settings,
+  update,
+  hasVideo,
+}: {
+  page: MenuPage
+  onPage: (page: MenuPage) => void
+  player: MediaPlayer
+  onRate: (rate: number) => void
+  settings: ReaderSettings
+  update: (patch: Partial<ReaderSettings>) => void
+  hasVideo: boolean
+}) {
+  const sub = { mode: settings.subtitles, style: settings.subtitle, update }
+
+  if (page === 'main')
+    return (
+      <div role="menu" className="flex flex-col gap-0.5">
+        <MenuRow icon={<Gauge />} label="গতি" value={player.rate === 1 ? 'সাধারণ' : rateLabel(player.rate)} onClick={() => onPage('speed')} />
+        <MenuRow icon={<Languages />} label="সাবটাইটেল" value={subtitleModeLabel(settings.subtitles)} onClick={() => onPage('language')} />
+        <MenuRow icon={<Palette />} label="সাবটাইটেলের স্টাইল" value={subtitleLookLabel(settings.subtitle)} onClick={() => onPage('style')} />
+        {/* keyboards are rare on phones, so the list only shows where there's room for one */}
+        <MenuRow icon={<Keyboard />} label="কিবোর্ড শর্টকাট" onClick={() => onPage('shortcuts')} className="max-md:hidden" />
+      </div>
+    )
+
+  return (
+    <>
+      <button type="button" onClick={() => onPage(PARENT[page])} className="flex items-center gap-1.5 rounded-md px-1.5 py-1.5 text-sm font-semibold transition hover:bg-muted">
+        <ChevronLeft className="size-4 text-muted-foreground" />
+        {PAGE_TITLES[page]}
+      </button>
+      <div className="mb-1 border-t" />
+      {page === 'speed' && (
+        <div role="menu" className="flex flex-col gap-0.5">
+          {PLAYBACK_RATES.map((r) => (
+            <CheckRow
+              key={r}
+              selected={player.rate === r}
+              onClick={() => {
+                onRate(r)
+                onPage('main')
+              }}
+            >
+              <span className="flex-1">{rateLabel(r)}</span>
+              {r === 1 && <span className="text-xs font-normal text-muted-foreground">সাধারণ</span>}
+            </CheckRow>
+          ))}
+        </div>
+      )}
+      {page === 'language' && <SubtitleLanguagePage {...sub} />}
+      {page === 'style' && <SubtitleStylePage {...sub} hasVideo={hasVideo} onCustomize={() => onPage('customize')} />}
+      {page === 'customize' && <SubtitleCustomizePage {...sub} />}
+      {page === 'shortcuts' && <ShortcutList />}
+    </>
+  )
+}
+
+function MenuRow({ icon, label, value, onClick, className }: { icon: ReactNode; label: string; value?: string; onClick: () => void; className?: string }) {
+  return (
+    <button type="button" role="menuitem" onClick={onClick} className={cn('flex items-center gap-3 rounded-md px-2 py-2 text-start text-sm transition hover:bg-muted [&>svg]:size-4', className)}>
+      <span className="text-muted-foreground [&_svg]:size-4">{icon}</span>
+      <span className="flex-1">{label}</span>
+      {value && <span className="truncate text-xs text-muted-foreground tabular-nums">{value}</span>}
+      <ChevronRight className="shrink-0 text-muted-foreground" />
+    </button>
   )
 }
