@@ -15,6 +15,15 @@ export interface User {
   name: string
   email: string
   is_admin: boolean
+  email_verified: boolean
+  created_at: string | null
+}
+
+export interface AccountSession {
+  ip_address: string | null
+  user_agent: string | null
+  last_active_at: string
+  is_current: boolean
 }
 
 export interface Category {

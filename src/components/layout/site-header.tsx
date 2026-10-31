@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { BookOpen, Library, LogIn, LogOut, Menu, Search, Shield, UserPlus, Users } from 'lucide-react'
+import { BookOpen, Library, LogIn, LogOut, Menu, Search, Settings, Shield, UserPlus, Users } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Brand } from '@/components/brand'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -223,6 +223,17 @@ function MobileMenu() {
               {item.label}
             </Link>
           ))}
+          {user && (
+            <Link
+              to="/settings"
+              onClick={close}
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-base hover:bg-muted"
+              activeProps={{ className: 'bg-muted font-semibold text-primary' }}
+            >
+              <Settings className="size-4 text-gold" />
+              সেটিংস
+            </Link>
+          )}
           {user?.is_admin && (
             <Link to="/admin" onClick={close} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-base hover:bg-muted">
               <Shield className="size-4 text-gold" />
@@ -307,15 +318,18 @@ function UserMenu() {
           <div className="font-semibold text-foreground">{user.name}</div>
           <div className="text-xs font-normal text-muted-foreground">{user.email}</div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/settings">
+            <Settings /> সেটিংস
+          </Link>
+        </DropdownMenuItem>
         {user.is_admin && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/admin">
-                <Shield /> অ্যাডমিন প্যানেল
-              </Link>
-            </DropdownMenuItem>
-          </>
+          <DropdownMenuItem asChild>
+            <Link to="/admin">
+              <Shield /> অ্যাডমিন প্যানেল
+            </Link>
+          </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => logout.mutate(undefined, { onSuccess: () => navigate({ to: '/' }) })}>

@@ -12,11 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SiteRouteImport } from './routes/_site'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as SiteIndexRouteImport } from './routes/_site.index'
+import { Route as SiteForgotPasswordRouteImport } from './routes/_site.forgot-password'
 import { Route as SiteLibraryRouteImport } from './routes/_site.library'
 import { Route as SiteLoginRouteImport } from './routes/_site.login'
 import { Route as SiteMyLibraryRouteImport } from './routes/_site.my-library'
 import { Route as SiteRegisterRouteImport } from './routes/_site.register'
+import { Route as SiteResetPasswordRouteImport } from './routes/_site.reset-password'
 import { Route as SiteSearchRouteImport } from './routes/_site.search'
+import { Route as SiteSettingsRouteImport } from './routes/_site.settings'
+import { Route as SiteVerifyEmailRouteImport } from './routes/_site.verify-email'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAuthorsRouteImport } from './routes/admin.authors'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
@@ -50,6 +54,11 @@ const SiteIndexRoute = SiteIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SiteRoute,
 } as any)
+const SiteForgotPasswordRoute = SiteForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => SiteRoute,
+} as any)
 const SiteLibraryRoute = SiteLibraryRouteImport.update({
   id: '/library',
   path: '/library',
@@ -70,9 +79,24 @@ const SiteRegisterRoute = SiteRegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => SiteRoute,
 } as any)
+const SiteResetPasswordRoute = SiteResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => SiteRoute,
+} as any)
 const SiteSearchRoute = SiteSearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteSettingsRoute = SiteSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteVerifyEmailRoute = SiteVerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
   getParentRoute: () => SiteRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -169,11 +193,15 @@ const BooksSlugReadPageRoute = BooksSlugReadPageRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof SiteIndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/forgot-password': typeof SiteForgotPasswordRoute
   '/library': typeof SiteLibraryRoute
   '/login': typeof SiteLoginRoute
   '/my-library': typeof SiteMyLibraryRoute
   '/register': typeof SiteRegisterRoute
+  '/reset-password': typeof SiteResetPasswordRoute
   '/search': typeof SiteSearchRoute
+  '/settings': typeof SiteSettingsRoute
+  '/verify-email': typeof SiteVerifyEmailRoute
   '/admin/authors': typeof AdminAuthorsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
@@ -194,11 +222,15 @@ export interface FileRoutesByFullPath {
   '/books/$slug/': typeof SiteBooksSlugIndexRoute
 }
 export interface FileRoutesByTo {
+  '/forgot-password': typeof SiteForgotPasswordRoute
   '/library': typeof SiteLibraryRoute
   '/login': typeof SiteLoginRoute
   '/my-library': typeof SiteMyLibraryRoute
   '/register': typeof SiteRegisterRoute
+  '/reset-password': typeof SiteResetPasswordRoute
   '/search': typeof SiteSearchRoute
+  '/settings': typeof SiteSettingsRoute
+  '/verify-email': typeof SiteVerifyEmailRoute
   '/admin/authors': typeof AdminAuthorsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
@@ -223,11 +255,15 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_site': typeof SiteRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
+  '/_site/forgot-password': typeof SiteForgotPasswordRoute
   '/_site/library': typeof SiteLibraryRoute
   '/_site/login': typeof SiteLoginRoute
   '/_site/my-library': typeof SiteMyLibraryRoute
   '/_site/register': typeof SiteRegisterRoute
+  '/_site/reset-password': typeof SiteResetPasswordRoute
   '/_site/search': typeof SiteSearchRoute
+  '/_site/settings': typeof SiteSettingsRoute
+  '/_site/verify-email': typeof SiteVerifyEmailRoute
   '/admin/authors': typeof AdminAuthorsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
@@ -253,11 +289,15 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/forgot-password'
     | '/library'
     | '/login'
     | '/my-library'
     | '/register'
+    | '/reset-password'
     | '/search'
+    | '/settings'
+    | '/verify-email'
     | '/admin/authors'
     | '/admin/categories'
     | '/admin/users'
@@ -278,11 +318,15 @@ export interface FileRouteTypes {
     | '/books/$slug/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/forgot-password'
     | '/library'
     | '/login'
     | '/my-library'
     | '/register'
+    | '/reset-password'
     | '/search'
+    | '/settings'
+    | '/verify-email'
     | '/admin/authors'
     | '/admin/categories'
     | '/admin/users'
@@ -306,11 +350,15 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_site'
     | '/admin'
+    | '/_site/forgot-password'
     | '/_site/library'
     | '/_site/login'
     | '/_site/my-library'
     | '/_site/register'
+    | '/_site/reset-password'
     | '/_site/search'
+    | '/_site/settings'
+    | '/_site/verify-email'
     | '/admin/authors'
     | '/admin/categories'
     | '/admin/users'
@@ -361,6 +409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteIndexRouteImport
       parentRoute: typeof SiteRoute
     }
+    '/_site/forgot-password': {
+      id: '/_site/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof SiteForgotPasswordRouteImport
+      parentRoute: typeof SiteRoute
+    }
     '/_site/library': {
       id: '/_site/library'
       path: '/library'
@@ -389,11 +444,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteRegisterRouteImport
       parentRoute: typeof SiteRoute
     }
+    '/_site/reset-password': {
+      id: '/_site/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof SiteResetPasswordRouteImport
+      parentRoute: typeof SiteRoute
+    }
     '/_site/search': {
       id: '/_site/search'
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SiteSearchRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/settings': {
+      id: '/_site/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SiteSettingsRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/verify-email': {
+      id: '/_site/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof SiteVerifyEmailRouteImport
       parentRoute: typeof SiteRoute
     }
     '/admin/': {
@@ -526,11 +602,15 @@ declare module '@tanstack/react-router' {
 }
 
 interface SiteRouteChildren {
+  SiteForgotPasswordRoute: typeof SiteForgotPasswordRoute
   SiteLibraryRoute: typeof SiteLibraryRoute
   SiteLoginRoute: typeof SiteLoginRoute
   SiteMyLibraryRoute: typeof SiteMyLibraryRoute
   SiteRegisterRoute: typeof SiteRegisterRoute
+  SiteResetPasswordRoute: typeof SiteResetPasswordRoute
   SiteSearchRoute: typeof SiteSearchRoute
+  SiteSettingsRoute: typeof SiteSettingsRoute
+  SiteVerifyEmailRoute: typeof SiteVerifyEmailRoute
   SiteIndexRoute: typeof SiteIndexRoute
   SiteAuthorsSlugRoute: typeof SiteAuthorsSlugRoute
   SiteDurusIdRoute: typeof SiteDurusIdRoute
@@ -542,11 +622,15 @@ interface SiteRouteChildren {
 }
 
 const SiteRouteChildren: SiteRouteChildren = {
+  SiteForgotPasswordRoute: SiteForgotPasswordRoute,
   SiteLibraryRoute: SiteLibraryRoute,
   SiteLoginRoute: SiteLoginRoute,
   SiteMyLibraryRoute: SiteMyLibraryRoute,
   SiteRegisterRoute: SiteRegisterRoute,
+  SiteResetPasswordRoute: SiteResetPasswordRoute,
   SiteSearchRoute: SiteSearchRoute,
+  SiteSettingsRoute: SiteSettingsRoute,
+  SiteVerifyEmailRoute: SiteVerifyEmailRoute,
   SiteIndexRoute: SiteIndexRoute,
   SiteAuthorsSlugRoute: SiteAuthorsSlugRoute,
   SiteDurusIdRoute: SiteDurusIdRoute,
