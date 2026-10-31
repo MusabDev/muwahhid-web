@@ -36,7 +36,7 @@ function AuthorsPage() {
 
   return (
     <>
-      <section className="relative overflow-hidden border-b">
+      <section className="relative overflow-hidden">
         <PatternBackdrop opacity={0.2} />
         <div className="relative mx-auto max-w-4xl px-4 pt-14 pb-10 text-center md:pt-20 md:pb-14">
           <p lang="ar" dir="rtl" className="font-arabic text-xl text-gold md:text-2xl">

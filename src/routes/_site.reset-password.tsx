@@ -1,14 +1,14 @@
+import { useForm } from '@tanstack/react-form'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { KeyRound, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { AuthCard } from '@/components/auth-card'
+import { AuthField } from '@/components/auth-field'
 import { EmptyState } from '@/components/states'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { firstError } from '@/lib/api'
 import { useAuthActions } from '@/lib/auth'
+import { authError, matchesPassword, newPassword, validEmail } from '@/lib/auth-form'
 import { pageTitle } from '@/lib/head'
 
 export const Route = createFileRoute('/_site/reset-password')({
@@ -26,8 +26,21 @@ function ResetPasswordPage() {
   const { resetPassword } = useAuthActions()
   // Keep the token in memory only, and strip it from the address bar so it doesn't linger in history or leak via Referer.
   const [token] = useState(search.token ?? '')
-  const [form, setForm] = useState({ email: search.email ?? '', password: '', password_confirmation: '' })
-  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }))
+
+  const form = useForm({
+    defaultValues: { email: search.email ?? '', password: '', password_confirmation: '' },
+    onSubmit: ({ value }) =>
+      resetPassword.mutate(
+        { token, ...value },
+        {
+          onSuccess: () => {
+            toast.success('পাসওয়ার্ড পরিবর্তন হয়েছে', { description: 'নতুন পাসওয়ার্ড দিয়ে লগইন করুন।' })
+            navigate({ to: '/login', replace: true })
+          },
+          onError: (error) => toast.error(authError(error)),
+        },
+      ),
+  })
 
   useEffect(() => {
     if (search.token) navigate({ to: '/reset-password', search: {}, replace: true })
@@ -49,33 +62,22 @@ function ResetPasswordPage() {
   return (
     <AuthCard title="নতুন পাসওয়ার্ড" subtitle="আপনার অ্যাকাউন্টের জন্য নতুন পাসওয়ার্ড দিন">
       <form
+        noValidate
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault()
-          resetPassword.mutate(
-            { token, ...form },
-            {
-              onSuccess: () => {
-                toast.success('পাসওয়ার্ড পরিবর্তন হয়েছে', { description: 'নতুন পাসওয়ার্ড দিয়ে লগইন করুন।' })
-                navigate({ to: '/login', replace: true })
-              },
-              onError: (error) => toast.error(firstError(error)),
-            },
-          )
+          form.handleSubmit()
         }}
       >
-        <div className="space-y-1.5">
-          <Label htmlFor="email">ইমেইল</Label>
-          <Input id="email" type="email" required autoComplete="email" value={form.email} onChange={set('email')} className="h-10" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="password">নতুন পাসওয়ার্ড</Label>
-          <Input id="password" type="password" required minLength={8} autoFocus autoComplete="new-password" value={form.password} onChange={set('password')} className="h-10" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="password_confirmation">আবার লিখুন</Label>
-          <Input id="password_confirmation" type="password" required autoComplete="new-password" value={form.password_confirmation} onChange={set('password_confirmation')} className="h-10" />
-        </div>
+        <form.Field name="email" validators={{ onChange: validEmail }}>
+          {(field) => <AuthField field={field} label="ইমেইল" type="email" autoComplete="email" />}
+        </form.Field>
+        <form.Field name="password" validators={{ onChange: newPassword }}>
+          {(field) => <AuthField field={field} label="নতুন পাসওয়ার্ড" type="password" autoFocus autoComplete="new-password" />}
+        </form.Field>
+        <form.Field name="password_confirmation" validators={{ onChangeListenTo: ['password'], onChange: matchesPassword }}>
+          {(field) => <AuthField field={field} label="আবার লিখুন" type="password" autoComplete="new-password" />}
+        </form.Field>
         <p className="text-xs text-muted-foreground">কমপক্ষে ৮ অক্ষর; অক্ষর ও সংখ্যা মিলিয়ে দিন। পরিবর্তনের পর সব ডিভাইস থেকে লগআউট হয়ে যাবে।</p>
         <Button type="submit" className="h-10 w-full text-base" disabled={resetPassword.isPending}>
           {resetPassword.isPending && <Loader2 className="animate-spin" />} পাসওয়ার্ড সংরক্ষণ করুন

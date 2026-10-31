@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Ornament, StarMark } from '@/components/brand'
+import { StarMark } from '@/components/brand'
 import { PatternBackdrop } from '@/components/pattern'
 
 export function AuthCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
@@ -15,7 +15,6 @@ export function AuthCard({ title, subtitle, children }: { title: string; subtitl
         <div className="gold-rule opacity-70" />
         <div className="p-6 sm:p-8">
           {children}
-          <Ornament className="mt-6" />
         </div>
       </div>
     </div>

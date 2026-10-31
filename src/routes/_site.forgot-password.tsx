@@ -1,13 +1,13 @@
+import { useForm } from '@tanstack/react-form'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Loader2, MailCheck } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { AuthCard } from '@/components/auth-card'
+import { AuthField } from '@/components/auth-field'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { firstError } from '@/lib/api'
 import { useAuthActions } from '@/lib/auth'
+import { authError, validEmail } from '@/lib/auth-form'
 import { pageTitle } from '@/lib/head'
 
 export const Route = createFileRoute('/_site/forgot-password')({
@@ -21,8 +21,16 @@ export const Route = createFileRoute('/_site/forgot-password')({
 function ForgotPasswordPage() {
   const search = Route.useSearch()
   const { forgotPassword } = useAuthActions()
-  const [email, setEmail] = useState(search.email ?? '')
   const [sentTo, setSentTo] = useState<string | null>(null)
+
+  const form = useForm({
+    defaultValues: { email: search.email ?? '' },
+    onSubmit: ({ value }) =>
+      forgotPassword.mutate(value, {
+        onSuccess: () => setSentTo(value.email),
+        onError: (error) => toast.error(authError(error)),
+      }),
+  })
 
   if (sentTo) {
     return (
@@ -46,22 +54,16 @@ function ForgotPasswordPage() {
   return (
     <AuthCard title="পাসওয়ার্ড ভুলে গেছেন?" subtitle="আপনার ইমেইল দিন, আমরা রিসেট লিংক পাঠাব">
       <form
+        noValidate
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault()
-          forgotPassword.mutate(
-            { email },
-            {
-              onSuccess: () => setSentTo(email),
-              onError: (error) => toast.error(firstError(error)),
-            },
-          )
+          form.handleSubmit()
         }}
       >
-        <div className="space-y-1.5">
-          <Label htmlFor="email">ইমেইল</Label>
-          <Input id="email" type="email" required autoFocus autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10" />
-        </div>
+        <form.Field name="email" validators={{ onChange: validEmail }}>
+          {(field) => <AuthField field={field} label="ইমেইল" type="email" autoFocus autoComplete="email" />}
+        </form.Field>
         <Button type="submit" className="h-10 w-full text-base" disabled={forgotPassword.isPending}>
           {forgotPassword.isPending && <Loader2 className="animate-spin" />} রিসেট লিংক পাঠান
         </Button>
