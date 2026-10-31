@@ -36,6 +36,7 @@ import { Route as SiteAuthorsIndexRouteImport } from './routes/_site.authors.ind
 import { Route as SiteAuthorsSlugRouteImport } from './routes/_site.authors.$slug'
 import { Route as SiteBooksIndexRouteImport } from './routes/_site.books.index'
 import { Route as SiteDurusIndexRouteImport } from './routes/_site.durus.index'
+import { Route as SiteDurusIdRouteImport } from './routes/_site.durus.$id'
 import { Route as AdminBooksIndexRouteImport } from './routes/admin.books.index'
 import { Route as AdminBooksIdRouteImport } from './routes/admin.books.$id'
 import { Route as AdminDurusIdRouteImport } from './routes/admin.durus.$id'
@@ -185,6 +186,11 @@ const SiteDurusIndexRoute = SiteDurusIndexRouteImport.update({
   path: '/durus/',
   getParentRoute: () => SiteRoute,
 } as any)
+const SiteDurusIdRoute = SiteDurusIdRouteImport.update({
+  id: '/durus/$id',
+  path: '/durus/$id',
+  getParentRoute: () => SiteRoute,
+} as any)
 const AdminBooksIndexRoute = AdminBooksIndexRouteImport.update({
   id: '/books/',
   path: '/books/',
@@ -280,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/sitemaps/$file': typeof SitemapsFileRoute
   '/admin/': typeof AdminIndexRoute
   '/authors/$slug': typeof SiteAuthorsSlugRoute
+  '/durus/$id': typeof SiteDurusIdRoute
   '/admin/books/$id': typeof AdminBooksIdRoute
   '/admin/durus/$id': typeof AdminDurusIdRoute
   '/admin/pages/$id': typeof AdminPagesIdRoute
@@ -321,6 +328,7 @@ export interface FileRoutesByTo {
   '/': typeof SiteIndexRoute
   '/admin': typeof AdminIndexRoute
   '/authors/$slug': typeof SiteAuthorsSlugRoute
+  '/durus/$id': typeof SiteDurusIdRoute
   '/admin/books/$id': typeof AdminBooksIdRoute
   '/admin/durus/$id': typeof AdminDurusIdRoute
   '/admin/pages/$id': typeof AdminPagesIdRoute
@@ -365,6 +373,7 @@ export interface FileRoutesById {
   '/_site/': typeof SiteIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/_site/authors/$slug': typeof SiteAuthorsSlugRoute
+  '/_site/durus/$id': typeof SiteDurusIdRoute
   '/admin/books/$id': typeof AdminBooksIdRoute
   '/admin/durus/$id': typeof AdminDurusIdRoute
   '/admin/pages/$id': typeof AdminPagesIdRoute
@@ -409,6 +418,7 @@ export interface FileRouteTypes {
     | '/sitemaps/$file'
     | '/admin/'
     | '/authors/$slug'
+    | '/durus/$id'
     | '/admin/books/$id'
     | '/admin/durus/$id'
     | '/admin/pages/$id'
@@ -450,6 +460,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/authors/$slug'
+    | '/durus/$id'
     | '/admin/books/$id'
     | '/admin/durus/$id'
     | '/admin/pages/$id'
@@ -493,6 +504,7 @@ export interface FileRouteTypes {
     | '/_site/'
     | '/admin/'
     | '/_site/authors/$slug'
+    | '/_site/durus/$id'
     | '/admin/books/$id'
     | '/admin/durus/$id'
     | '/admin/pages/$id'
@@ -719,6 +731,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteDurusIndexRouteImport
       parentRoute: typeof SiteRoute
     }
+    '/_site/durus/$id': {
+      id: '/_site/durus/$id'
+      path: '/durus/$id'
+      fullPath: '/durus/$id'
+      preLoaderRoute: typeof SiteDurusIdRouteImport
+      parentRoute: typeof SiteRoute
+    }
     '/admin/books/': {
       id: '/admin/books/'
       path: '/books'
@@ -832,6 +851,7 @@ interface SiteRouteChildren {
   SiteVerifyEmailRoute: typeof SiteVerifyEmailRoute
   SiteIndexRoute: typeof SiteIndexRoute
   SiteAuthorsSlugRoute: typeof SiteAuthorsSlugRoute
+  SiteDurusIdRoute: typeof SiteDurusIdRoute
   SiteAuthorsIndexRoute: typeof SiteAuthorsIndexRoute
   SiteBooksIndexRoute: typeof SiteBooksIndexRoute
   SiteDurusIndexRoute: typeof SiteDurusIndexRoute
@@ -853,6 +873,7 @@ const SiteRouteChildren: SiteRouteChildren = {
   SiteVerifyEmailRoute: SiteVerifyEmailRoute,
   SiteIndexRoute: SiteIndexRoute,
   SiteAuthorsSlugRoute: SiteAuthorsSlugRoute,
+  SiteDurusIdRoute: SiteDurusIdRoute,
   SiteAuthorsIndexRoute: SiteAuthorsIndexRoute,
   SiteBooksIndexRoute: SiteBooksIndexRoute,
   SiteDurusIndexRoute: SiteDurusIndexRoute,
