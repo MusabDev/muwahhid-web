@@ -2,12 +2,12 @@ import { Bookmark, Copy, Link2, Share2, StickyNote, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
-import { ShareDialog, type ShareQuote } from '@/components/share-dialog'
+import { ShareDialog, type ShareQuote, type ShareSource } from '@/components/share-dialog'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
 import { readSelection, type SelectionSegment, type TextTarget } from '@/lib/selection'
-import type { Annotation } from '@/lib/types'
+import type { Annotation, Lang } from '@/lib/types'
 import { annotationGroup, quoteByLang, type NewAnnotation } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
@@ -32,7 +32,8 @@ interface Options {
   containerRef: RefObject<HTMLElement | null>
   plainFor: (target: TextTarget) => string | undefined
   diacriticsHidden: boolean
-  quoteFor: (target: TextTarget | null, selected?: string) => ShareQuote
+  /** The book or dars the text is from, worded in the given language. */
+  sourceFor: (lang: Lang) => ShareSource
   linkFor: (target: TextTarget) => string
   annotations: {
     list: Annotation[]
@@ -142,8 +143,8 @@ export function useTextActions(options: Options) {
   const parts = menu?.kind === 'mark' ? annotationGroup(options.annotations.list, menu.annotation) : []
   const partTargets: TextTarget[] = menu?.kind === 'mark' ? parts.map((a) => ({ type: a.target_type, id: a.target_id, lang: a.lang })) : (menu?.segments.map((seg) => seg.target) ?? [])
   const quote = menu?.kind === 'mark' ? parts.map((a) => a.quote).join(' ') : menu?.segments.length === 1 ? menu.segments[0].text : (menu?.text ?? '')
-  /* share and copy quote a single sentence against its translation; a wider span is quoted as is */
-  const target: TextTarget | null = partTargets.length === 1 ? partTargets[0] : null
+  /* the language of the quoted text: its sentences' own, or guessed from the script when they mix */
+  const quoteLang: Lang = partTargets.length && partTargets.every((t) => t.lang === partTargets[0].lang) ? partTargets[0].lang : /[\u0600-\u06FF]/.test(quote) ? 'ar' : 'bn'
   /* link and bookmark point at the sentence the text starts in */
   const anchor: TextTarget | null = partTargets[0] ?? null
 
@@ -168,8 +169,8 @@ export function useTextActions(options: Options) {
 
   const copyText = async () => {
     if (!menu) return
-    const source = options.quoteFor(target).source
-    await navigator.clipboard.writeText(`${quote}\n— ${source}`)
+    const { title, meta } = options.sourceFor(quoteLang)
+    await navigator.clipboard.writeText(`${quote}\n— ${[title, meta].filter(Boolean).join(', ')}`)
     toast.success('কপি হয়েছে')
     close()
   }
@@ -182,7 +183,7 @@ export function useTextActions(options: Options) {
 
   const openShare = () => {
     if (!menu) return
-    setShare(options.quoteFor(target, quote))
+    setShare({ text: quote, lang: quoteLang, source: options.sourceFor(quoteLang) })
     close()
   }
 

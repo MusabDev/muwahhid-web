@@ -20,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { loadFont, readerFontVars } from '@/lib/fonts'
 import { bookQuery, pageQuery } from '@/lib/queries'
 import type { TextTarget } from '@/lib/selection'
-import { bnNum } from '@/lib/text'
+import { arNum, bnNum } from '@/lib/text'
 import { pageTitle } from '@/lib/head'
 import type { Annotation } from '@/lib/types'
 import { annotationGroup, useAnnotations, useBookmarks, useLibraryEntry, useReaderSettings } from '@/lib/user-data'
@@ -164,8 +164,6 @@ function Reader() {
     return s ? (t.lang === 'ar' ? s.text_ar_plain : s.text_bn_plain) : undefined
   }, [sentenceMap])
 
-  const source = book && page ? `${book.title_bn}, পৃষ্ঠা ${bnNum(page.number)}` : ''
-
   const actions = useTextActions({
     containerRef,
     plainFor,
@@ -175,17 +173,12 @@ function Reader() {
     /* everything selected here is on this page */
     annotations: { list: annotations, create: (parts, replaces) => create(parts.map((part) => ({ ...part, page_number: pageNumber })), replaces), update: updateAnnotation, remove },
     linkFor: (t) => `${window.location.origin}/books/${slug}/read/${pageNumber}#s-${t.id}`,
-    quoteFor: (t, selected) => {
-      const s = t ? sentenceMap.get(t.id) : undefined
-      if (!s) {
-        const isArabic = /[؀-ۿ]/.test(selected ?? '')
-        return { ar: isArabic ? (selected ?? '') : '', bn: isArabic ? '' : (selected ?? ''), source }
-      }
-      return {
-        ar: t?.lang === 'ar' && selected ? selected : s.text_ar_plain,
-        bn: t?.lang === 'bn' && selected ? selected : s.text_bn_plain,
-        source,
-      }
+    sourceFor: (lang) => {
+      /* a sharh is quoted under its explainer, whose words fill its pages */
+      const by = book?.explainer ?? book?.author
+      return lang === 'ar'
+        ? { title: book?.title_ar ?? '', author: by?.name_ar, meta: `ص ${arNum(pageNumber)}` }
+        : { title: book?.title_bn ?? '', author: by?.name_bn, meta: `পৃষ্ঠা ${bnNum(pageNumber)}` }
     },
     onBookmark: async (t) => {
       if (!book) return

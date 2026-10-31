@@ -22,7 +22,7 @@ import { PortalContainer } from '@/lib/portal'
 import { useUser } from '@/lib/auth'
 import { darsQuery, seriesQuery } from '@/lib/queries'
 import type { TextTarget } from '@/lib/selection'
-import { bnNum, formatTime, parseTime } from '@/lib/text'
+import { arNum, bnNum, formatTime, parseTime } from '@/lib/text'
 import type { Dars, DarsEntry, Segment } from '@/lib/types'
 import { DARS_COMPLETED_AT, useAnnotations, useDarsEntry, useReaderSettings } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
@@ -150,7 +150,6 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
   }, [annotations])
   const annotationIndex = useMemo(() => new Map(annotations.map((a) => [String(a.id), a])), [annotations])
 
-  const source = `${dars.series?.title_bn ?? ''} — দারস ${bnNum(dars.number)}`
   const linkAt = (seconds: number) => `${window.location.origin}/durus/${dars.id}?t=${formatTime(seconds)}`
 
   const actions = useTextActions({
@@ -161,11 +160,10 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
     fontBn: settings.fontBn,
     annotations: { list: annotations, create, update: updateAnnotation, remove },
     linkFor: (target) => linkAt(segmentMap.get(target.id)?.start_time ?? 0),
-    quoteFor: (target, selected) => {
-      const s = target ? segmentMap.get(target.id) : undefined
-      if (!s) return { ar: '', bn: selected ?? '', source }
-      return { ar: target?.lang === 'ar' && selected ? selected : s.text_ar, bn: target?.lang === 'bn' && selected ? selected : s.text_bn, source }
-    },
+    sourceFor: (lang) =>
+      lang === 'ar'
+        ? { title: dars.series?.title_ar || dars.title_ar || '', author: dars.series?.author?.name_ar, meta: `الدرس ${arNum(dars.number)}` }
+        : { title: dars.series?.title_bn ?? '', author: dars.series?.author?.name_bn, meta: `দারস ${bnNum(dars.number)}` },
   })
 
   const copyTimestamp = async () => {
