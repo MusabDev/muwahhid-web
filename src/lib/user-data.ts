@@ -557,6 +557,8 @@ export interface ReaderSettings {
   showArabic: boolean
   showBangla: boolean
   diacritics: boolean
+  /** Book reader: the page fills the window with only the page controls over it. */
+  fullscreen: boolean
   subtitles: 'ar' | 'bn' | 'both' | 'off'
   subtitle: SubtitleStyle
   /** Dars page: wide player with the transcript hidden. */
@@ -574,6 +576,7 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   showArabic: true,
   showBangla: true,
   diacritics: true,
+  fullscreen: false,
   subtitles: 'bn',
   // the "outline" preset, a little larger and near the bottom
   subtitle: {

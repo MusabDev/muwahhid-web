@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { ArrowRight, Bookmark, BookOpen, ChevronLeft, ChevronRight, Rows3, Search, Settings2, Type } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowRight, Bookmark, BookOpen, ChevronLeft, ChevronRight, Maximize, Minimize, Rows3, Search, Settings2, Type } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { StarMark } from '@/components/brand'
 import type { HighlightRange } from '@/components/markdown'
@@ -65,6 +65,9 @@ function Reader() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const roomy = useMediaQuery(ROOMY)
   const chromeHidden = useAutoHide(!searchOpen && !settingsOpen)
+  /* reading with nothing but the page: the bars drop away and the page fills the window; remembered like any other setting */
+  const fullscreen = { on: settings.fullscreen, exit: () => update({ fullscreen: false }), toggle: () => update({ fullscreen: !settings.fullscreen }) }
+  const exitVisible = useWakeOnActivity(fullscreen.on)
   const closeSearch = useCallback(() => setSearchOpen(false), [])
   /* Escape clears the box first, and only closes search once it is empty */
   const onSearchEscape = (e: KeyboardEvent) => {
@@ -141,20 +144,7 @@ function Reader() {
   }, [])
 
   /* Swipe sideways on touch screens to turn pages */
-  const touch = useRef<{ x: number; y: number; t: number } | null>(null)
-  const onTouchStart = (e: React.TouchEvent) => {
-    touch.current = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null
-  }
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const start = touch.current
-    touch.current = null
-    if (!start || !page) return
-    const dx = e.changedTouches[0].clientX - start.x
-    const dy = e.changedTouches[0].clientY - start.y
-    if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.5 || Date.now() - start.t > 600) return
-    if (window.getSelection()?.toString()) return
-    goTo(dx < 0 ? page.next_page : page.prev_page)
-  }
+  const { ref: swipeRef, handlers: swipeHandlers } = usePageSwipe({ prev: page?.prev_page, next: page?.next_page, onTurn: goTo, pageKey: page?.number })
 
   const sentenceMap = useMemo(() => new Map(page?.sentences.map((s) => [s.id, s]) ?? []), [page])
 
@@ -243,6 +233,8 @@ function Reader() {
       /* both → Arabic only → Bangla only → both */
       l: () => update(languages === 'both' ? { showArabic: true, showBangla: false } : languages === 'ar' ? { showArabic: false, showBangla: true } : { showArabic: true, showBangla: true }),
       s: () => setSettingsOpen((o) => !o),
+      f: fullscreen.toggle,
+      ...(fullscreen.on && { Escape: fullscreen.exit }),
       '+': () => update({ fontSize: clampFontSize(settings.fontSize + 1) }),
       '=': () => update({ fontSize: clampFontSize(settings.fontSize + 1) }),
       '-': () => update({ fontSize: clampFontSize(settings.fontSize - 1) }),
@@ -256,121 +248,156 @@ function Reader() {
   return (
     <div
       data-reader-theme={settings.theme}
-      className="relative isolate min-h-svh bg-[var(--desk)]"
-      style={{ ...readerFontVars(settings.fontAr, settings.fontBn), ['--reader-leading' as string]: LEADING[settings.leading] }}
+      className="relative isolate min-h-svh overflow-x-clip bg-[var(--desk)]"
+      style={{
+        ...readerFontVars(settings.fontAr, settings.fontBn),
+        ['--reader-leading' as string]: LEADING[settings.leading],
+        /* fullscreen: the page runs to every edge, so the desk takes the page's colour and the sheet loses its shadow */
+        ...(fullscreen.on && { ['--desk' as string]: 'var(--page-bg)', ['--page-shadow' as string]: 'none' }),
+      }}
     >
-      <Desk />
+      {!fullscreen.on && <Desk />}
+
+      {fullscreen.on && (
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          aria-label="ফুলস্ক্রিন থেকে বের হন"
+          onClick={fullscreen.exit}
+          className={cn(
+            'fixed top-[calc(0.75rem+env(safe-area-inset-top))] right-3 z-40 rounded-full bg-[var(--page-ink)]/10 text-[var(--page-ink)] backdrop-blur-sm transition-opacity duration-500 hover:bg-[var(--page-ink)]/15 hover:text-[var(--page-ink)]',
+            !exitVisible && 'pointer-events-none opacity-0',
+          )}
+        >
+          <Minimize />
+        </Button>
+      )}
 
       {/* Top bar */}
-      <header className={cn('sticky top-0 z-30 transition-transform duration-300 ease-out', chromeHidden && '-translate-y-full')}>
-        <div className="wood-panel relative overflow-hidden shadow-[0_2px_12px_oklch(0.15_0.03_50/0.4)]">
-          <PatternTint className="opacity-[0.06]" />
-          <div className="relative mx-auto flex h-14 max-w-[1400px] items-center gap-1 px-2 sm:gap-2 sm:px-4">
-            <BarButton label="কিতাবের পাতায় ফিরুন" asChild>
-              <Link to="/books/$slug" params={{ slug }}>
-                <ArrowRight className="rotate-180" />
-              </Link>
-            </BarButton>
-            <Popover open={searchOpen && roomy} onOpenChange={setSearchOpen}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label="কিতাবে সার্চ করুন" className="text-wood-foreground hover:bg-white/10 hover:text-wood-foreground data-[state=open]:bg-white/15 data-[state=open]:text-gold max-sm:hidden">
-                      <Search />
-                    </Button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  কিতাবে সার্চ করুন <Kbd>/</Kbd>
-                </TooltipContent>
-              </Tooltip>
-              <PopoverContent
-                align="start"
-                onOpenAutoFocus={(e) => e.preventDefault()}
-                onEscapeKeyDown={onSearchEscape}
-                className="max-h-[min(calc(100svh-5rem),40rem)] w-[26rem] max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain bg-card p-3 scrollbar-thin"
-              >
-                <SearchPanel slug={slug} input={searchInput} onInput={setSearchInput} onNavigate={closeSearch} />
-              </PopoverContent>
-            </Popover>
-
-            <div className="mx-1 flex min-w-0 flex-1 flex-col items-center text-center">
-              <span className="max-w-full truncate font-heading text-sm font-semibold text-wood-foreground sm:text-base">
-                {book?.title_bn}
-                {book?.title_ar && (
-                  <span className="font-arabic font-normal text-wood-foreground/75">
-                    {' '}(<bdi>{book.title_ar}</bdi>)
-                  </span>
-                )}
-              </span>
-              {book?.author?.name_bn && <span className="max-w-full truncate text-xs text-gold/90">{book.author.name_bn}</span>}
+      {!fullscreen.on && (
+        <header className={cn('sticky top-0 z-30 transition-transform duration-300 ease-out', chromeHidden && '-translate-y-full')}>
+          <div className="wood-panel relative overflow-hidden shadow-[0_2px_12px_oklch(0.15_0.03_50/0.4)]">
+            <PatternTint className="opacity-[0.06]" />
+            <div className="relative mx-auto flex h-14 max-w-[1400px] items-center gap-1 px-2 sm:gap-2 sm:px-4">
+              <BarButton label="কিতাবের পাতায় ফিরুন" asChild>
+                <Link to="/books/$slug" params={{ slug }}>
+                  <ArrowRight className="rotate-180" />
+                </Link>
+              </BarButton>
+              <Popover open={searchOpen && roomy} onOpenChange={setSearchOpen}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" aria-label="কিতাবে সার্চ করুন" className="text-wood-foreground hover:bg-white/10 hover:text-wood-foreground data-[state=open]:bg-white/15 data-[state=open]:text-gold max-sm:hidden">
+                        <Search />
+                      </Button>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    কিতাবে সার্চ করুন <Kbd>/</Kbd>
+                  </TooltipContent>
+                </Tooltip>
+                <PopoverContent
+                  align="start"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  onEscapeKeyDown={onSearchEscape}
+                  className="max-h-[min(calc(100svh-5rem),40rem)] w-[26rem] max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain bg-card p-3 scrollbar-thin"
+                >
+                  <SearchPanel slug={slug} input={searchInput} onInput={setSearchInput} onNavigate={closeSearch} />
+                </PopoverContent>
+              </Popover>
+  
+              <div className="mx-1 flex min-w-0 flex-1 flex-col items-center text-center">
+                <span className="max-w-full truncate font-heading text-sm font-semibold text-wood-foreground sm:text-base">
+                  {book?.title_bn}
+                  {book?.title_ar && (
+                    <span className="font-arabic font-normal text-wood-foreground/75">
+                      {' '}(<bdi>{book.title_ar}</bdi>)
+                    </span>
+                  )}
+                </span>
+                {book?.author?.name_bn && <span className="max-w-full truncate text-xs text-gold/90">{book.author.name_bn}</span>}
+              </div>
+  
+              <BarButton label={pageBookmark ? 'বুকমার্ক সরান' : 'এই পাতা বুকমার্ক করুন'} shortcut="B" active={!!pageBookmark} onClick={togglePageBookmark}>
+                <Bookmark className={cn(pageBookmark && 'fill-gold text-gold')} />
+              </BarButton>
+              <BarButton label="ফুলস্ক্রিন" shortcut="F" onClick={fullscreen.toggle}>
+                <Maximize />
+              </BarButton>
+              <BarButton label={settings.mode === 'book' ? 'বাক্য মোড' : 'কিতাব মোড'} shortcut="M" onClick={() => update({ mode: settings.mode === 'book' ? 'sentence' : 'book' })} className="max-md:hidden">
+                {settings.mode === 'book' ? <Rows3 /> : <BookOpen />}
+              </BarButton>
+              <Popover open={settingsOpen && roomy} onOpenChange={setSettingsOpen}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" aria-label="পড়ার সেটিংস" className="text-wood-foreground hover:bg-white/10 hover:text-wood-foreground data-[state=open]:bg-white/15 data-[state=open]:text-gold max-sm:hidden">
+                        <Settings2 />
+                      </Button>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    পড়ার সেটিংস <Kbd>S</Kbd>
+                  </TooltipContent>
+                </Tooltip>
+                <PopoverContent align="end" className="max-h-[calc(100svh-5rem)] w-80 overflow-y-auto scrollbar-thin">
+                  <SettingsPanel settings={settings} update={update} />
+                </PopoverContent>
+              </Popover>
             </div>
-
-            <BarButton label={pageBookmark ? 'বুকমার্ক সরান' : 'এই পাতা বুকমার্ক করুন'} shortcut="B" active={!!pageBookmark} onClick={togglePageBookmark}>
-              <Bookmark className={cn(pageBookmark && 'fill-gold text-gold')} />
-            </BarButton>
-            <BarButton label={settings.mode === 'book' ? 'বাক্য মোড' : 'কিতাব মোড'} shortcut="M" onClick={() => update({ mode: settings.mode === 'book' ? 'sentence' : 'book' })} className="max-md:hidden">
-              {settings.mode === 'book' ? <Rows3 /> : <BookOpen />}
-            </BarButton>
-            <Popover open={settingsOpen && roomy} onOpenChange={setSettingsOpen}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label="পড়ার সেটিংস" className="text-wood-foreground hover:bg-white/10 hover:text-wood-foreground data-[state=open]:bg-white/15 data-[state=open]:text-gold max-sm:hidden">
-                      <Settings2 />
-                    </Button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  পড়ার সেটিংস <Kbd>S</Kbd>
-                </TooltipContent>
-              </Tooltip>
-              <PopoverContent align="end" className="max-h-[calc(100svh-5rem)] w-80 overflow-y-auto scrollbar-thin">
-                <SettingsPanel settings={settings} update={update} />
-              </PopoverContent>
-            </Popover>
           </div>
-        </div>
-        <div className="gold-rule opacity-70" />
-        {/* how far through the book this page is */}
-        <div className="h-0.5 bg-black/10" role="progressbar" aria-label="পড়ার অগ্রগতি" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
-          <div className="h-full bg-gold transition-[width] duration-500 ease-out" style={{ width: `${progress}%` }} />
-        </div>
-      </header>
+          <div className="gold-rule opacity-70" />
+          {/* how far through the book this page is */}
+          <div className="h-0.5 bg-black/10" role="progressbar" aria-label="পড়ার অগ্রগতি" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
+            <div className="h-full bg-gold transition-[width] duration-500 ease-out" style={{ width: `${progress}%` }} />
+          </div>
+        </header>
+      )}
 
       <div>
-        <main ref={containerRef} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} className="@container relative sm:px-6 sm:py-10">
-          <ReaderContext.Provider value={ctx}>
-            {isLoading || !book ? (
-              <div className="flex min-h-[70vh] items-center justify-center">
-                <Spinner />
-              </div>
-            ) : isError || !page ? (
-              <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-xl bg-[var(--page-bg)] p-10 text-center text-[var(--page-ink)] [box-shadow:var(--page-shadow)]">
-                <StarMark className="size-10 text-gold" />
-                <p className="text-lg font-semibold">এই পৃষ্ঠাটি পাওয়া যায়নি</p>
-                <Button onClick={() => goTo(book.first_page ?? 1)}>প্রথম পৃষ্ঠায় যান</Button>
-              </div>
-            ) : settings.mode === 'book' ? (
-              <BookView book={book} page={page} />
-            ) : (
-              <SentenceView book={book} page={page} />
-            )}
-          </ReaderContext.Provider>
+        <main ref={containerRef} {...swipeHandlers} className={cn('@container relative [touch-action:pan-y_pinch-zoom]', fullscreen.on ? 'pb-28' : 'sm:px-6 sm:py-10')}>
+          <div ref={swipeRef}>
+            <ReaderContext.Provider value={ctx}>
+              {isLoading || !book ? (
+                <div className="flex min-h-[70vh] items-center justify-center">
+                  <Spinner />
+                </div>
+              ) : isError || !page ? (
+                <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-xl bg-[var(--page-bg)] p-10 text-center text-[var(--page-ink)] [box-shadow:var(--page-shadow)]">
+                  <StarMark className="size-10 text-gold" />
+                  <p className="text-lg font-semibold">এই পৃষ্ঠাটি পাওয়া যায়নি</p>
+                  <Button onClick={() => goTo(book.first_page ?? 1)}>প্রথম পৃষ্ঠায় যান</Button>
+                </div>
+              ) : settings.mode === 'book' ? (
+                <BookView book={book} page={page} />
+              ) : (
+                <SentenceView book={book} page={page} />
+              )}
+            </ReaderContext.Provider>
+          </div>
         </main>
 
         {/* Page navigation */}
         {page && book && (
           <nav
             aria-label="পৃষ্ঠা ও নিয়ন্ত্রণ"
-            className={cn('sticky bottom-0 z-20 flex items-center justify-center gap-2 px-2 pt-2 pb-[calc(1.25rem+env(safe-area-inset-bottom))] transition-transform duration-300 ease-out sm:pb-6', chromeHidden && 'translate-y-[150%]')}
+            className={cn(
+              'bottom-0 z-20 flex items-center justify-center gap-2 px-2 pt-2 pb-[calc(1.25rem+env(safe-area-inset-bottom))] transition-transform duration-300 ease-out sm:pb-6',
+              /* fullscreen: pinned to the bottom of the screen and always there */
+              fullscreen.on ? 'pointer-events-none fixed inset-x-0 *:pointer-events-auto' : cn('sticky', chromeHidden && 'translate-y-[150%]'),
+            )}
           >
             <div className={DOCK}>
-              {/* on phones the dock carries the tools the slim top bar leaves out, within thumb reach */}
-              <DockButton label="কিতাবে সার্চ করুন" active={searchOpen} onClick={() => setSearchOpen(true)} className="sm:hidden">
-                <Search />
-              </DockButton>
-              <span aria-hidden className="h-6 w-px bg-white/15 sm:hidden" />
+              {/* on phones the dock carries the tools the slim top bar leaves out, within thumb reach; fullscreen keeps only the page controls */}
+              {!fullscreen.on && (
+                <>
+                  <DockButton label="কিতাবে সার্চ করুন" active={searchOpen} onClick={() => setSearchOpen(true)} className="sm:hidden">
+                    <Search />
+                  </DockButton>
+                  <span aria-hidden className="h-6 w-px bg-white/15 sm:hidden" />
+                </>
+              )}
               <DockButton label="আগের পৃষ্ঠা" disabled={!page.prev_page} onClick={() => goTo(page.prev_page)}>
                 <ChevronLeft />
               </DockButton>
@@ -378,10 +405,14 @@ function Reader() {
               <DockButton label="পরের পৃষ্ঠা" disabled={!page.next_page} onClick={() => goTo(page.next_page)}>
                 <ChevronRight />
               </DockButton>
-              <span aria-hidden className="h-6 w-px bg-white/15 sm:hidden" />
-              <DockButton label="পড়ার সেটিংস" active={settingsOpen} onClick={() => setSettingsOpen(true)} className="sm:hidden">
-                <Type />
-              </DockButton>
+              {!fullscreen.on && (
+                <>
+                  <span aria-hidden className="h-6 w-px bg-white/15 sm:hidden" />
+                  <DockButton label="পড়ার সেটিংস" active={settingsOpen} onClick={() => setSettingsOpen(true)} className="sm:hidden">
+                    <Type />
+                  </DockButton>
+                </>
+              )}
             </div>
           </nav>
         )}
@@ -468,6 +499,128 @@ function useAutoHide(enabled: boolean) {
     }
   }, [enabled])
   return enabled && hidden
+}
+
+/** True for a moment after the pointer moves or the screen is touched, so a control can show itself and then get out of the way. */
+function useWakeOnActivity(enabled: boolean, ms = 2500) {
+  const [awake, setAwake] = useState(true)
+  useEffect(() => {
+    if (!enabled) return
+    let t = 0
+    const wake = () => {
+      setAwake(true)
+      window.clearTimeout(t)
+      t = window.setTimeout(() => setAwake(false), ms)
+    }
+    wake()
+    const events = ['pointermove', 'touchstart', 'keydown'] as const
+    events.forEach((e) => window.addEventListener(e, wake, { passive: true }))
+    return () => {
+      window.clearTimeout(t)
+      events.forEach((e) => window.removeEventListener(e, wake))
+    }
+  }, [enabled, ms])
+  return awake
+}
+
+const TURN_MS = 200
+
+/**
+ * Lets a sideways drag carry the page with the finger, like turning a leaf: past a quarter of the width (or a quick flick)
+ * it slides off and the neighbour slides in from the side the finger came from; short of that it springs back.
+ * Styles are written straight to the element so dragging never re-renders the page.
+ */
+function usePageSwipe({ prev, next, onTurn, pageKey }: { prev?: number | null; next?: number | null; onTurn: (n: number) => void; pageKey?: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const drag = useRef<{ x: number; y: number; t: number; width: number; axis: 'x' | 'y' | null; dx: number } | null>(null)
+  /* the side the incoming page enters from: 1 is the right */
+  const entering = useRef<1 | -1 | null>(null)
+  const turning = useRef(false)
+
+  const style = (transform = '', transition = '', opacity = '') => {
+    const el = ref.current
+    if (!el) return
+    el.style.transform = transform
+    el.style.transition = transition
+    el.style.opacity = opacity
+  }
+  const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  /* slide the new page in once it has rendered */
+  useLayoutEffect(() => {
+    turning.current = false
+    const from = entering.current
+    if (!from) return
+    entering.current = null
+    style(`translateX(${from * 30}%)`, '', '0')
+    ref.current?.getBoundingClientRect()
+    let clear = 0
+    const frame = requestAnimationFrame(() => {
+      style('translateX(0)', `transform ${TURN_MS + 20}ms ease-out, opacity ${TURN_MS + 20}ms ease-out`, '1')
+      /* a lingering transform would trap fixed-position children */
+      clear = window.setTimeout(() => style(), TURN_MS + 40)
+    })
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(clear)
+    }
+  }, [pageKey])
+
+  const end = () => {
+    const d = drag.current
+    drag.current = null
+    if (!d || d.axis !== 'x') return
+    const target = d.dx < 0 ? next : prev
+    const flick = Math.abs(d.dx) > 50 && Math.abs(d.dx) / (Date.now() - d.t) > 0.4
+    if (!target || (Math.abs(d.dx) < d.width * 0.25 && !flick)) {
+      style('translateX(0)', `transform ${TURN_MS}ms ease-out`)
+      window.setTimeout(() => !drag.current && !turning.current && style(), TURN_MS + 20)
+      return
+    }
+    if (reducedMotion()) return onTurn(target)
+    turning.current = true
+    entering.current = d.dx < 0 ? 1 : -1
+    style(`translateX(${d.dx < 0 ? -100 : 100}%)`, `transform ${TURN_MS}ms ease-in`)
+    window.setTimeout(() => onTurn(target), TURN_MS)
+  }
+
+  const handlers = {
+    onTouchStart: (e: React.TouchEvent) => {
+      if (turning.current) return
+      const t = e.touches[0]
+      drag.current = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, t: Date.now(), width: ref.current?.offsetWidth || window.innerWidth, axis: null, dx: 0 } : null
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      const d = drag.current
+      if (!d) return
+      if (e.touches.length !== 1) {
+        d.dx = 0
+        return end()
+      }
+      const dx = e.touches[0].clientX - d.x
+      const dy = e.touches[0].clientY - d.y
+      if (!d.axis) {
+        if (Math.hypot(dx, dy) < 10) return
+        d.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+        /* scrolling, or extending a text selection */
+        if (d.axis === 'y' || window.getSelection()?.toString()) {
+          drag.current = null
+          return
+        }
+      }
+      d.dx = dx
+      if (reducedMotion()) return
+      /* no page that way: the edge gives a little and springs back */
+      style(`translateX(${(dx < 0 ? next : prev) ? dx : dx * 0.25}px)`)
+    },
+    onTouchEnd: end,
+    onTouchCancel: () => {
+      if (drag.current) drag.current.dx = 0
+      end()
+    },
+  }
+
+  return { ref, handlers }
 }
 
 const EMPTY: HighlightRange[] = []
