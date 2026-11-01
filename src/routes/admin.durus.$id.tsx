@@ -1,6 +1,6 @@
 import { useQuery, type QueryKey } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, ExternalLink, FileUp, Plus, Save, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink, FileUp, Plus, Save, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { DarsForm } from '@/components/admin/entity-forms'
@@ -11,10 +11,11 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { downloadJson, SERIES_STARTER } from '@/lib/admin/templates'
 import { darsLink } from '@/lib/links'
 import { api } from '@/lib/api'
 import { bnNum, formatTime, parseTime } from '@/lib/text'
-import type { Dars, Segment } from '@/lib/types'
+import type { Dars, DarsSeries, Segment } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/admin/durus/$id')({
@@ -26,6 +27,11 @@ function AdminDars() {
   const navigate = useNavigate()
   const queryKey: QueryKey = ['admin', 'dars', id]
   const { data: dars } = useQuery({ queryKey, queryFn: () => api<Dars>(`/admin/durus/${id}`) })
+  const { data: series } = useQuery({
+    queryKey: ['admin', 'series', String(dars?.series_id)],
+    queryFn: () => api<DarsSeries>(`/admin/dars-series/${dars!.series_id}`),
+    enabled: !!dars,
+  })
   const invalidate: QueryKey[] = [queryKey, ['dars']]
 
   const save = useAdminMutation((values: Record<string, unknown>) => api(`/admin/durus/${id}`, { method: 'PUT', body: values }), { success: 'সংরক্ষিত হয়েছে', invalidate: [...invalidate, ['admin', 'series']] })
@@ -39,31 +45,53 @@ function AdminDars() {
   if (!dars) return <CenterSpinner />
   const segments = dars.segments ?? []
   const lastStart = segments.length ? segments[segments.length - 1].start_time + 5 : 0
+  const siblings = [...(series?.durus ?? [])].sort((a, b) => a.number - b.number)
+  const index = siblings.findIndex((d) => d.id === dars.id)
+  const prev = index > 0 ? siblings[index - 1] : null
+  const next = index >= 0 && index < siblings.length - 1 ? siblings[index + 1] : null
 
   return (
     <>
-      <Link to="/admin/series/$id" params={{ id: String(dars.series_id) }} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-        <ArrowLeft className="size-4" /> সিরিজে ফিরুন
-      </Link>
       <AdminPageHeader
+        crumbs={[
+          { label: 'দারস সিরিজ', to: '/admin/series' },
+          { label: dars.series?.title_bn ?? 'সিরিজ', to: '/admin/series/$id', params: { id: String(dars.series_id) } },
+        ]}
         title={`দারস ${bnNum(dars.number)}: ${dars.title_bn}`}
-        description={dars.series?.title_bn}
         action={
-          <div className="flex gap-2">
+          <>
+            <Button variant="outline" size="icon" disabled={!prev} asChild={!!prev} aria-label="আগের দারস">
+              {prev ? (
+                <Link to="/admin/durus/$id" params={{ id: String(prev.id) }}>
+                  <ChevronLeft className="rtl:rotate-180" />
+                </Link>
+              ) : (
+                <ChevronLeft className="rtl:rotate-180" />
+              )}
+            </Button>
+            <Button variant="outline" size="icon" disabled={!next} asChild={!!next} aria-label="পরের দারস">
+              {next ? (
+                <Link to="/admin/durus/$id" params={{ id: String(next.id) }}>
+                  <ChevronRight className="rtl:rotate-180" />
+                </Link>
+              ) : (
+                <ChevronRight className="rtl:rotate-180" />
+              )}
+            </Button>
             <Button variant="outline" asChild>
               <Link {...darsLink(dars)} search={{}} target="_blank">
                 <ExternalLink /> সাইটে দেখুন
               </Link>
             </Button>
-            <Button variant="destructive" onClick={() => confirmDelete('দারসটি') && destroy.mutate(undefined)}>
+            <Button variant="destructive" size="icon" onClick={() => confirmDelete('দারসটি').then((ok) => ok && destroy.mutate(undefined))} aria-label="মুছুন">
               <Trash2 />
             </Button>
-          </div>
+          </>
         }
       />
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="দারসের তথ্য">
-          <DarsForm key={dars.id} initial={dars} submitting={save.isPending} onSubmit={(v) => save.mutate(v)} />
+          <DarsForm key={`${dars.id}:${dars.updated_at}`} initial={dars} submitting={save.isPending} onSubmit={(v) => save.mutate(v)} />
         </Panel>
         <TranscriptImport darsId={dars.id} invalidate={invalidate} hasSegments={segments.length > 0} />
       </div>
@@ -117,7 +145,7 @@ function SegmentRow({ segment, invalidate }: { segment: Segment; invalidate: Que
         <Button size="icon-sm" disabled={!dirty || save.isPending} onClick={() => save.mutate(undefined)} aria-label="সংরক্ষণ">
           <Save />
         </Button>
-        <Button size="icon-sm" variant="ghost" onClick={() => remove.mutate(undefined)} aria-label="মুছুন">
+        <Button size="icon-sm" variant="ghost" onClick={() => confirmDelete('লাইনটি').then((ok) => ok && remove.mutate(undefined))} aria-label="মুছুন">
           <Trash2 />
         </Button>
       </div>
@@ -149,7 +177,17 @@ function TranscriptImport({ darsId, invalidate, hasSegments }: { darsId: number;
   return (
     <Panel title="ট্রান্সক্রিপ্ট ইমপোর্ট">
       <div className="space-y-4">
-        <Field label="ফাইল" hint="JSON [{start, end, ar, bn}], CSV (start,end,ar,bn) অথবা SRT">
+        <Field
+          label="ফাইল"
+          hint={
+            <>
+              JSON <code dir="ltr">[{'{'}start, end, ar, bn{'}'}]</code>, CSV (start,end,ar,bn) অথবা SRT।{' '}
+              <button type="button" className="underline underline-offset-2" onClick={() => downloadJson('muwahhid-transcript-starter.json', SERIES_STARTER.durus[0].segments)}>
+                নমুনা JSON
+              </button>
+            </>
+          }
+        >
           <Input type="file" accept=".json,.csv,.srt" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </Field>
         {isSrt && (

@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowUp } from 'lucide-react'
-import { Brand, StarMark } from '@/components/brand'
+import { Brand, Wordmark } from '@/components/brand'
 import { bnNum } from '@/lib/text'
 
 type FooterLink = { to: string; label: string; search?: Record<string, string> }
@@ -13,7 +13,7 @@ export function SiteFooter() {
         aria-hidden
         className="pattern-tint pointer-events-none absolute inset-0 -z-10 text-gold opacity-[0.07] mask-[linear-gradient(to_bottom,black,transparent_85%)]"
       />
-      <StarMark className="pointer-events-none absolute -right-16 -bottom-20 -z-10 hidden size-80 text-gold/10 md:block" />
+      <Wordmark className="pointer-events-none absolute -right-10 -bottom-16 -z-10 hidden h-72 text-gold/[0.07] md:block" />
 
       <div className="mx-auto max-w-7xl px-4">
         <div className="grid grid-cols-2 gap-x-6 gap-y-8 py-10 sm:grid-cols-3 md:grid-cols-[1.5fr_1fr_1fr_1fr] md:gap-10 md:py-12">

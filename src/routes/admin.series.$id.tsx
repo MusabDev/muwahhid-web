@@ -1,14 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ExternalLink, Plus, Trash2 } from 'lucide-react'
+import { Download, ExternalLink, FileJson, Headphones, Plus, Trash2, Video } from 'lucide-react'
 import { useState } from 'react'
 import { DarsForm, SeriesForm } from '@/components/admin/entity-forms'
 import { AdminPageHeader, confirmDelete, Panel, useAdminMutation } from '@/components/admin/form'
-import { CenterSpinner } from '@/components/states'
+import { SeriesImportDialog } from '@/components/admin/imports'
+import { CenterSpinner, EmptyState } from '@/components/states'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { downloadJson } from '@/lib/admin/templates'
 import { api } from '@/lib/api'
-import { bnNum } from '@/lib/text'
+import { bnNum, formatTime } from '@/lib/text'
 import type { Dars, DarsSeries } from '@/lib/types'
 
 export const Route = createFileRoute('/admin/series/$id')({
@@ -19,6 +21,7 @@ function AdminSeries() {
   const { id } = Route.useParams()
   const navigate = useNavigate()
   const [adding, setAdding] = useState(false)
+  const [importing, setImporting] = useState(false)
   const { data: series } = useQuery({ queryKey: ['admin', 'series', id], queryFn: () => api<DarsSeries>(`/admin/dars-series/${id}`) })
 
   const save = useAdminMutation((values: Record<string, unknown>) => api(`/admin/dars-series/${id}`, { method: 'PUT', body: values }), { success: 'সংরক্ষিত হয়েছে', invalidate: [['admin'], ['dars-series']] })
@@ -28,49 +31,68 @@ function AdminSeries() {
     invalidate: [['admin']],
     onSuccess: (dars) => navigate({ to: '/admin/durus/$id', params: { id: String(dars.id) } }),
   })
+  const exportJson = useAdminMutation(() => api<unknown>(`/admin/dars-series/${id}/export`), { onSuccess: (data) => series && downloadJson(`${series.slug}.json`, data) })
 
   if (!series) return <CenterSpinner />
-  const nextNumber = (series.durus?.reduce((max, d) => Math.max(max, d.number), 0) ?? 0) + 1
+  const durus = [...(series.durus ?? [])].sort((a, b) => a.number - b.number)
+  const nextNumber = durus.reduce((max, d) => Math.max(max, d.number), 0) + 1
 
   return (
     <>
       <AdminPageHeader
+        crumbs={[{ label: 'দারস সিরিজ', to: '/admin/series' }]}
         title={series.title_bn}
-        description={series.title_ar}
+        description={<span className="font-arabic text-base">{series.title_ar}</span>}
         action={
-          <div className="flex gap-2">
+          <>
             <Button variant="outline" asChild>
               <Link to="/durus/$slug" params={{ slug: series.slug }} target="_blank">
                 <ExternalLink /> সাইটে দেখুন
               </Link>
             </Button>
-            <Button variant="destructive" onClick={() => confirmDelete('সিরিজটি ও এর সব দারস') && destroy.mutate(undefined)}>
+            <Button variant="outline" onClick={() => exportJson.mutate(undefined)} disabled={exportJson.isPending}>
+              <Download /> JSON এক্সপোর্ট
+            </Button>
+            <Button variant="destructive" size="icon" onClick={() => confirmDelete('সিরিজটি ও এর সব দারস').then((ok) => ok && destroy.mutate(undefined))} aria-label="মুছুন">
               <Trash2 />
             </Button>
-          </div>
+          </>
         }
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
         <Panel title="সিরিজের তথ্য">
-          <SeriesForm key={series.id} initial={series} submitting={save.isPending} onSubmit={(v) => save.mutate(v)} />
+          <SeriesForm key={`${series.id}:${series.updated_at}`} initial={series} submitting={save.isPending} onSubmit={(v) => save.mutate(v)} />
         </Panel>
         <Panel
-          title={`দারসসমূহ (${bnNum(series.durus?.length ?? 0)})`}
+          title={`দারসসমূহ (${bnNum(durus.length)})`}
           action={
-            <Button size="sm" onClick={() => setAdding(true)}>
-              <Plus /> দারস যোগ
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setImporting(true)}>
+                <FileJson /> JSON
+              </Button>
+              <Button size="sm" onClick={() => setAdding(true)}>
+                <Plus /> দারস যোগ
+              </Button>
+            </div>
           }
         >
-          <div className="divide-y">
-            {series.durus?.map((dars) => (
-              <Link key={dars.id} to="/admin/durus/$id" params={{ id: String(dars.id) }} className="flex items-center gap-3 py-2.5 hover:bg-muted/40">
-                <span className="flex size-8 items-center justify-center rounded-full border border-gold/50 text-sm font-semibold">{bnNum(dars.number)}</span>
-                <span className="flex-1 font-medium">{dars.title_bn}</span>
-                <span className="text-xs text-muted-foreground">{bnNum(dars.segments_count ?? 0)} লাইন</span>
-              </Link>
-            ))}
-          </div>
+          {durus.length ? (
+            <div className="-my-2 divide-y">
+              {durus.map((dars) => (
+                <Link key={dars.id} to="/admin/durus/$id" params={{ id: String(dars.id) }} className="-mx-2 flex items-center gap-3 rounded-md px-2 py-2.5 hover:bg-muted/50">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-gold/50 text-sm font-semibold">{bnNum(dars.number)}</span>
+                  {dars.media_type === 'audio' ? <Headphones className="size-4 shrink-0 text-muted-foreground" /> : <Video className="size-4 shrink-0 text-muted-foreground" />}
+                  <span className="min-w-0 flex-1 truncate font-medium">{dars.title_bn}</span>
+                  {dars.duration_seconds ? <span className="hidden font-mono text-xs text-muted-foreground sm:inline">{formatTime(dars.duration_seconds)}</span> : null}
+                  <span className={dars.segments_count ? 'text-xs text-muted-foreground' : 'text-xs text-gold'}>{dars.segments_count ? `${bnNum(dars.segments_count)} লাইন` : 'ট্রান্সক্রিপ্ট নেই'}</span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={Headphones} title="এখনো কোনো দারস নেই">
+              <p>একটি একটি করে যোগ করুন, অথবা JSON ফাইল দিয়ে একসাথে সব দারস ও ট্রান্সক্রিপ্ট যোগ করুন।</p>
+            </EmptyState>
+          )}
         </Panel>
       </div>
       <Dialog open={adding} onOpenChange={setAdding}>
@@ -81,6 +103,7 @@ function AdminSeries() {
           <DarsForm initial={{ number: nextNumber }} submitting={addDars.isPending} onSubmit={(v) => addDars.mutate(v)} submitLabel="যোগ করুন" />
         </DialogContent>
       </Dialog>
+      <SeriesImportDialog open={importing} onOpenChange={setImporting} series={series} />
     </>
   )
 }

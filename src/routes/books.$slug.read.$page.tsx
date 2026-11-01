@@ -3,7 +3,7 @@ import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react
 import { ArrowRight, Bookmark, BookOpen, ChevronLeft, ChevronRight, Maximize, Minimize, Rows3, Search, Settings2, Type } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { StarMark } from '@/components/brand'
+import { Wordmark } from '@/components/brand'
 import type { HighlightRange } from '@/components/markdown'
 import { groupBlocks } from '@/components/reader/blocks'
 import { BookView } from '@/components/reader/book-view'
@@ -422,7 +422,7 @@ function Reader() {
                 </div>
               ) : isError || !page ? (
                 <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-xl bg-[var(--page-bg)] p-10 text-center text-[var(--page-ink)] [box-shadow:var(--page-shadow)]">
-                  <StarMark className="size-10 text-gold" />
+                  <Wordmark className="h-12 text-gold" />
                   <p className="text-lg font-semibold">এই পৃষ্ঠাটি পাওয়া যায়নি</p>
                   <Button onClick={() => goTo(book.first_page ?? 1)}>প্রথম পৃষ্ঠায় যান</Button>
                 </div>

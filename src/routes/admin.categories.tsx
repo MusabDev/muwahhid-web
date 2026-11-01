@@ -101,7 +101,7 @@ function CategoryRow({ category, first, last, onMove }: { category: Category; fi
           variant="ghost"
           size="icon-sm"
           aria-label="মুছুন"
-          onClick={() => confirmDelete(used ? `“${category.name_bn}” (এর ${bnNum(used)}টি কিতাব/দারস বিষয়হীন হয়ে যাবে)` : `“${category.name_bn}”`) && remove.mutate(undefined)}
+          onClick={() => confirmDelete(used ? `“${category.name_bn}” (এর ${bnNum(used)}টি কিতাব/দারস বিষয়হীন হয়ে যাবে)` : `“${category.name_bn}”`).then((ok) => ok && remove.mutate(undefined))}
         >
           <Trash2 />
         </Button>

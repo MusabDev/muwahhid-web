@@ -27,6 +27,7 @@ import { Route as SiteSearchRouteImport } from './routes/_site.search'
 import { Route as SiteSettingsRouteImport } from './routes/_site.settings'
 import { Route as SiteVerifyEmailRouteImport } from './routes/_site.verify-email'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminAuthorsRouteImport } from './routes/admin.authors'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -138,6 +139,11 @@ const SiteVerifyEmailRoute = SiteVerifyEmailRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAuthorsRoute = AdminAuthorsRouteImport.update({
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/search': typeof SiteSearchRoute
   '/settings': typeof SiteSettingsRoute
   '/verify-email': typeof SiteVerifyEmailRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/authors': typeof AdminAuthorsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
@@ -313,6 +320,7 @@ export interface FileRoutesByTo {
   '/search': typeof SiteSearchRoute
   '/settings': typeof SiteSettingsRoute
   '/verify-email': typeof SiteVerifyEmailRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/authors': typeof AdminAuthorsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
@@ -357,6 +365,7 @@ export interface FileRoutesById {
   '/_site/search': typeof SiteSearchRoute
   '/_site/settings': typeof SiteSettingsRoute
   '/_site/verify-email': typeof SiteVerifyEmailRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/authors': typeof AdminAuthorsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/users': typeof AdminUsersRoute
@@ -402,6 +411,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/verify-email'
+    | '/admin/analytics'
     | '/admin/authors'
     | '/admin/categories'
     | '/admin/users'
@@ -442,6 +452,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/verify-email'
+    | '/admin/analytics'
     | '/admin/authors'
     | '/admin/categories'
     | '/admin/users'
@@ -485,6 +496,7 @@ export interface FileRouteTypes {
     | '/_site/search'
     | '/_site/settings'
     | '/_site/verify-email'
+    | '/admin/analytics'
     | '/admin/authors'
     | '/admin/categories'
     | '/admin/users'
@@ -654,6 +666,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/authors': {
@@ -865,6 +884,7 @@ const SiteRouteChildren: SiteRouteChildren = {
 const SiteRouteWithChildren = SiteRoute._addFileChildren(SiteRouteChildren)
 
 interface AdminRouteChildren {
+  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminAuthorsRoute: typeof AdminAuthorsRoute
   AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -878,6 +898,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminAuthorsRoute: AdminAuthorsRoute,
   AdminCategoriesRoute: AdminCategoriesRoute,
   AdminUsersRoute: AdminUsersRoute,

@@ -1,17 +1,20 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ExternalLink, FileUp, ImagePlus, Plus, Trash2 } from 'lucide-react'
+import { Download, ExternalLink, FileJson, FileUp, ImagePlus, Plus, Trash2, WandSparkles } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { BookForm } from '@/components/admin/entity-forms'
-import { AdminPageHeader, confirmDelete, Field, Panel, useAdminMutation } from '@/components/admin/form'
+import { AdminPageHeader, confirmDelete, Panel, useAdminMutation } from '@/components/admin/form'
+import { BookImportDialog } from '@/components/admin/imports'
+import { BOOK_GUIDE, FormatGuide } from '@/components/admin/json-import'
 import { BookCover } from '@/components/book-cover'
-import { CenterSpinner } from '@/components/states'
+import { CenterSpinner, EmptyState } from '@/components/states'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { BOOK_STARTER, downloadJson } from '@/lib/admin/templates'
 import { api } from '@/lib/api'
 import { bnNum } from '@/lib/text'
 import type { Book, BookPage, TocEntry } from '@/lib/types'
@@ -24,6 +27,8 @@ function AdminBook() {
   const { id } = Route.useParams()
   const navigate = useNavigate()
   const { data: book } = useQuery({ queryKey: ['admin', 'book', id], queryFn: () => api<Book>(`/admin/books/${id}`) })
+  const [tab, setTab] = useState('info')
+  const [importing, setImporting] = useState(false)
 
   const save = useAdminMutation((values: Record<string, unknown>) => api(`/admin/books/${id}`, { method: 'PUT', body: values }), { success: 'সংরক্ষিত হয়েছে', invalidate: [['admin'], ['book']] })
   const destroy = useAdminMutation(() => api(`/admin/books/${id}`, { method: 'DELETE' }), {
@@ -32,27 +37,39 @@ function AdminBook() {
     onSuccess: () => navigate({ to: '/admin/books' }),
   })
 
+  const exportJson = useAdminMutation(() => api<unknown>(`/admin/books/${id}/export`), { onSuccess: (data) => book && downloadJson(`${book.slug}.json`, data) })
+
   if (!book) return <CenterSpinner />
 
   return (
     <>
       <AdminPageHeader
+        crumbs={[{ label: 'কিতাব', to: '/admin/books' }]}
         title={book.title_bn}
-        description={book.title_ar}
+        description={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="font-arabic text-base">{book.title_ar}</span>
+            <span>{book.author?.name_bn}</span>
+            <Badge variant={book.is_published ? 'default' : 'secondary'}>{book.is_published ? 'প্রকাশিত' : 'খসড়া'}</Badge>
+          </span>
+        }
         action={
-          <div className="flex gap-2">
+          <>
             <Button variant="outline" asChild>
               <Link to="/books/$slug" params={{ slug: book.slug }} target="_blank">
                 <ExternalLink /> সাইটে দেখুন
               </Link>
             </Button>
-            <Button variant="destructive" onClick={() => confirmDelete('কিতাবটি ও এর সব পৃষ্ঠা') && destroy.mutate(undefined)}>
-              <Trash2 /> মুছুন
+            <Button variant="outline" onClick={() => exportJson.mutate(undefined)} disabled={exportJson.isPending}>
+              <Download /> JSON এক্সপোর্ট
             </Button>
-          </div>
+            <Button variant="destructive" size="icon" onClick={() => confirmDelete('কিতাবটি ও এর সব পৃষ্ঠা').then((ok) => ok && destroy.mutate(undefined))} aria-label="মুছুন">
+              <Trash2 />
+            </Button>
+          </>
         }
       />
-      <Tabs defaultValue="info">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="info">তথ্য</TabsTrigger>
           <TabsTrigger value="pages">পৃষ্ঠা ({bnNum(book.pages_count ?? 0)})</TabsTrigger>
@@ -60,23 +77,24 @@ function AdminBook() {
           <TabsTrigger value="import">ইমপোর্ট</TabsTrigger>
         </TabsList>
         <TabsContent value="info" className="mt-6">
-          <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
+          <div className="grid items-start gap-6 lg:grid-cols-[1fr_260px]">
             <Panel>
-              <BookForm key={book.id + book.slug} initial={book} submitting={save.isPending} onSubmit={(v) => save.mutate(v)} />
+              <BookForm key={`${book.id}:${book.updated_at}`} initial={book} submitting={save.isPending} onSubmit={(v) => save.mutate(v)} />
             </Panel>
             <CoverPanel book={book} />
           </div>
         </TabsContent>
         <TabsContent value="pages" className="mt-6">
-          <PagesPanel book={book} />
+          <PagesPanel book={book} onImport={() => setImporting(true)} />
         </TabsContent>
         <TabsContent value="toc" className="mt-6">
           <TocPanel book={book} />
         </TabsContent>
         <TabsContent value="import" className="mt-6">
-          <ImportPanel book={book} />
+          <ImportPanel onImport={() => setImporting(true)} />
         </TabsContent>
       </Tabs>
+      <BookImportDialog open={importing} onOpenChange={setImporting} book={book} />
     </>
   )
 }
@@ -112,7 +130,7 @@ function CoverPanel({ book }: { book: Book }) {
   )
 }
 
-function PagesPanel({ book }: { book: Book }) {
+function PagesPanel({ book, onImport }: { book: Book; onImport: () => void }) {
   const navigate = useNavigate()
   const { data: pages } = useQuery({ queryKey: ['admin', 'book', String(book.id), 'pages'], queryFn: () => api<BookPage[]>(`/admin/books/${book.id}/pages`) })
   const next = pages?.length ? Math.max(...pages.map((p) => p.number)) + 1 : 1
@@ -145,7 +163,12 @@ function PagesPanel({ book }: { book: Book }) {
           ))}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">এখনো কোনো পৃষ্ঠা নেই। পৃষ্ঠা যোগ করুন অথবা “ইমপোর্ট” ট্যাব থেকে ফাইল আপলোড করুন।</p>
+        <EmptyState icon={FileJson} title="এখনো কোনো পৃষ্ঠা নেই">
+          <p>উপরে থেকে একটি একটি পৃষ্ঠা যোগ করুন, অথবা JSON/CSV ফাইল দিয়ে পুরো কিতাব একসাথে বসান।</p>
+          <Button className="mt-4" onClick={onImport}>
+            <FileUp /> ফাইল ইমপোর্ট
+          </Button>
+        </EmptyState>
       )}
     </Panel>
   )
@@ -173,21 +196,34 @@ function TocPanel({ book }: { book: Book }) {
         প্রতিটি অধ্যায়ে <code>title_ar</code>, <code>title_bn</code>, <code>page_number</code> দিন; উপ-অধ্যায় <code>children</code> এর ভেতরে।
       </p>
       <Textarea value={text} onChange={(e) => setText(e.target.value)} className="min-h-96 font-mono text-xs" dir="ltr" spellCheck={false} />
-      <Button
-        className="mt-3"
-        disabled={save.isPending}
-        onClick={() => {
-          try {
-            const parsed = JSON.parse(text)
-            if (!Array.isArray(parsed)) throw new Error()
-            save.mutate(parsed)
-          } catch {
-            toast.error('JSON ঠিক নেই, এটা একটা তালিকা ([...]) হতে হবে')
-          }
-        }}
-      >
-        সংরক্ষণ
-      </Button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          onClick={() => {
+            try {
+              setText(JSON.stringify(JSON.parse(text), null, 2))
+            } catch (error) {
+              toast.error(`JSON ঠিক নেই: ${error instanceof Error ? error.message : ''}`)
+            }
+          }}
+        >
+          <WandSparkles /> সাজান ও যাচাই
+        </Button>
+        <Button
+          disabled={save.isPending}
+          onClick={() => {
+            try {
+              const parsed = JSON.parse(text)
+              if (!Array.isArray(parsed)) throw new Error()
+              save.mutate(parsed)
+            } catch {
+              toast.error('JSON ঠিক নেই, এটা একটা তালিকা ([...]) হতে হবে')
+            }
+          }}
+        >
+          সংরক্ষণ
+        </Button>
+      </div>
     </Panel>
   )
 }
@@ -209,43 +245,27 @@ const JSON_EXAMPLE = `{
   "toc": [{ "title_ar": "...", "title_bn": "...", "page": 1 }]
 }`
 
-function ImportPanel({ book }: { book: Book }) {
-  const [file, setFile] = useState<File | null>(null)
-  const [replace, setReplace] = useState(false)
-  const run = useAdminMutation(
-    () => {
-      const form = new FormData()
-      form.append('file', file!)
-      form.append('replace', replace ? '1' : '0')
-      return api<{ imported: { pages: number; sentences: number; footnotes: number; toc_entries: number } }>(`/admin/books/${book.id}/import`, { method: 'POST', body: form })
-    },
-    {
-      invalidate: [['admin'], ['book']],
-      onSuccess: ({ imported }) => toast.success(`ইমপোর্ট সম্পন্ন: ${bnNum(imported.pages)} পৃষ্ঠা, ${bnNum(imported.sentences)} বাক্য, ${bnNum(imported.footnotes)} টীকা`),
-    },
-  )
-
+function ImportPanel({ onImport }: { onImport: () => void }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <Panel title="ফাইল আপলোড">
-        <div className="space-y-4">
-          <Field label="JSON বা CSV ফাইল">
-            <Input type="file" accept=".json,.csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-          </Field>
-          <label className="flex items-start gap-3 text-sm">
-            <Switch checked={replace} onCheckedChange={setReplace} className="mt-0.5" />
-            <span>
-              পুরনো কনটেন্ট মুছে নতুন করে বসান
-              <span className="block text-xs text-destructive">সতর্কতা: পাঠকদের এই কিতাবের হাইলাইট ও নোটও মুছে যাবে</span>
-            </span>
-          </label>
-          <Button disabled={!file || run.isPending} onClick={() => (!replace || confirmDelete('বর্তমান সব পৃষ্ঠা')) && run.mutate(undefined)}>
-            <FileUp /> ইমপোর্ট
+      <Panel title="ফাইল থেকে কনটেন্ট">
+        <ol className="list-inside list-decimal space-y-2 text-sm text-muted-foreground">
+          <li>নমুনা JSON নামিয়ে নিন (অথবা এই কিতাবের বর্তমান কনটেন্ট “JSON এক্সপোর্ট” করুন)।</li>
+          <li>পৃষ্ঠা, বাক্য, টীকা ও সূচিপত্র পূরণ করুন।</li>
+          <li>ফাইল দিন — ইমপোর্টের আগে কতগুলো পৃষ্ঠা/বাক্য যোগ হবে তা দেখানো হবে।</li>
+        </ol>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button onClick={onImport}>
+            <FileUp /> ফাইল ইমপোর্ট
+          </Button>
+          <Button variant="outline" onClick={() => downloadJson('muwahhid-book-starter.json', BOOK_STARTER)}>
+            <Download /> নমুনা JSON
           </Button>
         </div>
       </Panel>
       <Panel title="ফরম্যাট">
-        <p className="mb-2 text-sm font-semibold">JSON</p>
+        <FormatGuide rows={BOOK_GUIDE} />
+        <p className="mt-4 mb-2 text-sm font-semibold">উদাহরণ (শুধু কনটেন্ট)</p>
         <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-[11px] leading-relaxed" dir="ltr">
           {JSON_EXAMPLE}
         </pre>
@@ -255,9 +275,6 @@ function ImportPanel({ book }: { book: Book }) {
 1,"اعلم","জেনে রাখো",paragraph,1,,
 1,"حاشية","",,,ar,1`}
         </pre>
-        <p className="mt-3 text-xs text-muted-foreground">
-          block_type: paragraph, heading, quote, list_item, poetry · paragraph_break = এই বাক্য থেকে নতুন অনুচ্ছেদ শুরু
-        </p>
       </Panel>
     </div>
   )

@@ -7,7 +7,8 @@ import type { ReactNode } from 'react'
 import amiriRegular from '@fontsource/amiri/files/amiri-arabic-400-normal.woff2?url'
 import hindRegular from '@fontsource/hind-siliguri/files/hind-siliguri-bengali-400-normal.woff2?url'
 import hindSemiBold from '@fontsource/hind-siliguri/files/hind-siliguri-bengali-600-normal.woff2?url'
-import { StarMark } from '@/components/brand'
+import { Wordmark } from '@/components/brand'
+import { PageViewTracker } from '@/components/page-view-tracker'
 import { Button } from '@/components/ui/button'
 import { DirectionProvider } from '@/components/ui/direction'
 import { Toaster } from '@/components/ui/sonner'
@@ -87,6 +88,7 @@ function RootLayout() {
   return (
     <>
       <Outlet />
+      <PageViewTracker />
       {import.meta.env.DEV && (
         <>
           <TanStackRouterDevtools position="bottom-right" />
@@ -100,7 +102,7 @@ function RootLayout() {
 function NotFound() {
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 px-4 text-center">
-      <StarMark className="size-14 text-gold" />
+      <Wordmark className="h-16 text-gold" />
       <h1 className="text-3xl font-bold">পাতাটি পাওয়া যায়নি</h1>
       <p className="text-muted-foreground">আপনি যে পাতাটি খুঁজছেন সেটি নেই বা সরানো হয়েছে।</p>
       <Button asChild>
@@ -113,7 +115,7 @@ function NotFound() {
 function RootError({ reset }: ErrorComponentProps) {
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 px-4 text-center">
-      <StarMark className="size-14 text-gold" />
+      <Wordmark className="h-16 text-gold" />
       <h1 className="text-3xl font-bold">কিছু একটা সমস্যা হয়েছে</h1>
       <p className="text-muted-foreground">পাতাটি এই মুহূর্তে খোলা যাচ্ছে না। একটু পরে আবার চেষ্টা করুন।</p>
       <div className="flex gap-3">

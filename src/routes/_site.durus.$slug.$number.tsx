@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Clock, Headphones, Link2, ListOrdered, ListV
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AuthorAvatar } from '@/components/author-avatar'
-import { StarMark } from '@/components/brand'
+import { LogoMark } from '@/components/brand'
 import { DarsStatusMenu } from '@/components/status-menu'
 import { EpisodeList, episodeNumber } from '@/components/episode-list'
 import type { HighlightRange } from '@/components/markdown'
@@ -373,7 +373,7 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
                     <Headphones className={cn('size-8 text-gold', player.playing && 'animate-pulse')} />
                   </button>
                   <div className="relative flex min-h-24 w-full items-center justify-center">
-                    {subtitlesOn && (cue ? <SubtitleCue segment={cue} next={nextCue} mode={subtitleMode} style={settings.subtitle} /> : <StarMark className="size-6 text-gold/40" />)}
+                    {subtitlesOn && (cue ? <SubtitleCue segment={cue} next={nextCue} mode={subtitleMode} style={settings.subtitle} /> : <LogoMark className="size-6 text-gold/40" />)}
                   </div>
                   <audio ref={player.mediaRef} src={resumeAt !== undefined ? dars.media_url : undefined} className="hidden" {...player.nativeProps} />
                   <div className="relative w-full max-w-3xl">

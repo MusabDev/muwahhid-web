@@ -1,25 +1,38 @@
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
+import { MIM_PATH, MIM_STROKE, WORDMARK_BOX, WORDMARK_PATH, WORDMARK_STROKE } from '@/lib/logo'
 import { cn } from '@/lib/utils'
 
-export function StarMark({ className }: { className?: string }) {
+/** The small logo: mim (م), the first letter of muwahhid, in the wordmark's Rakkas. For icons and tight spots. */
+export function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 40 40" className={cn('size-8', className)} aria-hidden>
-      <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
-        <path d="M20 3 25 15 37 20 25 25 20 37 15 25 3 20 15 15Z" />
-        <path d="M8 8 20 13 32 8 27 20 32 32 20 27 8 32 13 20Z" />
-      </g>
-      <circle cx="20" cy="20" r="3.2" fill="currentColor" />
+      <path d={MIM_PATH} fill="currentColor" stroke="currentColor" strokeWidth={MIM_STROKE} strokeLinejoin="round" />
     </svg>
   )
 }
 
+/**
+ * الموحد set in Rakkas (SIL Open Font License), outlined to a single path so the logo never waits on a font.
+ * The stroke thickens the letters slightly so the thin joins hold up at small sizes and from a distance.
+ */
+export function Wordmark({ className }: { className?: string }) {
+  return (
+    <svg viewBox={WORDMARK_BOX.join(' ')} className={cn('h-9 w-auto', className)} aria-hidden>
+      <path d={WORDMARK_PATH} fill="currentColor" stroke="currentColor" strokeWidth={WORDMARK_STROKE} strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** The logo lockup: the Arabic wordmark beside the Bangla and English names. */
 export function Brand({ className }: { className?: string }) {
   return (
-    <Link to="/" className={cn('flex items-center gap-2.5', className)}>
-      <StarMark className="size-8 text-gold" />
+    <Link to="/" className={cn('flex items-center gap-3', className)}>
+      <Wordmark className="h-9 shrink-0 text-gold" />
+      <span aria-hidden className="h-8 w-px shrink-0 bg-current opacity-30" />
       <span className="flex flex-col leading-none">
-        <span className="font-heading text-lg font-bold tracking-wide">আল-মুওয়াহহিদ</span>
+        <span className="font-heading text-lg font-bold tracking-wide whitespace-nowrap">আল-মুওয়াহহিদ</span>
+        <span className="mt-1 text-[10px] font-semibold tracking-[0.3em] uppercase opacity-60">Al-Muwahhid</span>
       </span>
     </Link>
   )

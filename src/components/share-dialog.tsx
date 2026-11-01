@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { arabicFamily, banglaFamily, loadFont } from '@/lib/fonts'
+import { WORDMARK_BOX, WORDMARK_PATH, WORDMARK_STROKE } from '@/lib/logo'
 import type { Lang } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -44,9 +45,6 @@ const MIN_HEIGHT = 540
 /* very long passages are shrunk until the image is no taller than this */
 const MAX_HEIGHT = 2600
 
-/* the site's eight-pointed star, as drawn by StarMark */
-const STAR_OUTER = 'M20 3 25 15 37 20 25 25 20 37 15 25 3 20 15 15Z'
-const STAR_INNER = 'M8 8 20 13 32 8 27 20 32 32 20 27 8 32 13 20Z'
 
 /** Wrap each paragraph to the width; a paragraph's first line is flagged so a gap can go above it. */
 function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
@@ -78,21 +76,24 @@ function fit(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
   return `${cut.trimEnd()}…`
 }
 
-function drawMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
+/** The الموحد wordmark from the site header, `height` tall with its top-left at x, y; returns its width. */
+function drawMark(ctx: CanvasRenderingContext2D, x: number, y: number, height: number, color: string) {
+  const [bx, by, bw, bh] = WORDMARK_BOX
+  const scale = height / bh
   ctx.save()
   ctx.translate(x, y)
-  ctx.scale(size / 40, size / 40)
-  ctx.strokeStyle = color
+  ctx.scale(scale, scale)
+  ctx.translate(-bx, -by)
   ctx.fillStyle = color
-  ctx.lineWidth = 2
+  ctx.strokeStyle = color
+  ctx.lineWidth = WORDMARK_STROKE
   ctx.lineJoin = 'round'
-  // Path2D is browser-only, so the paths are built when drawing rather than at import
-  ctx.stroke(new Path2D(STAR_OUTER))
-  ctx.stroke(new Path2D(STAR_INNER))
-  ctx.beginPath()
-  ctx.arc(20, 20, 3.4, 0, Math.PI * 2)
-  ctx.fill()
+  // Path2D is browser-only, so the path is built when drawing rather than at import
+  const path = new Path2D(WORDMARK_PATH)
+  ctx.fill(path)
+  ctx.stroke(path)
   ctx.restore()
+  return bw * scale
 }
 
 export function ShareDialog({ quote, open, onOpenChange, fontAr, fontBn }: { quote: ShareQuote | null; open: boolean; onOpenChange: (open: boolean) => void; fontAr: string; fontBn: string }) {
@@ -167,7 +168,8 @@ export function ShareDialog({ quote, open, onOpenChange, fontAr, fontBn }: { quo
       ctx.fillStyle = c.rule
       ctx.fillRect(PAD, ruleY, textWidth, 2)
 
-      const brandWidth = 300
+      // room kept for the brand lockup (wordmark, divider, names), so the source text never runs into it
+      const brandWidth = 360
       const metaWidth = textWidth - brandWidth - 40
       const titleY = ruleY + 62
       ctx.textBaseline = 'alphabetic'
@@ -191,24 +193,35 @@ export function ShareDialog({ quote, open, onOpenChange, fontAr, fontBn }: { quo
         ctx.fillText(fit(ctx, quote.source.author, metaWidth), start, titleY + 50)
       }
 
-      // Brand: star mark with the site name and address beside it
+      // Brand: the navbar lockup, wordmark | Bangla name over the address in spaced capitals
       ctx.direction = 'ltr'
-      const markSize = 64
+      const markHeight = 56
+      const markWidth = (WORDMARK_BOX[2] / WORDMARK_BOX[3]) * markHeight
+      const gap = 22
       const brandY = ruleY + 34
       ctx.font = `bold 28px "${famBn}"`
       const nameWidth = ctx.measureText('আল-মুওয়াহহিদ').width
-      ctx.font = `22px "${famBn}"`
-      const siteWidth = ctx.measureText('muwahhid.net').width
-      const brandTextWidth = Math.max(nameWidth, siteWidth)
-      const brandLeft = rtl ? PAD : WIDTH - PAD - markSize - 16 - brandTextWidth
-      drawMark(ctx, brandLeft, brandY, markSize, c.accent)
+      ctx.font = `600 15px "${famBn}"`
+      ctx.letterSpacing = '4.5px'
+      const siteWidth = ctx.measureText('MUWAHHID.NET').width
+      ctx.letterSpacing = '0px'
+      const lockupWidth = markWidth + gap * 2 + 1.5 + Math.max(nameWidth, siteWidth)
+      const brandLeft = rtl ? PAD : WIDTH - PAD - lockupWidth
+      const textLeft = brandLeft + markWidth + gap * 2 + 1.5
+      drawMark(ctx, brandLeft, brandY + 2, markHeight, c.accent)
+      ctx.globalAlpha = 0.35
+      ctx.fillStyle = c.ink
+      ctx.fillRect(brandLeft + markWidth + gap, brandY + 4, 1.5, markHeight - 4)
+      ctx.globalAlpha = 1
       ctx.textAlign = 'left'
       ctx.fillStyle = c.ink
       ctx.font = `bold 28px "${famBn}"`
-      ctx.fillText('আল-মুওয়াহহিদ', brandLeft + markSize + 16, brandY + 28)
+      ctx.fillText('আল-মুওয়াহহিদ', textLeft, brandY + 30)
       ctx.fillStyle = c.muted
-      ctx.font = `22px "${famBn}"`
-      ctx.fillText('muwahhid.net', brandLeft + markSize + 16, brandY + 60)
+      ctx.font = `600 15px "${famBn}"`
+      ctx.letterSpacing = '4.5px'
+      ctx.fillText('MUWAHHID.NET', textLeft, brandY + 56)
+      ctx.letterSpacing = '0px'
     }
 
     draw()

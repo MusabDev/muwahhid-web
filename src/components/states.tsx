@@ -1,13 +1,13 @@
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { StarMark } from '@/components/brand'
+import { LogoMark } from '@/components/brand'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PatternBackdrop } from '@/components/pattern'
 
 export function EmptyState({ icon: Icon, title, children }: { icon?: LucideIcon; title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-card/60 px-6 py-14 text-center">
-      {Icon ? <Icon className="mb-3 size-9 text-gold" /> : <StarMark className="mb-3 size-10 text-gold" />}
+      {Icon ? <Icon className="mb-3 size-9 text-gold" /> : <LogoMark className="mb-3 size-10 text-gold" />}
       <h3 className="text-lg font-semibold">{title}</h3>
       {children && <div className="mt-2 max-w-md text-sm text-muted-foreground">{children}</div>}
     </div>
@@ -46,7 +46,7 @@ export function PageTitle({ title, arabic, children }: { title: string; arabic?:
 }
 
 export function Spinner() {
-  return <StarMark className="size-8 animate-spin text-gold [animation-duration:2.5s]" />
+  return <LogoMark className="size-8 animate-pulse text-gold" />
 }
 
 export function CenterSpinner() {

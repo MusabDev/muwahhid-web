@@ -1,46 +1,82 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Field } from '@/components/admin/form'
+import { Combobox } from '@/components/admin/combobox'
+import { Field, FormActions, FormSection, useAdminMutation } from '@/components/admin/form'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { guessMediaType } from '@/lib/admin/templates'
 import { api } from '@/lib/api'
+import { formatTime, parseTime } from '@/lib/text'
 import type { Author, Book, Category, Dars, DarsSeries, Paginated } from '@/lib/types'
 
 export function useAuthorOptions() {
   return useQuery({ queryKey: ['admin', 'authors', 'options'], queryFn: () => api<Paginated<Author>>('/admin/authors', { query: { per_page: 500 } }) }).data?.data ?? []
 }
 
-function useCategoryOptions() {
+export function useCategoryOptions() {
   return useQuery({ queryKey: ['admin', 'categories'], queryFn: () => api<Category[]>('/admin/categories') }).data ?? []
-}
-
-/** Category select; "none" maps to no category. */
-function CategorySelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const categories = useCategoryOptions()
-  return (
-    <Field label="বিষয় (ক্যাটাগরি)">
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">— বিষয় নেই —</SelectItem>
-          {categories.map((c) => (
-            <SelectItem key={c.id} value={String(c.id)}>
-              {c.name_bn}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Field>
-  )
 }
 
 function useBookOptions() {
   return useQuery({ queryKey: ['admin', 'books', 'options'], queryFn: () => api<Paginated<Book>>('/admin/books', { query: { per_page: 500 } }) }).data?.data ?? []
+}
+
+/** Same rule as Laravel's Str::slug for Latin text: used to preview the auto slug. */
+export function slugify(text: string) {
+  return text
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** Searchable author picker with an inline "new author" form. */
+export function AuthorSelect({ value, onChange, placeholder = 'লেখক বেছে নিন' }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
+  const authors = useAuthorOptions()
+  const [creating, setCreating] = useState(false)
+  const create = useAdminMutation((values: Record<string, unknown>) => api<Author>('/admin/authors', { method: 'POST', body: values }), {
+    success: 'লেখক যোগ হয়েছে',
+    invalidate: [['admin', 'authors'], ['authors']],
+    onSuccess: (author) => {
+      onChange(String(author.id))
+      setCreating(false)
+    },
+  })
+
+  return (
+    <>
+      <Combobox
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        options={authors.map((a) => ({ value: String(a.id), label: a.name_bn, hint: a.name_translit }))}
+        onCreate={() => setCreating(true)}
+        createLabel="নতুন লেখক যোগ করুন"
+      />
+      <Dialog open={creating} onOpenChange={setCreating}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>নতুন লেখক</DialogTitle>
+          </DialogHeader>
+          <AuthorForm submitting={create.isPending} onSubmit={(v) => create.mutate(v)} submitLabel="যোগ করুন" />
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function CategorySelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const categories = useCategoryOptions()
+  return (
+    <Field label="বিষয় (ক্যাটাগরি)">
+      <Combobox value={value} onChange={onChange} none="— বিষয় নেই —" options={categories.map((c) => ({ value: String(c.id), label: c.name_bn, hint: c.name_ar ?? undefined }))} />
+    </Field>
+  )
 }
 
 function NameFields({ prefix, values, set, kind }: { prefix: 'name' | 'title'; values: Record<string, string>; set: (key: string, value: string) => void; kind: string }) {
@@ -53,18 +89,47 @@ function NameFields({ prefix, values, set, kind }: { prefix: 'name' | 'title'; v
         <Field label={`${kind} (বাংলা)`}>
           <Input required value={values[`${prefix}_bn`] ?? ''} onChange={(e) => set(`${prefix}_bn`, e.target.value)} />
         </Field>
-        <Field label="বাংলা উচ্চারণ / ইংরেজি বানান" hint="স্লাগ এখান থেকে তৈরি হয়">
-          <Input required value={values[`${prefix}_translit`] ?? ''} onChange={(e) => set(`${prefix}_translit`, e.target.value)} />
+        <Field label="ইংরেজি বানান (Transliteration)" hint="স্লাগ এখান থেকে তৈরি হয়">
+          <Input required dir="ltr" value={values[`${prefix}_translit`] ?? ''} onChange={(e) => set(`${prefix}_translit`, e.target.value)} />
         </Field>
       </div>
     </>
   )
 }
 
+function SlugField({ value, onChange, source, placeholder }: { value: string; onChange: (value: string) => void; source: string; placeholder?: string }) {
+  const auto = slugify(source)
+  return (
+    <Field label="স্লাগ (URL)" hint={value ? undefined : auto ? <>খালি রাখলে হবে: <code dir="ltr">{auto}</code></> : 'খালি রাখলে নিজে থেকে তৈরি হবে'}>
+      <Input dir="ltr" value={value} onChange={(e) => onChange(e.target.value)} placeholder={auto || placeholder} />
+    </Field>
+  )
+}
+
+function PublishSwitch({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <label className="flex items-start gap-3 rounded-lg border p-3 text-sm">
+      <Switch checked={checked} onCheckedChange={onChange} className="mt-0.5" />
+      <span>
+        প্রকাশিত
+        <span className="block text-xs text-muted-foreground">{checked ? 'সবাই সাইটে দেখতে পাবে' : 'খসড়া: শুধু অ্যাডমিনরা দেখতে পাবে'}</span>
+      </span>
+    </label>
+  )
+}
+
+/** Local form state plus a flag for whether it differs from where it started. */
+function useFormValues<T extends Record<string, unknown>>(initial: T) {
+  const [start] = useState(() => JSON.stringify(initial))
+  const [values, setValues] = useState(initial)
+  const set = <K extends keyof T>(key: K, value: T[K]) => setValues((v) => ({ ...v, [key]: value }))
+  return { values, set, dirty: JSON.stringify(values) !== start }
+}
+
 type FormProps<T> = { initial?: Partial<T>; submitting: boolean; onSubmit: (data: Record<string, unknown>) => void; submitLabel?: string }
 
 export function AuthorForm({ initial, submitting, onSubmit, submitLabel = 'সংরক্ষণ' }: FormProps<Author>) {
-  const [values, setValues] = useState<Record<string, string>>({
+  const { values, set, dirty } = useFormValues({
     name_ar: initial?.name_ar ?? '',
     name_bn: initial?.name_bn ?? '',
     name_translit: initial?.name_translit ?? '',
@@ -72,32 +137,41 @@ export function AuthorForm({ initial, submitting, onSubmit, submitLabel = 'স�
     death_year_ah: initial?.death_year_ah ? String(initial.death_year_ah) : '',
     about_md: initial?.about_md ?? '',
   })
-  const set = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }))
 
   return (
-    <form className="space-y-4" onSubmit={(e) => (e.preventDefault(), onSubmit({ ...values, slug: values.slug || undefined, death_year_ah: values.death_year_ah ? Number(values.death_year_ah) : null }))}>
-      <NameFields prefix="name" values={values} set={set} kind="নাম" />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="স্লাগ (URL)" hint="খালি রাখলে নিজে থেকে তৈরি হবে">
-          <Input value={values.slug} onChange={(e) => set('slug', e.target.value)} placeholder="ibn-taymiyyah" />
+    <form
+      className="space-y-5"
+      onSubmit={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onSubmit({ ...values, slug: values.slug || undefined, death_year_ah: values.death_year_ah ? Number(values.death_year_ah) : null })
+      }}
+    >
+      <FormSection title="নাম">
+        <NameFields prefix="name" values={values} set={(k, v) => set(k as keyof typeof values, v)} kind="নাম" />
+      </FormSection>
+      <FormSection title="অন্যান্য">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SlugField value={values.slug} onChange={(v) => set('slug', v)} source={values.name_translit} placeholder="ibn-taymiyyah" />
+          <Field label="মৃত্যু সাল (হিজরি)" hint="জীবিত হলে খালি রাখুন">
+            <Input type="number" min={1} max={1500} value={values.death_year_ah} onChange={(e) => set('death_year_ah', e.target.value)} placeholder="৭২৮" />
+          </Field>
+        </div>
+        <Field label="পরিচিতি (Markdown)">
+          <Textarea value={values.about_md} onChange={(e) => set('about_md', e.target.value)} className="min-h-28" />
         </Field>
-        <Field label="মৃত্যু সাল (হিজরি)" hint="জীবিত হলে খালি রাখুন">
-          <Input type="number" min={1} max={1500} value={values.death_year_ah} onChange={(e) => set('death_year_ah', e.target.value)} placeholder="৭২৮" />
-        </Field>
-      </div>
-      <Field label="পরিচিতি (Markdown)">
-        <Textarea value={values.about_md} onChange={(e) => set('about_md', e.target.value)} className="min-h-28" />
-      </Field>
-      <Button type="submit" disabled={submitting}>
-        {submitLabel}
-      </Button>
+      </FormSection>
+      <FormActions dirty={!!initial && dirty}>
+        <Button type="submit" disabled={submitting}>
+          {submitLabel}
+        </Button>
+      </FormActions>
     </form>
   )
 }
 
 export function BookForm({ initial, submitting, onSubmit, submitLabel = 'সংরক্ষণ' }: FormProps<Book>) {
-  const authors = useAuthorOptions()
-  const [values, setValues] = useState<Record<string, string>>({
+  const { values, set, dirty } = useFormValues({
     title_ar: initial?.title_ar ?? '',
     title_bn: initial?.title_bn ?? '',
     title_translit: initial?.title_translit ?? '',
@@ -106,90 +180,72 @@ export function BookForm({ initial, submitting, onSubmit, submitLabel = 'সং�
     author_id: initial?.author?.id ? String(initial.author.id) : '',
     explainer_id: initial?.explainer?.id ? String(initial.explainer.id) : '',
     category_id: initial?.category?.id ? String(initial.category.id) : 'none',
+    is_sharh: initial?.is_sharh ?? false,
+    is_published: initial?.is_published ?? false,
   })
-  const [published, setPublished] = useState(initial?.is_published ?? false)
-  const [sharh, setSharh] = useState(initial?.is_sharh ?? false)
-  const set = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }))
 
   return (
     <form
-      className="space-y-4"
-      onSubmit={(e) => (
-        e.preventDefault(),
+      className="space-y-5"
+      onSubmit={(e) => {
+        e.preventDefault()
         onSubmit({
           ...values,
           slug: values.slug || undefined,
           author_id: Number(values.author_id),
           category_id: values.category_id === 'none' ? null : Number(values.category_id),
-          is_sharh: sharh,
-          explainer_id: sharh && values.explainer_id ? Number(values.explainer_id) : null,
-          is_published: published,
+          explainer_id: values.is_sharh && values.explainer_id ? Number(values.explainer_id) : null,
         })
-      )}
+      }}
     >
-      <NameFields prefix="title" values={values} set={set} kind="শিরোনাম" />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={sharh ? 'মূল গ্রন্থকার (মতনের লেখক)' : 'লেখক'}>
-          <Select value={values.author_id} onValueChange={(v) => set('author_id', v)} required>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="লেখক বেছে নিন" />
-            </SelectTrigger>
-            <SelectContent>
-              {authors.map((a) => (
-                <SelectItem key={a.id} value={String(a.id)}>
-                  {a.name_bn}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <CategorySelect value={values.category_id} onChange={(v) => set('category_id', v)} />
-      </div>
-      <Field label="স্লাগ (URL)" hint="খালি রাখলে নিজে থেকে তৈরি হবে">
-        <Input value={values.slug} onChange={(e) => set('slug', e.target.value)} />
-      </Field>
-      <div className="space-y-3 rounded-lg border bg-muted/40 p-3">
-        <label className="flex items-start gap-3 text-sm">
-          <Switch checked={sharh} onCheckedChange={setSharh} className="mt-0.5" />
-          <span>
-            এটি একটি শারহ (ব্যাখ্যাগ্রন্থ)
-            <span className="block text-xs text-muted-foreground">উপরের লেখক হবেন মূল গ্রন্থকার; নিচে ব্যাখ্যাকার বেছে নিন</span>
-          </span>
-        </label>
-        {sharh && (
-          <Field label="ব্যাখ্যাকার (শারিহ)">
-            <Select value={values.explainer_id} onValueChange={(v) => set('explainer_id', v)}>
-              <SelectTrigger className="w-full bg-background">
-                <SelectValue placeholder="ব্যাখ্যাকার বেছে নিন" />
-              </SelectTrigger>
-              <SelectContent>
-                {authors.map((a) => (
-                  <SelectItem key={a.id} value={String(a.id)}>
-                    {a.name_bn}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <FormSection title="শিরোনাম">
+        <NameFields prefix="title" values={values as unknown as Record<string, string>} set={(k, v) => set(k as 'title_ar', v)} kind="শিরোনাম" />
+      </FormSection>
+
+      <FormSection title="লেখক ও বিষয়" hint="তালিকায় লেখক না থাকলে সেখান থেকেই নতুন লেখক যোগ করতে পারবেন">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={values.is_sharh ? 'মূল গ্রন্থকার (মতনের লেখক)' : 'লেখক'}>
+            <AuthorSelect value={values.author_id} onChange={(v) => set('author_id', v)} />
           </Field>
-        )}
-      </div>
-      <Field label="পরিচিতি (Markdown)">
-        <Textarea value={values.about_md} onChange={(e) => set('about_md', e.target.value)} className="min-h-28" />
-      </Field>
-      <label className="flex items-center gap-3 text-sm">
-        <Switch checked={published} onCheckedChange={setPublished} /> প্রকাশিত (সবাই দেখতে পাবে)
-      </label>
-      <Button type="submit" disabled={submitting || !values.author_id || (sharh && !values.explainer_id)}>
-        {submitLabel}
-      </Button>
+          <CategorySelect value={values.category_id} onChange={(v) => set('category_id', v)} />
+        </div>
+        <div className="space-y-3 rounded-lg border bg-muted/40 p-3">
+          <label className="flex items-start gap-3 text-sm">
+            <Switch checked={values.is_sharh} onCheckedChange={(v) => set('is_sharh', v)} className="mt-0.5" />
+            <span>
+              এটি একটি শারহ (ব্যাখ্যাগ্রন্থ)
+              <span className="block text-xs text-muted-foreground">উপরের লেখক হবেন মূল গ্রন্থকার; নিচে ব্যাখ্যাকার বেছে নিন</span>
+            </span>
+          </label>
+          {values.is_sharh && (
+            <Field label="ব্যাখ্যাকার (শারিহ)">
+              <AuthorSelect value={values.explainer_id} onChange={(v) => set('explainer_id', v)} placeholder="ব্যাখ্যাকার বেছে নিন" />
+            </Field>
+          )}
+        </div>
+      </FormSection>
+
+      <FormSection title="পরিচিতি ও প্রকাশ">
+        <SlugField value={values.slug} onChange={(v) => set('slug', v)} source={values.title_translit} />
+        <Field label="পরিচিতি (Markdown)">
+          <Textarea value={values.about_md} onChange={(e) => set('about_md', e.target.value)} className="min-h-28" />
+        </Field>
+        <PublishSwitch checked={values.is_published} onChange={(v) => set('is_published', v)} />
+      </FormSection>
+
+      <FormActions dirty={!!initial && dirty}>
+        <Button type="submit" disabled={submitting || !values.author_id || (values.is_sharh && !values.explainer_id)}>
+          {submitLabel}
+        </Button>
+        {!values.author_id && <span className="text-xs text-muted-foreground">লেখক বেছে নিন</span>}
+      </FormActions>
     </form>
   )
 }
 
 export function SeriesForm({ initial, submitting, onSubmit, submitLabel = 'সংরক্ষণ' }: FormProps<DarsSeries>) {
-  const authors = useAuthorOptions()
   const books = useBookOptions()
-  const [values, setValues] = useState<Record<string, string>>({
+  const { values, set, dirty } = useFormValues({
     title_ar: initial?.title_ar ?? '',
     title_bn: initial?.title_bn ?? '',
     title_translit: initial?.title_translit ?? '',
@@ -198,121 +254,124 @@ export function SeriesForm({ initial, submitting, onSubmit, submitLabel = 'স�
     author_id: initial?.author?.id ? String(initial.author.id) : '',
     book_id: initial?.book_id ? String(initial.book_id) : 'none',
     category_id: initial?.category?.id ? String(initial.category.id) : 'none',
+    is_published: initial?.is_published ?? false,
   })
-  const [published, setPublished] = useState(initial?.is_published ?? false)
-  const set = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }))
 
   return (
     <form
-      className="space-y-4"
-      onSubmit={(e) => (
-        e.preventDefault(),
-        onSubmit({ ...values, slug: values.slug || undefined, author_id: Number(values.author_id), book_id: values.book_id === 'none' ? null : Number(values.book_id), category_id: values.category_id === 'none' ? null : Number(values.category_id), is_published: published })
-      )}
+      className="space-y-5"
+      onSubmit={(e) => {
+        e.preventDefault()
+        onSubmit({
+          ...values,
+          slug: values.slug || undefined,
+          author_id: Number(values.author_id),
+          book_id: values.book_id === 'none' ? null : Number(values.book_id),
+          category_id: values.category_id === 'none' ? null : Number(values.category_id),
+        })
+      }}
     >
-      <NameFields prefix="title" values={values} set={set} kind="কিতাবের নাম" />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="শাইখ / লেখক">
-          <Select value={values.author_id} onValueChange={(v) => set('author_id', v)}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="বেছে নিন" />
-            </SelectTrigger>
-            <SelectContent>
-              {authors.map((a) => (
-                <SelectItem key={a.id} value={String(a.id)}>
-                  {a.name_bn}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <FormSection title="কিতাবের নাম" hint="যে কিতাবের দারস দেওয়া হচ্ছে">
+        <NameFields prefix="title" values={values as unknown as Record<string, string>} set={(k, v) => set(k as 'title_ar', v)} kind="কিতাবের নাম" />
+      </FormSection>
+      <FormSection title="শাইখ ও বিষয়">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="শাইখ / লেখক">
+            <AuthorSelect value={values.author_id} onChange={(v) => set('author_id', v)} placeholder="বেছে নিন" />
+          </Field>
+          <CategorySelect value={values.category_id} onChange={(v) => set('category_id', v)} />
+        </div>
+        <Field label="সংশ্লিষ্ট কিতাব (ঐচ্ছিক)" hint="সাইটে থাকা কিতাবের সাথে সিরিজটি যুক্ত করুন">
+          <Combobox value={values.book_id} onChange={(v) => set('book_id', v)} none="— নেই —" options={books.map((b) => ({ value: String(b.id), label: b.title_bn, hint: b.author?.name_bn }))} />
         </Field>
-        <Field label="সংশ্লিষ্ট কিতাব (ঐচ্ছিক)">
-          <Select value={values.book_id} onValueChange={(v) => set('book_id', v)}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">— নেই —</SelectItem>
-              {books.map((b) => (
-                <SelectItem key={b.id} value={String(b.id)}>
-                  {b.title_bn}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      </FormSection>
+      <FormSection title="পরিচিতি ও প্রকাশ">
+        <SlugField value={values.slug} onChange={(v) => set('slug', v)} source={values.title_translit} />
+        <Field label="পরিচিতি (Markdown)">
+          <Textarea value={values.about_md} onChange={(e) => set('about_md', e.target.value)} />
         </Field>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <CategorySelect value={values.category_id} onChange={(v) => set('category_id', v)} />
-        <Field label="স্লাগ (URL)">
-          <Input value={values.slug} onChange={(e) => set('slug', e.target.value)} />
-        </Field>
-      </div>
-      <Field label="পরিচিতি (Markdown)">
-        <Textarea value={values.about_md} onChange={(e) => set('about_md', e.target.value)} />
-      </Field>
-      <label className="flex items-center gap-3 text-sm">
-        <Switch checked={published} onCheckedChange={setPublished} /> প্রকাশিত
-      </label>
-      <Button type="submit" disabled={submitting || !values.author_id}>
-        {submitLabel}
-      </Button>
+        <PublishSwitch checked={values.is_published} onChange={(v) => set('is_published', v)} />
+      </FormSection>
+      <FormActions dirty={!!initial?.id && dirty}>
+        <Button type="submit" disabled={submitting || !values.author_id}>
+          {submitLabel}
+        </Button>
+      </FormActions>
     </form>
   )
 }
 
 export function DarsForm({ initial, submitting, onSubmit, submitLabel = 'সংরক্ষণ' }: FormProps<Dars>) {
-  const [values, setValues] = useState<Record<string, string>>({
+  const { values, set, dirty } = useFormValues({
     number: initial?.number !== undefined ? String(initial.number) : '',
     title_bn: initial?.title_bn ?? '',
     title_ar: initial?.title_ar ?? '',
     media_type: initial?.media_type ?? 'video',
     media_url: initial?.media_url ?? '',
-    duration_seconds: initial?.duration_seconds ? String(initial.duration_seconds) : '',
+    duration: initial?.duration_seconds ? formatTime(initial.duration_seconds) : '',
   })
-  const set = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }))
+  const [typeTouched, setTypeTouched] = useState(!!initial?.id)
 
   return (
     <form
-      className="space-y-4"
-      onSubmit={(e) => (
-        e.preventDefault(),
-        onSubmit({ ...values, number: Number(values.number), duration_seconds: values.duration_seconds ? Number(values.duration_seconds) : null, title_ar: values.title_ar || null })
-      )}
+      className="space-y-5"
+      onSubmit={(e) => {
+        e.preventDefault()
+        const { duration, ...rest } = values
+        const seconds = parseTime(duration)
+        onSubmit({ ...rest, number: Number(values.number), duration_seconds: seconds != null ? Math.round(seconds) : null, title_ar: values.title_ar || null })
+      }}
     >
       <div className="grid gap-4 sm:grid-cols-[100px_1fr]">
         <Field label="নম্বর">
           <Input type="number" min={0} required value={values.number} onChange={(e) => set('number', e.target.value)} />
         </Field>
         <Field label="শিরোনাম (বাংলা)">
-          <Input required value={values.title_bn} onChange={(e) => set('title_bn', e.target.value)} />
+          <Input required value={values.title_bn} onChange={(e) => set('title_bn', e.target.value)} autoFocus={!initial?.id} />
         </Field>
       </div>
       <Field label="শিরোনাম (আরবি, ঐচ্ছিক)">
         <Input dir="rtl" className="font-arabic" value={values.title_ar} onChange={(e) => set('title_ar', e.target.value)} />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
+      <Field label="মিডিয়া লিংক" hint="YouTube লিংক বা সরাসরি mp3/mp4 ফাইলের লিংক; ধরন নিজে থেকে বোঝা যায়">
+        <Input
+          type="url"
+          dir="ltr"
+          required
+          value={values.media_url}
+          onChange={(e) => {
+            set('media_url', e.target.value)
+            const guessed = guessMediaType(e.target.value)
+            if (guessed && !typeTouched) set('media_type', guessed)
+          }}
+          placeholder="https://www.youtube.com/watch?v=…"
+        />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="ধরন">
-          <Select value={values.media_type} onValueChange={(v) => set('media_type', v)}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="video">ভিডিও</SelectItem>
-              <SelectItem value="audio">অডিও</SelectItem>
-            </SelectContent>
-          </Select>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={values.media_type}
+            onValueChange={(v) => {
+              if (!v) return
+              setTypeTouched(true)
+              set('media_type', v as typeof values.media_type)
+            }}
+          >
+            <ToggleGroupItem value="video">ভিডিও</ToggleGroupItem>
+            <ToggleGroupItem value="audio">অডিও</ToggleGroupItem>
+          </ToggleGroup>
         </Field>
-        <Field label="মিডিয়া লিংক" hint="YouTube লিংক বা সরাসরি mp3/mp4 ফাইলের লিংক">
-          <Input type="url" required value={values.media_url} onChange={(e) => set('media_url', e.target.value)} />
+        <Field label="সময়কাল (ঐচ্ছিক)" hint="যেমন 45:30 বা 1:05:00">
+          <Input dir="ltr" value={values.duration} onChange={(e) => set('duration', e.target.value)} placeholder="45:30" className="w-32 font-mono" />
         </Field>
       </div>
-      <Field label="সময়কাল (সেকেন্ড, ঐচ্ছিক)">
-        <Input type="number" min={0} value={values.duration_seconds} onChange={(e) => set('duration_seconds', e.target.value)} className="w-40" />
-      </Field>
-      <Button type="submit" disabled={submitting}>
-        {submitLabel}
-      </Button>
+      <FormActions dirty={!!initial?.id && dirty}>
+        <Button type="submit" disabled={submitting}>
+          {submitLabel}
+        </Button>
+      </FormActions>
     </form>
   )
 }

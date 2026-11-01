@@ -109,6 +109,8 @@
     --gold-foreground: oklch(0.25 0.04 55);
     --wood: oklch(0.32 0.055 45);
     --wood-foreground: oklch(0.93 0.035 82);
+    --chart-visitors: #2a78d6;
+    --chart-pageviews: #eb6834;
     --parchment: oklch(0.975 0.02 86);
 }
 
@@ -136,6 +138,8 @@
     --gold-foreground: oklch(0.2 0.03 55);
     --wood: oklch(0.24 0.035 45);
     --wood-foreground: oklch(0.9 0.035 82);
+    --chart-visitors: #3987e5;
+    --chart-pageviews: #d95926;
     --parchment: oklch(0.25 0.02 60);
 }
 

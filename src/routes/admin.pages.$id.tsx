@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowDown, ArrowLeft, ArrowUp, Eye, Plus, Save, Trash2 } from 'lucide-react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { ArrowDown, ArrowUp, Eye, Plus, Save, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AdminPageHeader, confirmDelete, Panel, useAdminMutation } from '@/components/admin/form'
 import { Markdown } from '@/components/markdown'
@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
 import { bnNum } from '@/lib/text'
-import type { BlockType, BookPage, Footnote, Lang, Sentence } from '@/lib/types'
+import type { BlockType, Book, BookPage, Footnote, Lang, Sentence } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/admin/pages/$id')({
@@ -32,6 +32,7 @@ function PageEditor() {
   const navigate = useNavigate()
   const queryKey = ['admin', 'page', id]
   const { data: page } = useQuery({ queryKey, queryFn: () => api<BookPage>(`/admin/pages/${id}`) })
+  const { data: book } = useQuery({ queryKey: ['admin', 'book', String(page?.book_id)], queryFn: () => api<Book>(`/admin/books/${page!.book_id}`), enabled: !!page })
   const [preview, setPreview] = useState(false)
   const [pageNumber, setPageNumber] = useState('')
   useEffect(() => setPageNumber(page ? String(page.number) : ''), [page])
@@ -58,10 +59,11 @@ function PageEditor() {
 
   return (
     <>
-      <Link to="/admin/books/$id" params={{ id: String(page.book_id) }} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-        <ArrowLeft className="size-4" /> কিতাবে ফিরুন
-      </Link>
       <AdminPageHeader
+        crumbs={[
+          { label: 'কিতাব', to: '/admin/books' },
+          { label: book?.title_bn ?? 'কিতাব', to: '/admin/books/$id', params: { id: String(page.book_id) } },
+        ]}
         title={`পৃষ্ঠা ${bnNum(page.number)}`}
         description={`${bnNum(page.sentences.length)}টি বাক্য`}
         action={
@@ -75,7 +77,7 @@ function PageEditor() {
             <Button variant={preview ? 'default' : 'outline'} size="sm" onClick={() => setPreview((p) => !p)}>
               <Eye /> প্রিভিউ
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => confirmDelete('পৃষ্ঠাটি') && destroy.mutate(undefined)}>
+            <Button variant="destructive" size="sm" onClick={() => confirmDelete('পৃষ্ঠাটি').then((ok) => ok && destroy.mutate(undefined))}>
               <Trash2 />
             </Button>
           </div>
@@ -161,7 +163,7 @@ function SentenceEditor({ sentence, index, preview, invalidate, onMoveUp, onMove
           <Button variant="ghost" size="icon-sm" onClick={onInsertAfter} aria-label="নিচে নতুন বাক্য">
             <Plus />
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={() => confirmDelete('বাক্যটি') && remove.mutate(undefined)} aria-label="মুছুন">
+          <Button variant="ghost" size="icon-sm" onClick={() => confirmDelete('বাক্যটি').then((ok) => ok && remove.mutate(undefined))} aria-label="মুছুন">
             <Trash2 />
           </Button>
           <Button size="sm" disabled={!dirty || save.isPending} onClick={() => save.mutate(undefined)}>
@@ -235,7 +237,7 @@ function FootnoteRow({ footnote, onChange }: { footnote: Footnote; onChange: () 
         <Button size="icon-sm" variant="outline" disabled={text === footnote.text_md} onClick={() => save.mutate(undefined)} aria-label="সংরক্ষণ">
           <Save />
         </Button>
-        <Button size="icon-sm" variant="ghost" onClick={() => confirmDelete('টীকাটি') && remove.mutate(undefined)} aria-label="মুছুন">
+        <Button size="icon-sm" variant="ghost" onClick={() => confirmDelete('টীকাটি').then((ok) => ok && remove.mutate(undefined))} aria-label="মুছুন">
           <Trash2 />
         </Button>
       </div>
