@@ -1,12 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import { BookOpen, ChevronRight, Headphones, PlayCircle, Video } from 'lucide-react'
-import { AuthorAvatar } from '@/components/author-avatar'
 import { ProgressBar } from '@/components/book-card'
 import { BookCover } from '@/components/book-cover'
 import { SectionHeading } from '@/components/brand'
 import { CategoryBadge } from '@/components/category-filter'
-import { HeroStats, type HeroStat } from '@/components/hero-stats'
 import { EpisodeList, episodeNumber } from '@/components/episode-list'
 import { Markdown } from '@/components/markdown'
 import { ShareButton } from '@/components/share-button'
@@ -65,8 +63,8 @@ export const Route = createFileRoute('/_site/durus/$slug/')({
           })),
         },
         breadcrumbLd([
-          ['দারস', '/library?type=durus'],
-          ...(series.category ? [[series.category.name_bn, `/library?type=durus&category=${series.category.slug}`] as [string, string]] : []),
+          ['দারস', '/durus'],
+          ...(series.category ? [[series.category.name_bn, `/durus?category=${series.category.slug}`] as [string, string]] : []),
           [series.title_bn, path],
         ]),
       ],
@@ -115,39 +113,38 @@ function SeriesPage() {
             )}
 
             <div className="flex min-w-0 flex-col items-center text-center md:items-start md:text-left">
-              <div className="mb-3 flex flex-wrap justify-center gap-2 md:justify-start">
+              <div className="mb-4 flex flex-wrap justify-center gap-2 md:justify-start">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/50 bg-gold/10 px-3 py-0.5 text-xs font-semibold text-primary">
                   {isAudio ? <Headphones className="size-3.5 text-gold" /> : <Video className="size-3.5 text-gold" />}
                   {isAudio ? 'অডিও দারস' : 'ভিডিও দারস'}
                 </span>
                 {series.category && (
-                  <Link to="/library" search={{ type: 'durus', category: series.category.slug }} className="transition hover:opacity-80">
+                  <Link to="/durus" search={{ category: series.category.slug }} className="transition hover:opacity-80">
                     <CategoryBadge name={series.category.name_bn} />
                   </Link>
                 )}
               </div>
 
-              <p lang="ar" dir="rtl" className="font-arabic text-3xl leading-relaxed font-bold text-primary md:text-4xl">
+              <p lang="ar" dir="rtl" className="font-arabic text-3xl leading-normal font-bold text-primary md:text-4xl">
                 {series.title_ar}
               </p>
-              <h1 className="mt-1 text-2xl leading-snug font-bold text-balance md:text-[2rem]">{series.title_bn}</h1>
-              {series.title_translit && <p className="mt-1.5 text-sm text-muted-foreground italic">{series.title_translit}</p>}
+              <h1 className="mt-2 text-2xl leading-snug font-bold text-balance md:text-[2rem]">{series.title_bn}</h1>
+              {series.title_translit && <p className="mt-1.5 text-base text-muted-foreground italic md:text-lg">{series.title_translit}</p>}
 
               {series.author && (
-                <Link to="/authors/$slug" params={{ slug: series.author.slug }} className="group mt-6 flex items-center gap-3 text-start">
-                  <AuthorAvatar author={series.author} className="size-10" />
-                  <span className="min-w-0">
-                    <span className="block text-xs text-muted-foreground">দারস প্রদান করেছেন</span>
-                    <span className="block font-semibold transition-colors group-hover:text-primary">{series.author.name_bn}</span>
-                  </span>
-                </Link>
+                <p className="mt-4">
+                  <span className="text-muted-foreground">মুদাররিস: </span>
+                  <Link to="/authors/$slug" params={{ slug: series.author.slug }} className="font-semibold transition-colors hover:text-primary">
+                    {series.author.name_bn}
+                  </Link>
+                </p>
               )}
 
               <Stats series={series} />
 
-              <div className="mt-7 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3 md:justify-start">
                 {(resume ?? durus[0]) && (
-                  <Button size="lg" className="h-11 px-6 text-base shadow-sm" asChild>
+                  <Button size="lg" className="h-11 w-full px-6 text-base lg:w-auto" asChild>
                     <Link {...darsLink(resume ?? durus[0], series.slug)}>
                       <PlayCircle /> {resume ? `শোনা চালিয়ে যান · দারস ${episodeNumber(resume.number)}` : 'প্রথম দারস শুরু করুন'}
                     </Link>
@@ -215,13 +212,13 @@ function SeriesPage() {
 function Breadcrumbs({ series }: { series: DarsSeries }) {
   return (
     <nav aria-label="breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
-      <Link to="/library" search={{ type: 'durus' }} className="shrink-0 transition hover:text-primary">
+      <Link to="/durus" className="shrink-0 transition hover:text-primary">
         দারস
       </Link>
       {series.category && (
         <>
           <ChevronRight className="size-3.5 shrink-0 opacity-60" />
-          <Link to="/library" search={{ type: 'durus', category: series.category.slug }} className="shrink-0 transition hover:text-primary">
+          <Link to="/durus" search={{ category: series.category.slug }} className="shrink-0 transition hover:text-primary">
             {series.category.name_bn}
           </Link>
         </>
@@ -238,15 +235,13 @@ function seriesSeconds(series: DarsSeries) {
   return (series.durus ?? []).reduce((sum, d) => sum + (d.duration_seconds ?? 0), 0) || series.total_seconds || 0
 }
 
-/** The series' key figures, set inline under the title. */
+/** Dars count, set as one quiet line under the title. */
 function Stats({ series }: { series: DarsSeries }) {
-  const durus = series.durus ?? []
-  const seconds = seriesSeconds(series)
-  const transcribed = durus.filter((d) => d.segments_count).length
-
-  const items: HeroStat[] = [{ value: bnNum(durus.length), label: 'দারস' }]
-  if (seconds) items.push({ value: bnNum(formatTime(seconds)), label: 'মোট সময়' })
-  if (durus.length) items.push({ value: transcribed === durus.length ? 'সম্পূর্ণ' : `${bnNum(transcribed)}/${bnNum(durus.length)}`, label: 'ট্রান্সক্রিপ্ট' })
-  items.push({ value: 'আরবি · বাংলা', label: 'ভাষা' })
-  return <HeroStats items={items} />
+  const count = series.durus?.length ?? 0
+  if (!count) return null
+  return (
+    <p className="mt-1.5 flex items-center gap-2 text-sm text-muted-foreground">
+      <Headphones className="size-4 text-gold" /> {bnNum(count)}টি দারস
+    </p>
+  )
 }

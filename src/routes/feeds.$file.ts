@@ -6,7 +6,7 @@ import { rssResponse } from '@/lib/xml'
 
 const FEEDS = {
   'books.xml': { type: 'books', title: `${SITE_NAME} — নতুন কিতাব`, description: 'আরবি মূলপাঠ ও বাংলা অনুবাদে নতুন যুক্ত কিতাব।', link: '/library' },
-  'durus.xml': { type: 'durus', title: `${SITE_NAME} — নতুন দারস`, description: 'আরবি ও বাংলা সাবটাইটেলসহ নতুন যুক্ত দারস।', link: '/library?type=durus' },
+  'durus.xml': { type: 'durus', title: `${SITE_NAME} — নতুন দারস`, description: 'আরবি ও বাংলা সাবটাইটেলসহ নতুন যুক্ত দারস।', link: '/durus' },
 } as const
 
 /** /feeds/books.xml and /feeds/durus.xml */

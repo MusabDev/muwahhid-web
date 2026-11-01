@@ -508,6 +508,12 @@ export type ReaderTheme = 'paper' | 'sepia' | 'dark' | 'night'
 export type ReaderMode = 'book' | 'sentence'
 export type ReaderLeading = 'compact' | 'normal' | 'relaxed'
 
+/**
+ * How a new subtitle line comes in: fading, rising from a little below, the same while coming into focus,
+ * just coming into focus, growing, falling from a little above, or word by word.
+ */
+export type SubtitleTransition = 'fade' | 'rise' | 'rise-blur' | 'blur' | 'zoom' | 'drop' | 'words'
+
 /** How the synced subtitles over the dars player look. */
 export interface SubtitleStyle {
   fontAr: string
@@ -525,6 +531,14 @@ export interface SubtitleStyle {
   strokeWidth: number
   strokeColor: string
   shadow: boolean
+  shadowColor: string
+  /** 0–100 */
+  shadowOpacity: number
+  /** Blur of the outer shadow, in px as seen on a 960px-wide player. */
+  shadowBlur: number
+  /** Where the shadow falls, in px as seen on a 960px-wide player. */
+  shadowX: number
+  shadowY: number
   /**
    * One box around the cue, the same with feathered edges, a strip behind each line of text,
    * a shade rising from the bottom of the video, or none.
@@ -537,8 +551,14 @@ export interface SubtitleStyle {
   backgroundBlur: number
   /** How far the bottom shade reaches above the text, in percent of the text block's own height. */
   fadeHeight: number
-  /** Distance from the bottom of the video, in percent of its height. */
+  /** Which edge of the video the cue sits against: the bottom, the top, or the middle. */
+  valign: 'top' | 'middle' | 'bottom'
+  /**
+   * Distance from that edge, in percent of the video height; for the middle, how far above (or, below zero) the center.
+   */
   position: number
+  /** How far the cue's column sits right (or, below zero, left) of the center, in percent of the player width. */
+  offsetX: number
   align: 'center' | 'left' | 'right'
   /** Percent of the normal line height. */
   lineHeight: number
@@ -546,7 +566,63 @@ export interface SubtitleStyle {
   width: number
   /** Show the upcoming line, dimmed, under the current one. */
   nextLine: boolean
+  /** Whether a new line comes in with `transition`, or just appears. */
   fade: boolean
+  transition: SubtitleTransition
+  /** How long the entrance takes, in ms. */
+  transitionMs: number
+  /** Arabic and Bangla as two cues, each placed and styled on its own, instead of one cue with both lines. */
+  separate: boolean
+  /** While `separate`, what each language's cue does differently from the fields above; null follows them. */
+  ar: CueOverride
+  bn: CueOverride
+}
+
+/** The fields each language's cue can set for itself; fonts, sizes and colors are already one per language. */
+export const CUE_KEYS = [
+  'valign',
+  'position',
+  'offsetX',
+  'align',
+  'width',
+  'lineHeight',
+  'bold',
+  'stroke',
+  'strokeWidth',
+  'strokeColor',
+  'shadow',
+  'shadowColor',
+  'shadowOpacity',
+  'shadowBlur',
+  'shadowX',
+  'shadowY',
+  'shape',
+  'backgroundColor',
+  'backgroundOpacity',
+  'backgroundBlur',
+  'fadeHeight',
+  'fade',
+  'transition',
+  'transitionMs',
+] as const satisfies readonly (keyof SubtitleStyle)[]
+
+export type CueKey = (typeof CUE_KEYS)[number]
+export type CueOverride = { [K in CueKey]?: SubtitleStyle[K] | null }
+
+/** The style one language's cue is drawn with: its own fields over the shared ones, when the two are apart. */
+export function cueStyle(s: SubtitleStyle, lang: Lang): SubtitleStyle {
+  if (!s.separate) return s
+  return { ...s, ...Object.fromEntries(Object.entries(s[lang] ?? {}).filter(([, v]) => v != null)) }
+}
+
+/** Apply a change to a style; the per-language parts merge field by field rather than replacing each other. */
+export function mergeSubtitle<T extends Partial<SubtitleStyle>>(style: T, patch: Partial<SubtitleStyle>): T {
+  return {
+    ...style,
+    ...patch,
+    ...(patch.ar ? { ar: { ...style.ar, ...patch.ar } } : {}),
+    ...(patch.bn ? { bn: { ...style.bn, ...patch.bn } } : {}),
+  }
 }
 
 export interface ReaderSettings {
@@ -594,17 +670,29 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
     strokeWidth: 1.5,
     strokeColor: '#000000',
     shadow: true,
+    shadowColor: '#000000',
+    shadowOpacity: 90,
+    shadowBlur: 10,
+    shadowX: 0,
+    shadowY: 2,
     shape: 'none',
     backgroundColor: '#000000',
     backgroundOpacity: 55,
     backgroundBlur: 0,
     fadeHeight: 120,
+    valign: 'bottom',
     position: 5,
+    offsetX: 0,
     align: 'center',
     lineHeight: 100,
     width: 90,
     nextLine: false,
     fade: true,
+    transition: 'fade',
+    transitionMs: 300,
+    separate: false,
+    ar: {},
+    bn: {},
   },
 
   theater: false,
@@ -614,44 +702,101 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
 /** Settings the dars page owns; the book reader leaves them alone when it resets. */
 export const DARS_SETTING_KEYS = ['subtitles', 'subtitle', 'theater', 'playbackRate'] as const satisfies readonly (keyof ReaderSettings)[]
 
-/** Settings live in localStorage for everyone and are mirrored to the account when signed in. */
-export function useReaderSettings() {
+/**
+ * The viewer's subtitle choices as saved: every field, null where they kept the dars's (or site's) style.
+ * Every field is always written, because the account copy is merged key by key and a missing key would linger there.
+ */
+type StoredSubtitle = { [K in keyof SubtitleStyle]?: SubtitleStyle[K] | null }
+type StoredSettings = Omit<Partial<ReaderSettings>, 'subtitle'> & { subtitle?: StoredSubtitle }
+
+const SUBTITLE_KEYS = Object.keys(DEFAULT_SETTINGS.subtitle) as (keyof SubtitleStyle)[]
+const UNSET_SUBTITLE = Object.fromEntries(SUBTITLE_KEYS.map((k) => [k, null])) as StoredSubtitle
+
+/**
+ * Only the subtitle fields the viewer set themselves. Saves from before per-dars styles held the whole style,
+ * so there a field equal to the site default is taken as never touched, and the dars's own style shows through.
+ */
+function ownSubtitle(stored: StoredSubtitle | undefined): Partial<SubtitleStyle> {
+  if (!stored) return {}
+  const legacy = !('valign' in stored)
+  return Object.fromEntries(Object.entries(stored).filter(([k, v]) => v != null && !(legacy && v === DEFAULT_SETTINGS.subtitle[k as keyof SubtitleStyle])))
+}
+
+/** The viewer's own fields over the dars's; each language's cue keeps the dars's fields the viewer didn't change. */
+function layerSubtitle(base: SubtitleStyle, own: Partial<SubtitleStyle>): SubtitleStyle {
+  return { ...base, ...own, ar: { ...base.ar, ...own.ar }, bn: { ...base.bn, ...own.bn } }
+}
+
+/**
+ * Settings live in localStorage for everyone and are mirrored to the account when signed in.
+ * `subtitleBase` and `subtitlesBase` are the dars's own subtitle style and languages:
+ * they sit between the site default and the viewer's own choices.
+ */
+export function useReaderSettings({ subtitleBase, subtitlesBase }: { subtitleBase?: Partial<SubtitleStyle> | null; subtitlesBase?: ReaderSettings['subtitles'] | null } = {}) {
   const { data: user } = useUser()
   const { settingsCookie } = useRouteContext({ from: '__root__' })
-  const [stored, setStored] = useLocal<Partial<ReaderSettings>>(GUEST_KEYS.settings, {}, settingsCookie as Partial<ReaderSettings>)
+  const [stored, setStored] = useLocal<StoredSettings>(GUEST_KEYS.settings, {}, settingsCookie as StoredSettings)
+  const base = useMemo(() => layerSubtitle(DEFAULT_SETTINGS.subtitle, subtitleBase ?? {}), [subtitleBase])
   // subtitle style is nested, so options added later still get their defaults
-  const settings = useMemo(() => ({ ...DEFAULT_SETTINGS, ...stored, subtitle: { ...DEFAULT_SETTINGS.subtitle, ...stored.subtitle } }), [stored])
+  const settings: ReaderSettings = useMemo(
+    () => ({ ...DEFAULT_SETTINGS, ...stored, subtitles: stored.subtitles ?? subtitlesBase ?? DEFAULT_SETTINGS.subtitles, subtitle: layerSubtitle(base, ownSubtitle(stored.subtitle)) }),
+    [stored, base, subtitlesBase],
+  )
   const timer = useRef<number | undefined>(undefined)
   const pulled = useRef<number | null>(null)
-  const pending = useRef<Partial<ReaderSettings>>({})
+  const pending = useRef<StoredSettings>({})
 
   useEffect(() => writeSettingsCookie(stored), [stored])
 
   useEffect(() => {
     if (!user || pulled.current === user.id) return
     pulled.current = user.id
-    api<{ settings: Partial<ReaderSettings> }>('/me/settings')
+    api<{ settings: StoredSettings }>('/me/settings')
       .then(({ settings: remote }) => {
         if (remote && Object.keys(remote).length) setStored((prev) => ({ ...prev, ...remote }))
       })
       .catch(() => {})
   }, [user, setStored])
 
-  const update = useCallback(
-    (patch: Partial<ReaderSettings>) => {
-      setStored((prev) => ({ ...prev, ...patch }))
-      if (user) {
-        pending.current = { ...pending.current, ...patch }
-        window.clearTimeout(timer.current)
-        timer.current = window.setTimeout(() => {
-          const settings = pending.current
-          pending.current = {}
-          api('/me/settings', { method: 'PUT', body: { settings } }).catch(() => {})
-        }, 800)
-      }
+  const sync = useCallback(
+    (patch: StoredSettings) => {
+      if (!user) return
+      pending.current = { ...pending.current, ...patch }
+      window.clearTimeout(timer.current)
+      timer.current = window.setTimeout(() => {
+        const settings = pending.current
+        pending.current = {}
+        api('/me/settings', { method: 'PUT', body: { settings } }).catch(() => {})
+      }, 800)
     },
-    [user, setStored],
+    [user],
   )
 
-  return { settings, update }
+  const update = useCallback(
+    (patch: Partial<Omit<ReaderSettings, 'subtitle'>>) => {
+      setStored((prev) => ({ ...prev, ...patch }))
+      sync(patch)
+    },
+    [setStored, sync],
+  )
+
+  /** Change some subtitle fields; the rest keep following the dars's style. */
+  const updateSubtitle = useCallback(
+    (patch: Partial<SubtitleStyle>) => {
+      setStored((prev) => {
+        const subtitle = mergeSubtitle({ ...UNSET_SUBTITLE, ...ownSubtitle(prev.subtitle) } as Partial<SubtitleStyle>, patch) as StoredSubtitle
+        sync({ subtitle })
+        return { ...prev, subtitle }
+      })
+    },
+    [setStored, sync],
+  )
+
+  /** Forget the viewer's own subtitle changes, back to the dars's style. */
+  const resetSubtitle = useCallback(() => {
+    setStored((prev) => ({ ...prev, subtitle: UNSET_SUBTITLE }))
+    sync({ subtitle: UNSET_SUBTITLE })
+  }, [setStored, sync])
+
+  return { settings, update, updateSubtitle, resetSubtitle, subtitleBase: base }
 }

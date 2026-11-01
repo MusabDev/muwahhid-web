@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { BookOpen, ChevronDown, Feather, Headphones, Hourglass, ScrollText } from 'lucide-react'
-import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
+import { BookOpen, Feather, Headphones, Hourglass, ScrollText } from 'lucide-react'
+import { type ReactNode } from 'react'
+import { AboutPanel } from '@/components/about-panel'
 import { AuthorAvatar } from '@/components/author-avatar'
 import { BookRow } from '@/components/book-card'
 import { Ornament } from '@/components/brand'
-import { Markdown } from '@/components/markdown'
 import { PatternBackdrop } from '@/components/pattern'
 import { SeriesCard } from '@/components/series-card'
 import { CenterSpinner, EmptyState } from '@/components/states'
@@ -14,7 +14,6 @@ import { authorQuery, orNotFound } from '@/lib/queries'
 import { breadcrumbLd, personLd, seo } from '@/lib/seo'
 import { absoluteUrl, SITE_NAME } from '@/lib/site'
 import { bnNum } from '@/lib/text'
-import type { Author } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/_site/authors/$slug')({
@@ -103,7 +102,7 @@ function AuthorPage() {
       </section>
 
       <div className="mx-auto max-w-5xl space-y-16 px-4 py-10 md:py-14">
-        {author.about_md && <About author={author} />}
+        {author.about_md && <AboutPanel title="পরিচিতি" arabic="ترجمة المؤلف" text={author.about_md} />}
 
         {(!!books.length || !explained.length) && (
           <Section id="books" title="কিতাবসমূহ" arabic="المؤلفات" count={books.length}>
@@ -196,50 +195,6 @@ function Section({ id, title, arabic, subtitle, count, children }: { id: string;
         {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
       </header>
       {children}
-    </section>
-  )
-}
-
-const COLLAPSED_HEIGHT = 288
-
-/** The biography in a gilt frame; long ones start folded with a fade and a "read more" toggle. */
-function About({ author }: { author: Author }) {
-  const body = useRef<HTMLDivElement>(null)
-  const [long, setLong] = useState(false)
-  const [open, setOpen] = useState(false)
-
-  useLayoutEffect(() => {
-    if (body.current) setLong(body.current.scrollHeight > COLLAPSED_HEIGHT + 48)
-  }, [author.about_md])
-
-  const folded = long && !open
-
-  return (
-    <section className="relative rounded-xl border border-gold/40 bg-parchment p-6 shadow-sm md:p-8">
-      <div aria-hidden className="pointer-events-none absolute inset-1.5 rounded-lg border border-gold/20" />
-      <header className="relative mb-4 flex flex-wrap items-baseline gap-x-3">
-        <h2 className="text-xl font-bold">পরিচিতি</h2>
-        <p lang="ar" dir="rtl" className="font-arabic text-lg text-gold">
-          ترجمة المؤلف
-        </p>
-      </header>
-      <div className="relative">
-        <div ref={body} className={cn('overflow-hidden', folded && 'max-h-72')}>
-          <Markdown text={author.about_md!} className="leading-relaxed" />
-        </div>
-        {folded && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-b from-transparent to-parchment" />}
-      </div>
-      {long && (
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="relative mt-3 flex items-center gap-1 text-sm font-semibold text-primary hover:text-gold"
-        >
-          {open ? 'কম দেখুন' : 'আরও পড়ুন'}
-          <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />
-        </button>
-      )}
     </section>
   )
 }

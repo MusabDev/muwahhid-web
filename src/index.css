@@ -440,3 +440,48 @@ mark.hl[data-note="true"] {
     --hl-pink: oklch(0.8 0.12 0);
     --hl-orange: oklch(0.82 0.13 60);
 }
+
+/* Subtitle entrances: distances and blur are in em, so they scale with the text; the duration comes from --sub-ms. */
+@keyframes sub-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sub-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.45em);
+  }
+}
+@keyframes sub-rise-blur {
+  from {
+    opacity: 0;
+    transform: translateY(0.45em);
+    filter: blur(0.15em);
+  }
+}
+@keyframes sub-blur {
+  from {
+    opacity: 0;
+    filter: blur(0.2em);
+  }
+}
+@keyframes sub-zoom {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+@keyframes sub-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-0.45em);
+  }
+}
+
+/* movement and blur can make some people unwell; for them every entrance is a plain fade */
+@media (prefers-reduced-motion: reduce) {
+  [data-sub-enter] {
+    animation-name: sub-fade !important;
+  }
+}

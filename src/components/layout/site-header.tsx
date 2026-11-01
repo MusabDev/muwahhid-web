@@ -76,17 +76,17 @@ export function SiteHeader() {
         />
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white/15 to-transparent" />
 
-        <div className={cn('relative mx-auto flex max-w-7xl items-center gap-4 px-4 transition-[height] duration-300', scrolled ? 'h-14' : 'h-16')}>
+        <div className={cn('relative mx-auto flex max-w-7xl items-center gap-2 px-4 transition-[height] duration-300 sm:gap-4', scrolled ? 'h-14' : 'h-16')}>
           <MobileMenu />
 
           <Brand />
 
-          <nav className="ms-6 hidden items-center gap-1 md:flex">
+          <nav className="ms-6 hidden items-center gap-1 lg:flex">
             {nav.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
-                className="relative rounded-md px-3 py-2 text-[15px] text-wood-foreground/80 transition-colors hover:text-wood-foreground"
+                className="relative rounded-md px-3 py-2 text-[15px] whitespace-nowrap text-wood-foreground/80 transition-colors hover:text-wood-foreground"
                 activeProps={{ className: cn('text-wood-foreground! font-semibold after:absolute after:inset-x-3 after:-bottom-[13px] after:h-0.5 after:rounded after:bg-gold') }}
               >
                 {item.label}
@@ -194,7 +194,7 @@ function MobileMenu() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-wood-foreground hover:bg-white/10 hover:text-wood-foreground md:hidden" aria-label="মেনু">
+        <Button variant="ghost" size="icon" className="text-wood-foreground hover:bg-white/10 hover:text-wood-foreground lg:hidden" aria-label="মেনু">
           <Menu className="size-5" />
         </Button>
       </SheetTrigger>

@@ -6,7 +6,7 @@ import { Slider } from '@/components/ui/slider'
 import type { MediaPlayer } from '@/hooks/use-media-player'
 import { bnNum, formatTime } from '@/lib/text'
 import type { Segment } from '@/lib/types'
-import type { ReaderSettings } from '@/lib/user-data'
+import type { ReaderSettings, SubtitleStyle } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
 export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -218,7 +218,11 @@ export interface PlayerControlsProps {
   onToggleSubtitles: () => void
   /** What the settings menu reads and changes. */
   settings: ReaderSettings
-  update: (patch: Partial<ReaderSettings>) => void
+  update: (patch: Partial<Omit<ReaderSettings, 'subtitle'>>) => void
+  updateSubtitle: (patch: Partial<SubtitleStyle>) => void
+  resetSubtitle: () => void
+  /** The style the subtitle reset goes back to: the dars's own, or the site default. */
+  subtitleBase: SubtitleStyle
   hasVideo: boolean
   settingsOpen: boolean
   onSettingsOpenChange: (open: boolean) => void
@@ -239,6 +243,9 @@ export function PlayerControls({
   onToggleSubtitles,
   settings,
   update,
+  updateSubtitle,
+  resetSubtitle,
+  subtitleBase,
   hasVideo,
   settingsOpen,
   onSettingsOpenChange,
@@ -315,7 +322,7 @@ export function PlayerControls({
               </Icon>
             </PopoverTrigger>
             <PopoverContent side="top" align="end" className="max-h-[min(36rem,var(--radix-popover-content-available-height))] w-80 gap-1 overflow-y-auto p-1.5 scrollbar-thin">
-              <SettingsMenu page={page} onPage={setPage} player={player} onRate={onRate} settings={settings} update={update} hasVideo={hasVideo} />
+              <SettingsMenu page={page} onPage={setPage} player={player} onRate={onRate} settings={settings} update={update} updateSubtitle={updateSubtitle} resetSubtitle={resetSubtitle} subtitleBase={subtitleBase} hasVideo={hasVideo} />
             </PopoverContent>
           </Popover>
 
@@ -356,17 +363,15 @@ function SettingsMenu({
   onRate,
   settings,
   update,
+  updateSubtitle,
+  resetSubtitle,
+  subtitleBase,
   hasVideo,
-}: {
+}: Pick<PlayerControlsProps, 'player' | 'onRate' | 'settings' | 'update' | 'updateSubtitle' | 'resetSubtitle' | 'subtitleBase' | 'hasVideo'> & {
   page: MenuPage
   onPage: (page: MenuPage) => void
-  player: MediaPlayer
-  onRate: (rate: number) => void
-  settings: ReaderSettings
-  update: (patch: Partial<ReaderSettings>) => void
-  hasVideo: boolean
 }) {
-  const sub = { mode: settings.subtitles, style: settings.subtitle, update }
+  const sub = { style: settings.subtitle, set: updateSubtitle }
 
   if (page === 'main')
     return (
@@ -403,9 +408,9 @@ function SettingsMenu({
           ))}
         </div>
       )}
-      {page === 'language' && <SubtitleLanguagePage {...sub} />}
-      {page === 'style' && <SubtitleStylePage {...sub} hasVideo={hasVideo} onCustomize={() => onPage('customize')} />}
-      {page === 'customize' && <SubtitleCustomizePage {...sub} />}
+      {page === 'language' && <SubtitleLanguagePage {...sub} mode={settings.subtitles} onMode={(subtitles) => update({ subtitles })} />}
+      {page === 'style' && <SubtitleStylePage {...sub} base={subtitleBase} hasVideo={hasVideo} onReset={resetSubtitle} onCustomize={() => onPage('customize')} />}
+      {page === 'customize' && <SubtitleCustomizePage {...sub} hasVideo={hasVideo} />}
       {page === 'shortcuts' && <ShortcutList />}
     </>
   )

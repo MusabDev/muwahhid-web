@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ExternalLink, FileJson, Headphones, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
+import { PublishableBulkActions } from '@/components/admin/bulk-actions'
 import { Combobox } from '@/components/admin/combobox'
 import { DataTable } from '@/components/admin/data-table'
 import { SeriesForm, useAuthorOptions } from '@/components/admin/entity-forms'
@@ -73,6 +74,9 @@ function AdminSeriesList() {
           </>
         }
         rowLink={(series) => ({ to: '/admin/series/$id', params: { id: String(series.id) } })}
+        bulkActions={(ids, clear) => (
+          <PublishableBulkActions path="/admin/dars-series/bulk" ids={ids} clear={clear} noun="সিরিজ" authorNoun="শাইখ" deleteNote="সিরিজগুলোর সব দারস ও ট্রান্সক্রিপ্ট মুছে যাবে; এটি আর ফেরানো যাবে না।" />
+        )}
         columns={[
           {
             header: 'সিরিজ',

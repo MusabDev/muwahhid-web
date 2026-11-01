@@ -43,6 +43,6 @@ React + TanStack Start (SSR) front end for muwahhid.net. The Laravel API lives i
   - `/sitemap.xml`, an index of `/sitemaps/{static,books,authors,durus}.xml` and `/sitemaps/pages/{book}.xml`, with image and video extensions
   - `/rss.xml`, `/feeds/{books,durus}.xml`, `/authors/{slug}/rss.xml`, and `/feeds/podcast/{series}.xml` for audio series
   - `/manifest.webmanifest`, `/llms.txt`
-- Old URLs return 301: `/durus/{id}` and `/durus/series/{slug}` go to `/durus/{series}/{number}` and `/durus/{series}`; `/books` and `/durus` go to `/library`.
+- Old URLs return 301: `/durus/{id}` and `/durus/series/{slug}` go to `/durus/{series}/{number}` and `/durus/{series}`; `/books` and `/library?type=durus` go to `/library` and `/durus`.
 
 After launch, submit `https://muwahhid.net/sitemap.xml` in Google Search Console and Bing Webmaster Tools.

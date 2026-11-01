@@ -10,7 +10,7 @@ import { EpisodeList, episodeNumber } from '@/components/episode-list'
 import type { HighlightRange } from '@/components/markdown'
 import { PlainHighlight } from '@/components/plain-highlight'
 import { CenterSpinner, EmptyState } from '@/components/states'
-import { clampSubtitleSize, SUBTITLE_SIZE, SubtitleCue } from '@/components/subtitles'
+import { clampSubtitleSize, cueIndexAt, lastStarted, SUBTITLE_SIZE, SubtitleCue } from '@/components/subtitles'
 import { useTextActions } from '@/components/text-actions'
 import { PlayerControls, PlayerSurface, SKIP_SECONDS, useAutoHide } from '@/components/player-controls'
 import { Button } from '@/components/ui/button'
@@ -76,7 +76,7 @@ export const Route = createFileRoute('/_site/durus/$slug/$number')({
           isAccessibleForFree: true,
         },
         breadcrumbLd([
-          ['দারস', '/library?type=durus'],
+          ['দারস', '/durus'],
           [series.title_bn, `/durus/${series.slug}`],
           [label, path],
         ]),
@@ -105,39 +105,12 @@ function resumePosition(entry: DarsEntry | undefined) {
   return entry.position_seconds
 }
 
-/** The last segment that has started by `time`, even if it has already ended. */
-function lastStarted(segments: Segment[], time: number) {
-  let lo = 0
-  let hi = segments.length - 1
-  let found = -1
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1
-    if (segments[mid].start_time <= time + 0.05) {
-      found = mid
-      lo = mid + 1
-    } else hi = mid - 1
-  }
-  return found
-}
-
 function activeIndex(segments: Segment[], time: number) {
   const found = lastStarted(segments, time)
   if (found === -1) return -1
   const seg = segments[found]
   if (seg.end_time != null && time > seg.end_time + 0.3) return -1
   return found
-}
-
-/** How long a line stays up after it ends when the next hasn't started, so short pauses don't blink. */
-const CUE_HOLD = 0.8
-
-/** The line to show as a subtitle: the active one, or the one that just ended if the gap is short. */
-function cueIndexAt(segments: Segment[], time: number) {
-  const found = lastStarted(segments, time)
-  if (found === -1) return -1
-  const seg = segments[found]
-  if (seg.end_time == null || time <= seg.end_time + CUE_HOLD) return found
-  return -1
 }
 
 /** `resumeAt` is undefined until the saved position is known; the player is created only then. */
@@ -154,7 +127,7 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
   const player = useMediaPlayer(dars.media_url, startAt ?? resumeAt ?? null, resumeAt !== undefined)
   useSaveListening(dars, player.time, player.duration)
   useResumeNotice(startAt == null ? (resumeAt ?? null) : null, player.seek)
-  const { settings, update } = useReaderSettings()
+  const { settings, update, updateSubtitle, resetSubtitle, subtitleBase } = useReaderSettings({ subtitleBase: dars.subtitle_style, subtitlesBase: dars.subtitle_mode })
   const { annotations, create, update: updateAnnotation, remove } = useAnnotations({ darsId: dars.id })
   const { data: series } = useQuery({ ...seriesQuery(dars.series?.slug ?? ''), enabled: !!dars.series })
   const siblings = series?.durus ?? []
@@ -239,7 +212,6 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
   const cueIndex = shownIndex >= 0 ? shownIndex : styling && segments.length ? 0 : -1
   const cue = cueIndex >= 0 ? segments[cueIndex] : null
   const nextCue = cueIndex >= 0 ? (segments[cueIndex + 1] ?? null) : null
-  const moveSubtitle = (position: number) => update({ subtitle: { ...settings.subtitle, position } })
   const { boxRef, fullscreenEl, canFullscreen, toggleFullscreen } = useFullscreen()
   const fullscreen = !!fullscreenEl
   const controls = useAutoHide(player.playing && !styling)
@@ -263,18 +235,18 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
   }, [settings.subtitle.fontAr, settings.subtitle.fontBn])
 
   // player shortcuts, like most video players; the handler reads the latest values through a ref
-  const keys = useRef({ settings, update, player, segments, canFullscreen, toggleFullscreen, poke: controls.poke })
+  const keys = useRef({ settings, update, updateSubtitle, player, segments, canFullscreen, toggleFullscreen, poke: controls.poke })
   useEffect(() => {
-    keys.current = { settings, update, player, segments, canFullscreen, toggleFullscreen, poke: controls.poke }
+    keys.current = { settings, update, updateSubtitle, player, segments, canFullscreen, toggleFullscreen, poke: controls.poke }
   })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return
       if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable="true"], [role="slider"], [role="dialog"]')) return
-      const { settings, update, player, segments, canFullscreen, toggleFullscreen, poke } = keys.current
+      const { settings, update, updateSubtitle, player, segments, canFullscreen, toggleFullscreen, poke } = keys.current
       const { time, seek } = player
       const sub = settings.subtitle
-      const resize = (by: number) => update({ subtitle: { ...sub, sizeAr: clampSubtitleSize(sub.sizeAr + by), sizeBn: clampSubtitleSize(sub.sizeBn + by) } })
+      const resize = (by: number) => updateSubtitle({ sizeAr: clampSubtitleSize(sub.sizeAr + by), sizeBn: clampSubtitleSize(sub.sizeBn + by) })
       const at = lastStarted(segments, time)
       const key = e.key.toLowerCase()
       const repeatable = ['+', '=', '-', 'arrowleft', 'arrowright', 'j', 'l']
@@ -310,6 +282,9 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
     onToggleSubtitles: toggleSubtitles,
     settings,
     update,
+    updateSubtitle,
+    resetSubtitle,
+    subtitleBase,
     hasVideo: isVideo,
     settingsOpen: styling,
     onSettingsOpenChange: setStyling,
@@ -324,7 +299,7 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <nav aria-label="breadcrumb" className="mb-5 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
-        <Link to="/library" search={{ type: 'durus' }} className="shrink-0 transition hover:text-primary">
+        <Link to="/durus" className="shrink-0 transition hover:text-primary">
           দারস
         </Link>
         {dars.series && (
@@ -361,7 +336,7 @@ function DarsPlayer({ dars, resumeAt: savedAt }: { dars: Dars; resumeAt: number 
                   {!player.ad && (
                     <>
                       <PlayerSurface player={player} visible={controls.visible} onPoke={controls.poke} onFullscreen={canFullscreen ? toggleFullscreen : undefined} />
-                      <SubtitleCue segment={cue} next={nextCue} mode={subtitleMode} style={settings.subtitle} overlay raised={controls.visible} onMove={moveSubtitle} />
+                      <SubtitleCue segment={cue} next={nextCue} mode={subtitleMode} style={settings.subtitle} overlay raised={controls.visible} onMove={updateSubtitle} />
                       <PlayerControls {...controlProps()} overlay visible={controls.visible} />
                     </>
                   )}

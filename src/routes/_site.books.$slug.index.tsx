@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowRight, BookOpen, ChevronRight, ScrollText } from 'lucide-react'
+import { ArrowRight, BookOpen, ChevronRight, FileText, ScrollText } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
+import { AboutPanel } from '@/components/about-panel'
 import { AuthorAvatar } from '@/components/author-avatar'
 import { CategoryBadge } from '@/components/category-filter'
-import { HeroStats, type HeroStat } from '@/components/hero-stats'
 import { BookCard, ProgressBar, Shelf, ShelfPlank } from '@/components/book-card'
 import { BookCover } from '@/components/book-cover'
 import { JournalCard, journalGroups } from '@/components/book-journal'
@@ -75,19 +75,19 @@ function BookPage() {
 
   return (
     <>
-      <section className="relative overflow-hidden border-b">
+      <section className="relative overflow-hidden">
         <PatternBackdrop opacity={0.16} />
         <div className="relative mx-auto max-w-6xl px-4 pt-6 pb-12 md:pb-16">
           <Breadcrumbs book={book} />
 
-          <div className="mt-8 grid gap-10 md:grid-cols-[260px_1fr] md:gap-12">
+          <div className="mt-8 grid gap-10 md:grid-cols-[260px_1fr] md:gap-8">
             <div className="relative mx-auto w-48 md:w-full">
               <div aria-hidden className="absolute inset-x-[8%] -bottom-4 h-8 rounded-[50%] bg-black/25 blur-xl dark:bg-black/50" />
               <BookCover book={book} priority className="relative shadow-[0_24px_40px_-12px_oklch(0.2_0.03_50/0.6)]" />
             </div>
 
             <div className="flex min-w-0 flex-col items-center text-center md:items-start md:text-left">
-              <div className="mb-3 flex flex-wrap justify-center gap-2 md:justify-start">
+              <div className="mb-4 flex flex-wrap justify-center gap-2 md:justify-start">
                 {book.category && (
                   <Link to="/library" search={{ category: book.category.slug }} className="transition hover:opacity-80">
                     <CategoryBadge name={book.category.name_bn} />
@@ -100,29 +100,29 @@ function BookPage() {
                 )}
               </div>
 
-              <p lang="ar" dir="rtl" className="font-arabic text-3xl leading-relaxed font-bold text-primary md:text-4xl">
+              <p lang="ar" dir="rtl" className="font-arabic text-3xl leading-normal font-bold text-primary md:text-4xl">
                 {book.title_ar}
               </p>
-              <h1 className="mt-1 text-2xl leading-snug font-bold text-balance md:text-[2rem]">{book.title_bn}</h1>
-              {book.title_translit && <p className="mt-1.5 text-sm text-muted-foreground italic">{book.title_translit}</p>}
+              <h1 className="mt-2 text-2xl leading-snug font-bold text-balance md:text-[2rem]">{book.title_bn}</h1>
+              {book.title_translit && <p className="mt-1.5 text-base text-muted-foreground italic md:text-lg">{book.title_translit}</p>}
 
               {book.author && (
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 md:justify-start">
+                <p className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 md:justify-start">
                   <Byline author={book.author} label={sharh ? 'মূল গ্রন্থকার' : 'লেখক'} />
                   {sharh && (
                     <>
-                      <span aria-hidden className="hidden h-8 w-px bg-border sm:block" />
+                      <span aria-hidden className="text-gold">·</span>
                       <Byline author={book.explainer!} label="ব্যাখ্যাকার" />
                     </>
                   )}
-                </div>
+                </p>
               )}
 
               <Stats book={book} />
 
-              <div className="mt-7 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3 md:justify-start">
                 {book.pages_count ? (
-                  <Button size="lg" className="h-11 px-6 text-base shadow-sm" asChild>
+                  <Button size="lg" className="h-11 w-full px-6 text-base lg:w-auto" asChild>
                     <Link
                       to="/books/$slug/read/$page"
                       params={{ slug: book.slug, page: String(resumePage ?? startPage) }}
@@ -151,16 +151,9 @@ function BookPage() {
         </div>
       </section>
 
-      <div className="mx-auto grid max-w-6xl gap-12 px-4 py-12 lg:grid-cols-[1fr_360px]">
+      <div className="mx-auto grid max-w-6xl gap-12 px-4 py-12 lg:grid-cols-[1fr_360px] lg:gap-8">
         <div className="min-w-0 space-y-14">
-          <section>
-            <SectionHeading title="কিতাব পরিচিতি" />
-            {book.about_md ? (
-              <Markdown text={book.about_md} className="text-[17px] leading-relaxed text-foreground/90" />
-            ) : (
-              <p className="text-muted-foreground">পরিচিতি যুক্ত করা হয়নি।</p>
-            )}
-          </section>
+          {book.about_md && <AboutPanel title="কিতাব পরিচিতি" arabic="التعريف بالكتاب" text={book.about_md} />}
 
           <TocSection slug={book.slug} entries={book.toc} currentPage={resumePage ?? undefined} />
 
@@ -187,7 +180,7 @@ function BookPage() {
         </div>
 
         {/* a long notes card would run off screen, so the sidebar only sticks without it */}
-        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start lg:has-data-journal:static">
+        <aside className="min-w-0 space-y-6 lg:sticky lg:top-24 lg:self-start lg:has-data-journal:static">
           <DetailsCard book={book} />
           <MyJournal book={book} />
         </aside>
@@ -222,24 +215,23 @@ function Breadcrumbs({ book }: { book: Book }) {
 
 function Byline({ author, label }: { author: Author; label: string }) {
   return (
-    <Link to="/authors/$slug" params={{ slug: author.slug }} className="group flex items-center gap-3 text-start">
-      <AuthorAvatar author={author} className="size-10" />
-      <span className="min-w-0">
-        <span className="block text-xs text-muted-foreground">{label}</span>
-        <span className="block font-semibold transition-colors group-hover:text-primary">{author.name_bn}</span>
-      </span>
-    </Link>
+    <span>
+      <span className="text-muted-foreground">{label}: </span>
+      <Link to="/authors/$slug" params={{ slug: author.slug }} className="font-semibold transition-colors hover:text-primary">
+        {author.name_bn}
+      </Link>
+    </span>
   )
 }
 
-/** The book's key figures, set inline under the title. */
+/** Page count, set as one quiet line under the title. */
 function Stats({ book }: { book: Book }) {
-  const items: HeroStat[] = []
-  if (book.pages_count !== undefined) items.push({ value: bnNum(book.pages_count), label: 'পৃষ্ঠা' })
-  if (book.toc?.length) items.push({ value: bnNum(book.toc.length), label: 'অধ্যায়' })
-  if (book.dars_series?.length) items.push({ value: bnNum(book.dars_series.length), label: 'দারস সিরিজ' })
-  items.push({ value: 'আরবি · বাংলা', label: 'ভাষা' })
-  return <HeroStats items={items} />
+  if (!book.pages_count) return null
+  return (
+    <p className="mt-1.5 flex items-center gap-2 text-sm text-muted-foreground">
+      <FileText className="size-4 text-gold" /> {bnNum(book.pages_count)} পৃষ্ঠা
+    </p>
+  )
 }
 
 function DetailsCard({ book }: { book: Book }) {
@@ -280,6 +272,15 @@ function DetailsCard({ book }: { book: Book }) {
   )
 }
 
+function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="text-end font-medium">{children}</dd>
+    </div>
+  )
+}
+
 /** The reader's own notes and bookmarks in this kitab; nothing when there are none. */
 function MyJournal({ book }: { book: Book }) {
   const { annotations, remove: removeNote } = useAnnotations({ bookId: book.id })
@@ -291,15 +292,6 @@ function MyJournal({ book }: { book: Book }) {
   return (
     <div data-journal>
       <JournalCard group={group} title="আপনার নোট ও বুকমার্ক" onRemoveNote={removeNote} onRemoveBookmark={removeBookmark} />
-    </div>
-  )
-}
-
-function DetailRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
-      <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="text-end font-medium">{children}</dd>
     </div>
   )
 }

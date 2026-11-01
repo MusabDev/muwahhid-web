@@ -1,3 +1,5 @@
+import type { SubtitleStyle } from './user-data'
+
 export type Lang = 'ar' | 'bn'
 
 export type BlockType = 'paragraph' | 'heading' | 'quote' | 'list_item' | 'poetry'
@@ -160,6 +162,10 @@ export interface Dars {
   media_type: 'video' | 'audio'
   media_url: string
   duration_seconds: number | null
+  /** The dars's own subtitle look: only the fields that differ from the site default. */
+  subtitle_style?: Partial<SubtitleStyle> | null
+  /** Which languages the subtitles start with, until a viewer picks for themselves; null is the site default. */
+  subtitle_mode?: 'ar' | 'bn' | 'both' | null
   segments_count?: number
   series?: DarsSeries
   segments?: Segment[]

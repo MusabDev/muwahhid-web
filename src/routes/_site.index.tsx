@@ -32,7 +32,7 @@ function Home() {
   return (
     <>
       <Hero />
-      <div className="mx-auto max-w-7xl space-y-20 px-4 pt-14">
+      <div className="mx-auto max-w-7xl space-y-20 px-4 pt-14 pb-16 md:pb-24">
         <ContinueReading />
         <NewBooks />
         <DurusSection />
@@ -176,7 +176,7 @@ function DurusSection() {
         subtitle="আরবি আর বাংলা সাবটাইটেলসহ শুনুন"
         action={
           <Button variant="ghost" asChild>
-            <Link to="/library" search={{ type: 'durus' }}>
+            <Link to="/durus">
               সব দেখুন <ArrowLeft className="rotate-180" />
             </Link>
           </Button>

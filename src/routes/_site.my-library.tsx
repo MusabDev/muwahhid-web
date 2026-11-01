@@ -239,7 +239,7 @@ function LibraryPage() {
               দারসের পাতায় “লাইব্রেরিতে যোগ করুন” থেকে দারস যোগ করুন। শোনা শুরু করলে দারসটি নিজে থেকেই এখানে চলে আসবে।
               <div className="mt-5">
                 <Button asChild className="rounded-full px-6">
-                  <Link to="/library" search={{ type: 'durus' }}>
+                  <Link to="/durus">
                     দারস খুঁজুন <ArrowRight />
                   </Link>
                 </Button>

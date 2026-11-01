@@ -1,11 +1,14 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
+import { LibraryPage, libraryHead, libraryLoader, validateLibrarySearch } from '@/components/library-page'
 
-/** Old address of the dars series list; durus now live in the library. */
 export const Route = createFileRoute('/_site/durus/')({
-  validateSearch: (search: Record<string, unknown>): { category?: string } => ({
-    category: typeof search.category === 'string' && search.category ? search.category : undefined,
-  }),
-  beforeLoad: ({ search }) => {
-    throw redirect({ to: '/library', search: { type: 'durus', category: search.category }, replace: true, statusCode: 301 })
-  },
+  validateSearch: validateLibrarySearch,
+  loaderDeps: ({ search }) => search,
+  loader: libraryLoader('durus'),
+  head: libraryHead('durus'),
+  component: DurusPage,
 })
+
+function DurusPage() {
+  return <LibraryPage type="durus" search={Route.useSearch()} />
+}

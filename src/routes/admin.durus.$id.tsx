@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { DarsForm } from '@/components/admin/entity-forms'
 import { AdminPageHeader, confirmDelete, Field, Panel, useAdminMutation } from '@/components/admin/form'
+import { SubtitleStyleEditor } from '@/components/admin/subtitle-style-editor'
 import { CenterSpinner } from '@/components/states'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -95,6 +96,9 @@ function AdminDars() {
         </Panel>
         <TranscriptImport darsId={dars.id} invalidate={invalidate} hasSegments={segments.length > 0} />
       </div>
+
+      {/* keyed by the media, so a new link gets a fresh player */}
+      <SubtitleStyleEditor key={dars.media_url} dars={dars} invalidate={invalidate} />
 
       <Panel
         className="mt-6"

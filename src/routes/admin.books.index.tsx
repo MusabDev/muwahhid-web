@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ExternalLink, FileJson, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
+import { PublishableBulkActions } from '@/components/admin/bulk-actions'
 import { Combobox } from '@/components/admin/combobox'
 import { DataTable } from '@/components/admin/data-table'
 import { BookForm, useAuthorOptions, useCategoryOptions } from '@/components/admin/entity-forms'
@@ -81,6 +82,7 @@ function AdminBooks() {
           </>
         }
         rowLink={(book) => ({ to: '/admin/books/$id', params: { id: String(book.id) } })}
+        bulkActions={(ids, clear) => <PublishableBulkActions path="/admin/books/bulk" ids={ids} clear={clear} noun="কিতাব" deleteNote="কিতাবগুলোর সব পৃষ্ঠা, প্রচ্ছদ ও পিডিএফ মুছে যাবে; এটি আর ফেরানো যাবে না।" />}
         columns={[
           {
             header: 'কিতাব',

@@ -57,11 +57,11 @@ export function staticUrls(data: SitemapData): Url[] {
   return [
     { path: '/', lastmod },
     { path: '/library', lastmod },
-    { path: '/library?type=durus', lastmod },
+    { path: '/durus', lastmod },
     { path: '/authors', lastmod: latest(...data.authors.map((a) => a.updated_at)) },
     ...data.categories.flatMap((c) => [
       ...(c.books ? [{ path: `/library?category=${encodeURIComponent(c.slug)}` }] : []),
-      ...(c.series ? [{ path: `/library?type=durus&category=${encodeURIComponent(c.slug)}` }] : []),
+      ...(c.series ? [{ path: `/durus?category=${encodeURIComponent(c.slug)}` }] : []),
     ]),
   ]
 }

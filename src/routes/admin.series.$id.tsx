@@ -2,8 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { Download, ExternalLink, FileJson, Headphones, Plus, Trash2, Video } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
+import { BulkBar, SelectBox, useSelection } from '@/components/admin/data-table'
 import { DarsForm, SeriesForm } from '@/components/admin/entity-forms'
-import { AdminPageHeader, confirmDelete, Panel, useAdminMutation } from '@/components/admin/form'
+import { AdminPageHeader, confirmAction, confirmDelete, Panel, useAdminMutation } from '@/components/admin/form'
 import { SeriesImportDialog } from '@/components/admin/imports'
 import { CenterSpinner, EmptyState } from '@/components/states'
 import { Button } from '@/components/ui/button'
@@ -22,6 +24,14 @@ function AdminSeries() {
   const navigate = useNavigate()
   const [adding, setAdding] = useState(false)
   const [importing, setImporting] = useState(false)
+  const selection = useSelection()
+  const bulkDelete = useAdminMutation(() => api<{ affected: number }>(`/admin/dars-series/${id}/durus/bulk`, { method: 'POST', body: { ids: selection.ids, action: 'delete' } }), {
+    invalidate: [['admin'], ['dars-series']],
+    onSuccess: ({ affected }) => {
+      toast.success(`${bnNum(affected)}টি দারস মুছে ফেলা হয়েছে`)
+      selection.clear()
+    },
+  })
   const { data: series } = useQuery({ queryKey: ['admin', 'series', id], queryFn: () => api<DarsSeries>(`/admin/dars-series/${id}`) })
 
   const save = useAdminMutation((values: Record<string, unknown>) => api(`/admin/dars-series/${id}`, { method: 'PUT', body: values }), { success: 'সংরক্ষিত হয়েছে', invalidate: [['admin'], ['dars-series']] })
@@ -77,16 +87,49 @@ function AdminSeries() {
           }
         >
           {durus.length ? (
-            <div className="-my-2 divide-y">
-              {durus.map((dars) => (
-                <Link key={dars.id} to="/admin/durus/$id" params={{ id: String(dars.id) }} className="-mx-2 flex items-center gap-3 rounded-md px-2 py-2.5 hover:bg-muted/50">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-gold/50 text-sm font-semibold">{bnNum(dars.number)}</span>
-                  {dars.media_type === 'audio' ? <Headphones className="size-4 shrink-0 text-muted-foreground" /> : <Video className="size-4 shrink-0 text-muted-foreground" />}
-                  <span className="min-w-0 flex-1 truncate font-medium">{dars.title_bn}</span>
-                  {dars.duration_seconds ? <span className="hidden font-mono text-xs text-muted-foreground sm:inline">{formatTime(dars.duration_seconds)}</span> : null}
-                  <span className={dars.segments_count ? 'text-xs text-muted-foreground' : 'text-xs text-gold'}>{dars.segments_count ? `${bnNum(dars.segments_count)} লাইন` : 'ট্রান্সক্রিপ্ট নেই'}</span>
-                </Link>
-              ))}
+            <div className="-my-2">
+              <div className="-mx-5 -mt-3 mb-1">
+                <BulkBar count={selection.selected.size} onClear={selection.clear}>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={bulkDelete.isPending}
+                    onClick={() =>
+                      confirmAction({
+                        title: `${bnNum(selection.selected.size)}টি দারস মুছে ফেলবেন?`,
+                        description: 'দারসগুলোর ট্রান্সক্রিপ্ট ও হাইলাইটও মুছে যাবে; এটি আর ফেরানো যাবে না।',
+                        confirmLabel: 'মুছে ফেলুন',
+                        destructive: true,
+                      }).then((ok) => ok && bulkDelete.mutate(undefined))
+                    }
+                  >
+                    <Trash2 /> মুছুন
+                  </Button>
+                </BulkBar>
+              </div>
+              <label className="-mx-2 flex items-center gap-3 px-2 py-2 text-xs text-muted-foreground">
+                <SelectBox
+                  label="সব দারস"
+                  checked={selection.selected.size === durus.length}
+                  indeterminate={selection.selected.size > 0}
+                  onChange={(on) => selection.toggle(durus.map((d) => d.id), on)}
+                />
+                সব নির্বাচন
+              </label>
+              <div className="divide-y border-t">
+                {durus.map((dars) => (
+                  <div key={dars.id} className="-mx-2 flex items-center gap-3 rounded-md px-2 hover:bg-muted/50">
+                    <SelectBox label={`দারস ${bnNum(dars.number)}`} checked={selection.selected.has(dars.id)} onChange={(on) => selection.toggle([dars.id], on)} />
+                    <Link to="/admin/durus/$id" params={{ id: String(dars.id) }} className="flex min-w-0 flex-1 items-center gap-3 py-2.5">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-gold/50 text-sm font-semibold">{bnNum(dars.number)}</span>
+                      {dars.media_type === 'audio' ? <Headphones className="size-4 shrink-0 text-muted-foreground" /> : <Video className="size-4 shrink-0 text-muted-foreground" />}
+                      <span className="min-w-0 flex-1 truncate font-medium">{dars.title_bn}</span>
+                      {dars.duration_seconds ? <span className="hidden font-mono text-xs text-muted-foreground sm:inline">{formatTime(dars.duration_seconds)}</span> : null}
+                      <span className={dars.segments_count ? 'text-xs text-muted-foreground' : 'text-xs text-gold'}>{dars.segments_count ? `${bnNum(dars.segments_count)} লাইন` : 'ট্রান্সক্রিপ্ট নেই'}</span>
+                    </Link>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <EmptyState icon={Headphones} title="এখনো কোনো দারস নেই">
