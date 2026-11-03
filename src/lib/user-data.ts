@@ -628,7 +628,8 @@ export function mergeSubtitle<T extends Partial<SubtitleStyle>>(style: T, patch:
 export interface ReaderSettings {
   mode: ReaderMode
   theme: ReaderTheme
-  fontSize: number
+  /** Body text size in points; the book page scales with it (11pt = the PDF export). */
+  fontPt: number
   leading: ReaderLeading
   fontAr: string
   fontBn: string
@@ -647,7 +648,7 @@ export interface ReaderSettings {
 export const DEFAULT_SETTINGS: ReaderSettings = {
   mode: 'book',
   theme: 'paper',
-  fontSize: 19,
+  fontPt: 11,
   leading: 'normal',
   fontAr: 'amiri',
   fontBn: 'noto-serif-bengali',

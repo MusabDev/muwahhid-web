@@ -5,6 +5,7 @@ import { BlockShell } from './blocks'
 import { Footnotes } from './book-view'
 import { useReader } from './reader-context'
 import { Sentence } from './sentence'
+import { sentencePx } from './settings-panel'
 
 /** Each Arabic sentence beside its Bangla translation. */
 export function SentenceView({ book, page }: { book: Book; page: BookPage }) {
@@ -22,7 +23,7 @@ export function SentenceView({ book, page }: { book: Book; page: BookPage }) {
         {page.sentences.map((sentence) => (
           <div key={sentence.id} className={cn('grid gap-x-10 gap-y-2 py-3.5', both && '@2xl:grid-cols-2')}>
             {settings.showArabic && (
-              <div lang="ar" dir="rtl" className="reader-ar @2xl:order-2" style={{ fontSize: settings.fontSize * 1.22 }}>
+              <div lang="ar" dir="rtl" className="reader-ar @2xl:order-2" style={{ fontSize: sentencePx(settings.fontPt) * 1.22 }}>
                 {sentence.block_type === 'paragraph' ? (
                   <Sentence sentence={sentence} lang="ar" />
                 ) : (
@@ -33,7 +34,7 @@ export function SentenceView({ book, page }: { book: Book; page: BookPage }) {
               </div>
             )}
             {settings.showBangla && (
-              <div lang="bn" className="reader-bn @2xl:order-1" style={{ fontSize: settings.fontSize }}>
+              <div lang="bn" className="reader-bn @2xl:order-1" style={{ fontSize: sentencePx(settings.fontPt) }}>
                 {sentence.block_type === 'paragraph' ? (
                   <Sentence sentence={sentence} lang="bn" />
                 ) : (
@@ -50,12 +51,12 @@ export function SentenceView({ book, page }: { book: Book; page: BookPage }) {
       <div className={cn('grid gap-x-10', both && '@2xl:grid-cols-2')}>
         {settings.showBangla && page.footnotes.bn.length > 0 && (
           <div lang="bn">
-            <Footnotes footnotes={page.footnotes.bn} lang="bn" />
+            <Footnotes footnotes={page.footnotes.bn} lang="bn" fontPx={sentencePx(settings.fontPt)} />
           </div>
         )}
         {settings.showArabic && page.footnotes.ar.length > 0 && (
           <div lang="ar" dir="rtl" className="@2xl:order-2">
-            <Footnotes footnotes={page.footnotes.ar} lang="ar" />
+            <Footnotes footnotes={page.footnotes.ar} lang="ar" fontPx={sentencePx(settings.fontPt)} />
           </div>
         )}
       </div>

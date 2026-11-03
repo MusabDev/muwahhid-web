@@ -20,24 +20,23 @@ export function groupBlocks(sentences: SentenceType[]): Block[] {
   return blocks
 }
 
+/**
+ * Block spacing is in em and mirrors the PDF export's `.text` rules (book.blade.php),
+ * so a page wraps and fills the same way on screen and in print. Styles live in index.css (.blk-*).
+ */
 export function BlockShell({ type, lang, children }: { type: BlockType; lang: Lang; children: ReactNode }) {
   switch (type) {
     case 'heading':
-      return <h3 className={cn('my-4 text-center text-[1.2em] leading-snug font-bold text-[var(--page-ink)]', lang === 'ar' && 'text-[1.25em]')}>{children}</h3>
+      return <h3 className={cn('blk-h', lang === 'ar' && 'blk-h-ar')}>{children}</h3>
     case 'quote':
-      return <blockquote className="my-3 border-s-[3px] border-[var(--page-accent)]/50 ps-4 text-[var(--page-ink)]">{children}</blockquote>
+      return <blockquote className="blk-quote">{children}</blockquote>
     case 'list_item':
-      return (
-        <div className="relative my-1.5 ps-6">
-          <span className="absolute start-1 top-0 text-[var(--page-ink)]">◆</span>
-          {children}
-        </div>
-      )
+      return <div className="blk-li">{children}</div>
     case 'poetry':
-      return <div className="my-1 text-center! italic">{children}</div>
+      return <div className="blk-poetry">{children}</div>
     default:
       /* a paragraph gap a little wider than the gap between lines, so each one stands apart */
-      return <p className="mb-[0.5em] last:mb-0">{children}</p>
+      return <p className="blk-p">{children}</p>
   }
 }
 

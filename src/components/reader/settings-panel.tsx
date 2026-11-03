@@ -11,9 +11,12 @@ import { bnNum } from '@/lib/text'
 import { DARS_SETTING_KEYS, DEFAULT_SETTINGS, type ReaderLeading, type ReaderSettings, type ReaderTheme } from '@/lib/user-data'
 import { cn } from '@/lib/utils'
 
-export const FONT_SIZE = { min: 14, max: 32 }
+export const FONT_SIZE = { min: 8, max: 22, step: 0.5 }
 
-export const clampFontSize = (n: number) => Math.min(FONT_SIZE.max, Math.max(FONT_SIZE.min, n))
+/** Sentence mode reflows freely, so it reads a little larger than the printed page: 11pt → ≈19px. */
+export const sentencePx = (pt: number) => pt * (4 / 3) * 1.3
+
+export const clampFontSize = (n: number) => Math.min(FONT_SIZE.max, Math.max(FONT_SIZE.min, Math.round(n * 2) / 2))
 
 /** Multiplier applied to the base line height of each script. */
 export const LEADING: Record<ReaderLeading, number> = { compact: 0.88, normal: 1, relaxed: 1.16 }
@@ -101,21 +104,21 @@ export function SettingsPanel({ settings, update, allowBoth = true }: { settings
         </div>
       </Section>
 
-      <Section label="লেখার আকার" value={bnNum(settings.fontSize)}>
+      <Section label="লেখার আকার" value={bnNum(settings.fontPt)}>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon-sm" aria-label="ছোট" disabled={settings.fontSize <= FONT_SIZE.min} onClick={() => update({ fontSize: clampFontSize(settings.fontSize - 1) })}>
+          <Button variant="outline" size="icon-sm" aria-label="ছোট" disabled={settings.fontPt <= FONT_SIZE.min} onClick={() => update({ fontPt: clampFontSize(settings.fontPt - FONT_SIZE.step) })}>
             <Minus />
           </Button>
           <Slider
             min={FONT_SIZE.min}
             max={FONT_SIZE.max}
-            step={1}
-            value={[settings.fontSize]}
-            onValueChange={([v]) => update({ fontSize: v })}
+            step={FONT_SIZE.step}
+            value={[settings.fontPt]}
+            onValueChange={([v]) => update({ fontPt: v })}
             aria-label="লেখার আকার"
             className="flex-1 [&_[data-slot=slider-thumb]]:size-4"
           />
-          <Button variant="outline" size="icon-sm" aria-label="বড়" disabled={settings.fontSize >= FONT_SIZE.max} onClick={() => update({ fontSize: clampFontSize(settings.fontSize + 1) })}>
+          <Button variant="outline" size="icon-sm" aria-label="বড়" disabled={settings.fontPt >= FONT_SIZE.max} onClick={() => update({ fontPt: clampFontSize(settings.fontPt + FONT_SIZE.step) })}>
             <Plus />
           </Button>
         </div>

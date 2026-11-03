@@ -370,6 +370,89 @@
     line-height: calc(1.8 * var(--reader-leading, 1));
 }
 
+/* ---------- reader blocks: em spacing copied from the PDF export's .text rules ---------- */
+.blk-p { margin: 0 0 0.5em; }
+.blk-p:last-child { margin-bottom: 0; }
+.blk-h { margin: 0.9em 0; text-align: center; font-size: 1.2em; line-height: 1.375; font-weight: 700; color: var(--page-ink); }
+.blk-h-ar { font-size: 1.25em; }
+.blk-h:first-child { margin-top: 0.2em; }
+.blk-quote { margin: 0.7em 0; padding-inline-start: 1em; border-inline-start: 3px solid color-mix(in oklch, var(--page-accent) 50%, transparent); }
+.blk-li { position: relative; margin: 0.35em 0; padding-inline-start: 1.5em; }
+.blk-li::before { content: '◆'; position: absolute; inset-inline-start: 0.25em; top: 0; font-size: 0.7em; line-height: inherit; color: var(--page-ink); }
+.blk-poetry { margin: 0.25em 0; text-align: center !important; font-style: italic; }
+
+/*
+ * ---------- book page: one A5 sheet, a copy of the PDF export's .page ----------
+ * Keep in sync with muwahhid-backend/resources/views/exports/book.blade.php.
+ * Every length is the PDF's, times --s (the reader's font size / 11pt), so the
+ * page grows and shrinks as a whole and the lines break exactly where they do in print.
+ */
+.book-sheet {
+    --s: 1;
+    --fit: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: calc(5.83in * var(--s));
+    height: calc(8.27in * var(--s));
+    padding: 0 calc(0.6in * var(--s)) calc(0.55in * var(--s));
+    overflow: hidden;
+    background: var(--page-bg);
+    color: var(--page-ink);
+}
+/* a single block taller than a whole page: let the sheet grow rather than clip it */
+.book-sheet[data-tall] { height: auto; min-height: calc(8.27in * var(--s)); }
+.book-sheet .running-head { display: flex; align-items: flex-end; gap: calc(0.13in * var(--s)); margin-bottom: calc(0.2in * var(--s)); }
+.book-sheet .running-title { flex: 1; min-width: 0; padding-bottom: calc(3px * var(--s)); border-bottom: 1px solid color-mix(in oklch, var(--page-accent) 45%, transparent); color: var(--page-muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.book-sheet.bn .running-title { font-family: var(--font-bn, 'Noto Serif Bengali'), 'Noto Serif Bengali', serif; font-size: calc(8.5pt * var(--s)); }
+.book-sheet.ar .running-title { font-family: var(--font-ar, 'Amiri'), 'Amiri', serif; font-size: calc(10pt * var(--s)); }
+.book-sheet .page-tab { position: relative; flex-shrink: 0; width: calc(0.42in * var(--s)); height: calc(0.6in * var(--s)); display: grid; place-items: center; padding-bottom: calc(0.1in * var(--s)); }
+.book-sheet .page-tab svg { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--page-accent); }
+.book-sheet .page-tab span { position: relative; color: var(--page-accent); font-variant-numeric: tabular-nums; }
+.book-sheet.bn .page-tab span { font-family: var(--font-bn, 'Noto Serif Bengali'), 'Noto Serif Bengali', serif; font-size: calc(9pt * var(--s)); font-weight: 600; }
+.book-sheet.ar .page-tab span { font-family: var(--font-ar, 'Amiri'), 'Amiri', serif; font-size: calc(10.5pt * var(--s)); }
+
+.book-sheet .sheet-text { flex: 1 0 auto; }
+.book-sheet.bn .sheet-text { font-size: calc(11pt * var(--s) * var(--fit)); }
+.book-sheet.ar .sheet-text { font-size: calc(11pt * 1.22 * var(--s) * var(--fit)); }
+
+.book-sheet .sheet-footnotes { margin-top: calc(0.16in * var(--s)); color: color-mix(in oklch, var(--page-ink) 80%, transparent); text-align: justify; }
+.book-sheet.bn .sheet-footnotes { font-size: calc(11pt * var(--s) * var(--fit) * 6 / 7); line-height: calc(1.75 * var(--reader-leading, 1)); }
+.book-sheet.ar .sheet-footnotes { font-size: calc(11pt * 1.22 * var(--s) * var(--fit) * 6 / 7); line-height: calc(1.85 * var(--reader-leading, 1)); }
+.book-sheet .sheet-footnotes-rule { width: 33%; max-width: calc(1.75in * var(--s)); height: 1px; margin-bottom: calc(0.09in * var(--s)); background: color-mix(in oklch, var(--page-accent) 50%, transparent); }
+.book-sheet .sheet-footnote + .sheet-footnote { margin-top: 0.35em; }
+
+/* phones and tablets: no fixed A5 — the page runs the full width, grows with its text and uses
+   larger type (--flow-px, the same size as sentence mode). Keep FLOW_BELOW_PX in book-view.tsx in step. */
+@media (max-width: 1023.98px) {
+    .book-sheet { width: 100%; height: auto; min-height: 78vh; padding: 0 2.5rem 2.5rem; }
+    .book-sheet.bn .sheet-text { font-size: var(--flow-px); }
+    .book-sheet.ar .sheet-text { font-size: calc(var(--flow-px) * 1.22); }
+    .book-sheet.bn .sheet-footnotes { font-size: calc(var(--flow-px) * 6 / 7); }
+    .book-sheet.ar .sheet-footnotes { font-size: calc(var(--flow-px) * 1.22 * 6 / 7); }
+    .book-sheet .running-head { gap: 0.75rem; margin-bottom: 1.5rem; }
+    .book-sheet.bn .running-title { font-size: 13px; }
+    .book-sheet.ar .running-title { font-size: 15px; }
+    .book-sheet .page-tab { width: 2.75rem; height: 4rem; padding-bottom: 0.625rem; }
+    .book-sheet.bn .page-tab span { font-size: 13px; }
+    .book-sheet.ar .page-tab span { font-size: 15px; }
+    /* both languages: two flowing pages side by side, like an opened book */
+    .book-row { display: grid; grid-template-columns: 1fr 1fr; }
+}
+/* narrow tablets: the two pages stack, Arabic first, with a faded rule between them */
+@media (max-width: 767.98px) {
+    .book-row { grid-template-columns: 1fr; }
+    .book-row > .book-sheet.ar { order: -1; }
+    .book-row > .book-sheet.bn::before { content: ''; position: absolute; inset-inline: 2rem; top: 0; height: 1px; background: linear-gradient(to right, transparent, color-mix(in oklch, var(--page-accent) 40%, transparent), transparent); }
+    .book-spine { display: none; }
+}
+/* phones: one language, edge to edge, filling the screen */
+@media (max-width: 639.98px) {
+    .book-sheet { min-height: calc(100svh - 3.75rem); padding: 0 1.25rem 2rem; }
+    .book-sheet.phone-hidden { display: none; }
+    .book-sheet .page-tab { height: 3.5rem; }
+}
+
 .sentence {
     border-radius: 3px;
     transition: background-color 120ms ease;

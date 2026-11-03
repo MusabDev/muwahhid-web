@@ -10,7 +10,7 @@ import { BookView } from '@/components/reader/book-view'
 import { ReaderContext, type ReaderContextValue } from '@/components/reader/reader-context'
 import { SearchPanel } from '@/components/reader/search-panel'
 import { SentenceView } from '@/components/reader/sentence-view'
-import { clampFontSize, Kbd, LEADING, SettingsPanel } from '@/components/reader/settings-panel'
+import { clampFontSize, FONT_SIZE, Kbd, LEADING, SettingsPanel } from '@/components/reader/settings-panel'
 import { PatternTint } from '@/components/pattern'
 import { Spinner } from '@/components/states'
 import { useTextActions } from '@/components/text-actions'
@@ -287,9 +287,9 @@ function Reader() {
       s: () => setSettingsOpen((o) => !o),
       f: fullscreen.toggle,
       ...(fullscreen.on && { Escape: fullscreen.exit }),
-      '+': () => update({ fontSize: clampFontSize(settings.fontSize + 1) }),
-      '=': () => update({ fontSize: clampFontSize(settings.fontSize + 1) }),
-      '-': () => update({ fontSize: clampFontSize(settings.fontSize - 1) }),
+      '+': () => update({ fontPt: clampFontSize(settings.fontPt + FONT_SIZE.step) }),
+      '=': () => update({ fontPt: clampFontSize(settings.fontPt + FONT_SIZE.step) }),
+      '-': () => update({ fontPt: clampFontSize(settings.fontPt - FONT_SIZE.step) }),
     }
   })
 
